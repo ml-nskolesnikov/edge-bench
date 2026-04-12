@@ -96,6 +96,33 @@
     {% endif %}
 </section>
 
+{% if upcoming_schedules %}
+<section class="section">
+    <div class="section-header">
+        <h2 data-i18n="Upcoming Schedules">Ближайшие запуски</h2>
+        <a href="/schedules" class="btn btn-secondary btn-small" data-i18n="All schedules">Все расписания</a>
+    </div>
+    <div class="upcoming-schedules">
+        {% for s in upcoming_schedules %}
+        <div class="upcoming-card">
+            <div class="upcoming-name">{{ s.name }}</div>
+            <div class="upcoming-meta">
+                <span>{{ s.model_name }}</span>
+                <span class="badge badge-backend">{{ s.backend }}</span>
+            </div>
+            <div class="upcoming-time">
+                {% if s.next_run %}
+                    🕐 {{ s.next_run[:16] }} UTC
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 <section class="section">
     <h2 data-i18n="Quick Actions">Быстрые действия</h2>
     <div class="quick-actions-grid">
@@ -340,6 +367,43 @@
 .quick-action-card span {
     font-size: 14px;
     font-weight: 500;
+}
+
+/* Upcoming schedules */
+.upcoming-schedules {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+.upcoming-card {
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    padding: 14px 16px;
+    border-left: 3px solid #7c3aed;
+}
+.upcoming-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+.upcoming-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+.badge-backend {
+    background: #e5e7eb;
+    color: #374151;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 0.72rem;
+}
+.upcoming-time {
+    font-size: 0.82rem;
+    color: #6b7280;
 }
 </style>
 {% endblock %}

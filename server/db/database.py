@@ -108,6 +108,22 @@ CREATE TABLE IF NOT EXISTS convert_tasks (
     FOREIGN KEY (file_id) REFERENCES files(id)
 );
 
+-- Schedules table (nightly benchmark automation)
+CREATE TABLE IF NOT EXISTS schedules (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    device_id   TEXT NOT NULL,
+    model_name  TEXT NOT NULL,
+    backend     TEXT NOT NULL DEFAULT 'edgetpu',
+    cron        TEXT NOT NULL,
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    params      TEXT,
+    last_run_at TEXT,
+    last_exp_id TEXT,
+    created_at  TEXT NOT NULL,
+    FOREIGN KEY (device_id) REFERENCES devices(id)
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_experiments_device ON experiments(device_id);
 CREATE INDEX IF NOT EXISTS idx_experiments_status ON experiments(status);
@@ -115,6 +131,8 @@ CREATE INDEX IF NOT EXISTS idx_results_experiment ON results(experiment_id);
 CREATE INDEX IF NOT EXISTS idx_device_deps_device ON device_dependencies(device_id);
 CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash);
 CREATE INDEX IF NOT EXISTS idx_convert_tasks_file ON convert_tasks(file_id);
+CREATE INDEX IF NOT EXISTS idx_schedules_device ON schedules(device_id);
+CREATE INDEX IF NOT EXISTS idx_schedules_enabled ON schedules(enabled);
 """
 
 
@@ -182,6 +200,31 @@ async def init_db():
             await db.execute(
                 'ALTER TABLE experiments ADD COLUMN is_baseline INTEGER DEFAULT 0'
             )
+            await db.commit()
+
+        # Migration: create schedules table if missing (for existing databases)
+        cursor = await db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='schedules'"
+        )
+        if not await cursor.fetchone():
+            await db.executescript("""
+                CREATE TABLE IF NOT EXISTS schedules (
+                    id          TEXT PRIMARY KEY,
+                    name        TEXT NOT NULL,
+                    device_id   TEXT NOT NULL,
+                    model_name  TEXT NOT NULL,
+                    backend     TEXT NOT NULL DEFAULT 'edgetpu',
+                    cron        TEXT NOT NULL,
+                    enabled     INTEGER NOT NULL DEFAULT 1,
+                    params      TEXT,
+                    last_run_at TEXT,
+                    last_exp_id TEXT,
+                    created_at  TEXT NOT NULL,
+                    FOREIGN KEY (device_id) REFERENCES devices(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_schedules_device ON schedules(device_id);
+                CREATE INDEX IF NOT EXISTS idx_schedules_enabled ON schedules(enabled);
+            """)
             await db.commit()
 
         # Add default dependencies if not exist

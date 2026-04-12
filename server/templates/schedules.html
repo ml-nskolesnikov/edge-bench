@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}Schedules — Edge-Bench{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 data-i18n="Schedules">Расписания</h1>
+    <button class="btn btn-primary" onclick="openNewScheduleModal()">
+        + <span data-i18n="New Schedule">Новое расписание</span>
+    </button>
+</div>
+
+{% if schedules %}
+<div class="table-container">
+    <table class="data-table" id="schedules-table">
+        <thead>
+            <tr>
+                <th data-i18n="Name">Название</th>
+                <th data-i18n="Device">Устройство</th>
+                <th data-i18n="Model">Модель</th>
+                <th data-i18n="Backend">Бэкенд</th>
+                <th data-i18n="Schedule">Расписание</th>
+                <th data-i18n="Last Run">Последний запуск</th>
+                <th data-i18n="Next Run">Следующий запуск</th>
+                <th data-i18n="Status">Статус</th>
+                <th data-i18n="Actions">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in schedules %}
+            <tr id="row-{{ s.id }}">
+                <td><strong>{{ s.name }}</strong></td>
+                <td>{{ s.device_name or s.device_id }}</td>
+                <td><code>{{ s.model_name }}</code></td>
+                <td>
+                    <span class="badge badge-{{ 'tpu' if s.backend == 'edgetpu' else 'cpu' }}">
+                        {{ s.backend }}
+                    </span>
+                </td>
+                <td title="{{ s.cron }}">{{ s.cron_human }}</td>
+                <td class="text-muted">
+                    {% if s.last_run_at %}
+                        <span title="{{ s.last_run_at }}">{{ s.last_run_at[:16] }}</span>
+                        {% if s.last_exp_id %}
+                            <a href="/experiments/{{ s.last_exp_id }}" class="small-link">↗</a>
+                        {% endif %}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td class="text-muted">
+                    {% if s.next_run %}
+                        <span title="{{ s.next_run }}">{{ s.next_run[:16] }}</span>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.enabled %}
+                        <span class="badge badge-success" data-i18n="Enabled">Активно</span>
+                    {% else %}
+                        <span class="badge badge-muted" data-i18n="Disabled">Отключено</span>
+                    {% endif %}
+                </td>
+                <td class="actions-cell">
+                    <button class="btn btn-sm btn-secondary"
+                            onclick="runNow('{{ s.id }}')"
+                            title="Run now">▶</button>
+                    <button class="btn btn-sm {{ 'btn-warning' if s.enabled else 'btn-success' }}"
+                            onclick="toggleEnabled('{{ s.id }}', {{ 'false' if s.enabled else 'true' }})"
+                            title="{{ 'Disable' if s.enabled else 'Enable' }}">
+                        {{ '⏸' if s.enabled else '▶' }}
+                    </button>
+                    <button class="btn btn-sm btn-danger"
+                            onclick="deleteSchedule('{{ s.id }}', '{{ s.name }}')"
+                            title="Delete">🗑</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <p data-i18n="No schedules yet">Расписаний ещё нет.</p>
+    <p><button class="btn btn-primary" onclick="openNewScheduleModal()">
+        + <span data-i18n="Create first schedule">Создать первое расписание</span>
+    </button></p>
+</div>
+{% endif %}
+
+<!-- ===== New Schedule Modal ===== -->
+<div id="new-schedule-modal" class="modal" style="display:none">
+    <div class="modal-backdrop" onclick="closeModal()"></div>
+    <div class="modal-box">
+        <h2 data-i18n="New Schedule">Новое расписание</h2>
+
+        <form id="schedule-form" onsubmit="submitSchedule(event)">
+            <div class="form-group">
+                <label data-i18n="Name">Название</label>
+                <input type="text" id="f-name" name="name" required
+                       placeholder="Nightly MobileNetV2 TPU" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="Device">Устройство</label>
+                <select id="f-device" name="device_id" required class="form-control">
+                    <option value="">— выберите устройство —</option>
+                    {% for d in devices %}
+                    <option value="{{ d.id }}">{{ d.name }} ({{ d.ip }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="Model">Имя модели</label>
+                <input type="text" id="f-model" name="model_name" required
+                       placeholder="mobilenetv2_int8_edgetpu.tflite" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="Backend">Бэкенд</label>
+                <select id="f-backend" name="backend" class="form-control">
+                    <option value="edgetpu">Edge TPU</option>
+                    <option value="cpu">CPU</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="Schedule">Расписание</label>
+                <div class="preset-buttons">
+                    <button type="button" class="btn btn-sm btn-outline preset-btn"
+                            onclick="setPreset('0 2 * * *')">Каждую ночь в 2:00</button>
+                    <button type="button" class="btn btn-sm btn-outline preset-btn"
+                            onclick="setPreset('0 * * * *')">Каждый час</button>
+                    <button type="button" class="btn btn-sm btn-outline preset-btn"
+                            onclick="setPreset('0 */6 * * *')">Каждые 6 часов</button>
+                    <button type="button" class="btn btn-sm btn-outline preset-btn"
+                            onclick="setPreset('custom')">Custom</button>
+                </div>
+                <input type="text" id="f-cron" name="cron" required
+                       placeholder="0 2 * * *" class="form-control"
+                       style="margin-top:6px; font-family: monospace">
+                <small class="form-hint">
+                    Формат: min hour day month weekday (UTC) — пример: <code>0 2 * * *</code> = каждую ночь в 02:00 UTC
+                </small>
+            </div>
+
+            <div class="form-group form-row">
+                <div>
+                    <label data-i18n="Benchmark runs">Runs</label>
+                    <input type="number" id="f-runs" name="benchmark_runs"
+                           value="100" min="1" class="form-control">
+                </div>
+                <div>
+                    <label data-i18n="Warmup runs">Warmup</label>
+                    <input type="number" id="f-warmup" name="warmup_runs"
+                           value="10" min="0" class="form-control">
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                    <span data-i18n="Cancel">Отмена</span>
+                </button>
+                <button type="submit" class="btn btn-primary" id="submit-btn">
+                    <span data-i18n="Create Schedule">Создать расписание</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="toast" style="display:none"></div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.badge-tpu  { background: #7c3aed; color: #fff; }
+.badge-cpu  { background: #2563eb; color: #fff; }
+.badge-success { background: #16a34a; color: #fff; }
+.badge-muted   { background: #6b7280; color: #fff; }
+.badge { padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
+
+.actions-cell { white-space: nowrap; }
+.small-link { font-size: 0.75rem; margin-left: 4px; opacity: 0.6; }
+
+.preset-buttons { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.preset-btn.active { background: var(--primary); color: #fff; }
+
+.form-row { display: flex; gap: 1rem; }
+.form-row > div { flex: 1; }
+
+.modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+.modal-box {
+    position: relative; background: var(--bg-card, #fff); border-radius: 10px;
+    padding: 2rem; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1.5rem; }
+.form-hint { display: block; color: #6b7280; font-size: 0.8rem; margin-top: 4px; }
+
+.toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #1e293b; color: #fff; padding: 12px 20px;
+    border-radius: 8px; z-index: 9999; font-size: 0.9rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.empty-state { text-align: center; padding: 4rem 0; color: #6b7280; }
+</style>
+
+<script>
+function openNewScheduleModal() {
+    document.getElementById('new-schedule-modal').style.display = 'flex';
+    document.getElementById('f-cron').value = '0 2 * * *';
+}
+
+function closeModal() {
+    document.getElementById('new-schedule-modal').style.display = 'none';
+}
+
+function setPreset(cron) {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    if (cron === 'custom') {
+        document.getElementById('f-cron').value = '';
+        document.getElementById('f-cron').focus();
+    } else {
+        document.getElementById('f-cron').value = cron;
+        event.target.classList.add('active');
+    }
+}
+
+function showToast(msg, ok) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.background = ok ? '#16a34a' : '#dc2626';
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 3500);
+}
+
+async function submitSchedule(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+
+    const payload = {
+        name:       document.getElementById('f-name').value,
+        device_id:  document.getElementById('f-device').value,
+        model_name: document.getElementById('f-model').value,
+        backend:    document.getElementById('f-backend').value,
+        cron:       document.getElementById('f-cron').value,
+        params: {
+            benchmark_runs: parseInt(document.getElementById('f-runs').value) || 100,
+            warmup_runs:    parseInt(document.getElementById('f-warmup').value) || 10,
+        }
+    };
+
+    try {
+        const resp = await fetch('/api/schedules', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        if (resp.ok) {
+            showToast('Расписание создано!', true);
+            setTimeout(() => location.reload(), 900);
+        } else {
+            const err = await resp.json();
+            showToast('Ошибка: ' + (err.detail || resp.statusText), false);
+        }
+    } catch(ex) {
+        showToast('Ошибка сети: ' + ex, false);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function runNow(id) {
+    try {
+        const r = await fetch(`/api/schedules/${id}/run-now`, {method: 'POST'});
+        if (r.ok) {
+            showToast('Запуск инициирован!', true);
+        } else {
+            showToast('Ошибка запуска', false);
+        }
+    } catch(ex) {
+        showToast('Ошибка: ' + ex, false);
+    }
+}
+
+async function toggleEnabled(id, enable) {
+    try {
+        const r = await fetch(`/api/schedules/${id}`, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({enabled: enable}),
+        });
+        if (r.ok) {
+            location.reload();
+        } else {
+            showToast('Ошибка обновления', false);
+        }
+    } catch(ex) {
+        showToast('Ошибка: ' + ex, false);
+    }
+}
+
+async function deleteSchedule(id, name) {
+    if (!confirm(`Удалить расписание "${name}"?`)) return;
+    try {
+        const r = await fetch(`/api/schedules/${id}`, {method: 'DELETE'});
+        if (r.ok) {
+            document.getElementById(`row-${id}`)?.remove();
+            showToast('Расписание удалено', true);
+        } else {
+            showToast('Ошибка удаления', false);
+        }
+    } catch(ex) {
+        showToast('Ошибка: ' + ex, false);
+    }
+}
+</script>
+{% endblock %}
