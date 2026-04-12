@@ -1,0 +1,1801 @@
+{% extends "base.html" %}
+
+{% block title %}Эксперименты - Edge-Bench{% endblock %}
+
+{% block content %}
+<section class="section experiments-section">
+<div class="page-header">
+    <h1 data-i18n="Experiments">Эксперименты</h1>
+    <p class="page-subtitle">Управление и анализ бенчмарков ML-моделей на Edge-устройствах</p>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+    <div class="toolbar-left">
+        <a href="/new-experiment" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2z"/>
+            </svg>
+            <span>Новый эксперимент</span>
+        </a>
+    </div>
+
+    <div class="toolbar-right">
+        <button onclick="safeReload()" class="btn" title="Обновить">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar" id="filterBar">
+    <div class="filter-search">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="filter-search-icon">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Поиск по названию, модели, ID..." oninput="applyAllFilters()">
+        <button class="filter-search-clear" id="searchClear" onclick="clearSearch()" style="display:none;" title="Очистить поиск">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
+        </button>
+    </div>
+    <div class="filter-dropdowns">
+        <div class="filter-group">
+            <label>Статус</label>
+            <select id="filterStatus" onchange="applyAllFilters()">
+                <option value="">Все</option>
+                <option value="completed">Завершён</option>
+                <option value="running">Выполняется</option>
+                <option value="queued">В очереди</option>
+                <option value="failed">Ошибка</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Бэкенд</label>
+            <select id="filterBackend" onchange="applyAllFilters()">
+                <option value="">Все</option>
+                <option value="cpu">CPU</option>
+                <option value="edgetpu">EdgeTPU</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Модель</label>
+            <select id="filterModel" onchange="applyAllFilters()">
+                <option value="">Все</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Устройство</label>
+            <select id="filterDevice" onchange="applyAllFilters()">
+                <option value="">Все</option>
+            </select>
+        </div>
+        <button class="filter-reset-btn" id="filterResetBtn" onclick="resetAllFilters()" style="display:none;" title="Сбросить все фильтры">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
+            Сбросить
+        </button>
+    </div>
+    <!-- Active filters chips + result counter -->
+    <div class="filter-footer" id="filterFooter" style="display:none;">
+        <div class="filter-chips" id="filterChips"></div>
+        <span class="filter-count" id="filterCount"></span>
+    </div>
+</div>
+
+<!-- Queue Status Panel -->
+<div class="queue-status-panel" id="queueStatusPanel">
+    <div class="queue-header">
+        <div class="queue-title">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M3 2.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6zm0 3.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5z"/>
+            </svg>
+            <span>Очередь задач</span>
+        </div>
+        <div class="queue-actions-panel">
+            <button onclick="retryAllFailed()" class="btn btn-small btn-warning" id="retryAllBtn" style="display: none;">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                </svg>
+                <span>Повторить все неудавшиеся</span>
+            </button>
+            <button onclick="refreshQueueStatus()" class="btn btn-small" title="Обновить статус">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" id="refreshIcon">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    <div class="queue-stats">
+        <div class="queue-stat queue-stat-queued">
+            <span class="queue-stat-value" id="queuedCount">-</span>
+            <span class="queue-stat-label">В очереди</span>
+        </div>
+        <div class="queue-stat queue-stat-running">
+            <span class="queue-stat-value" id="runningCount">-</span>
+            <span class="queue-stat-label">Выполняется</span>
+        </div>
+        <div class="queue-stat queue-stat-failed">
+            <span class="queue-stat-value" id="failedCount">-</span>
+            <span class="queue-stat-label">Неудачных</span>
+        </div>
+        <div class="queue-stat queue-stat-retry">
+            <span class="queue-stat-value" id="retryCount">-</span>
+            <span class="queue-stat-label">Ожидают повтора</span>
+        </div>
+    </div>
+    <div class="queue-current" id="queueCurrent" style="display: none;">
+        <span class="current-label">Сейчас выполняется:</span>
+        <span class="current-task" id="currentTask">-</span>
+    </div>
+</div>
+
+<!-- Main Content -->
+    {% if experiments %}
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-value" id="totalCount">{{ experiments|length }}</span>
+            <span class="stat-label">Всего</span>
+        </div>
+        <div class="stat-item stat-completed">
+            <span class="stat-value">{{ experiments|selectattr('status', 'equalto', 'completed')|list|length }}</span>
+            <span class="stat-label">Завершено</span>
+        </div>
+        <div class="stat-item stat-running">
+            <span class="stat-value">{{ experiments|selectattr('status', 'equalto', 'running')|list|length }}</span>
+            <span class="stat-label">Выполняется</span>
+        </div>
+        <div class="stat-item stat-failed">
+            <span class="stat-value">{{ experiments|selectattr('status', 'equalto', 'failed')|list|length }}</span>
+            <span class="stat-label">Ошибок</span>
+        </div>
+    </div>
+
+    <!-- Bulk actions bar -->
+    <div class="bulk-bar" id="bulkBar">
+        <div class="bulk-left">
+            <span class="bulk-count" id="bulkCount">0</span>
+            <span>выбрано</span>
+            <button class="bulk-clear" onclick="clearExpSelection()">Сбросить</button>
+        </div>
+        <div class="bulk-right">
+            <button class="btn btn-small bulk-btn-reassign" id="bulkReassignBtn" onclick="showBulkReassign()" style="display:none;" title="Сменить устройство для выбранных">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                </svg>
+                Сменить устройство
+            </button>
+            <button class="btn btn-small bulk-btn-retry" id="bulkRetryBtn" onclick="bulkRetry()" style="display:none;" title="Повторить выбранные">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                </svg>
+                Повторить
+            </button>
+            <button class="btn btn-small btn-danger-outline" onclick="bulkDelete()">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                    <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                </svg>
+                Удалить выбранные
+            </button>
+            <div class="bulk-sep"></div>
+            <button class="btn btn-small btn-danger-outline" onclick="bulkDeleteByStatus()">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5zM11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H2.506a.58.58 0 0 0-.01 0H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1h-.995a.59.59 0 0 0-.01 0H11z"/>
+                </svg>
+                Удалить по статусу...
+            </button>
+        </div>
+    </div>
+
+    <div class="table-container">
+    <table class="data-table experiments-table" id="experimentsTable">
+        <thead>
+            <tr>
+                <th style="width:40px;">
+                    <label class="exp-cb-wrap">
+                        <input type="checkbox" id="expSelectAll" onchange="toggleExpSelectAll(this)">
+                        <span class="exp-cb-box"></span>
+                    </label>
+                </th>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Модель</th>
+                <th>Бэкенд</th>
+                <th>Устройство</th>
+                <th>Статус</th>
+                <th>Дата</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody id="experimentsBody">
+            {% for exp in experiments %}
+            {% set params = exp.params if exp.params is mapping else {} %}
+            {% set backend = exp.params.get('backend', '') if exp.params is mapping else '' %}
+            <tr class="experiment-row" data-id="{{ exp.id }}" data-status="{{ exp.status }}" data-backend="{{ backend }}" data-model="{{ exp.model_name or '' }}" data-device="{{ exp.device_name or '' }}">
+                <td>
+                    <label class="exp-cb-wrap">
+                        <input type="checkbox" class="exp-cb" value="{{ exp.id }}" data-status="{{ exp.status }}" onchange="updateExpBulkBar()">
+                        <span class="exp-cb-box"></span>
+                    </label>
+                </td>
+                <td>
+                    <code class="id-code">{{ exp.id }}</code>
+                </td>
+                <td>{{ exp.name }}</td>
+                <td><code>{{ exp.model_name }}</code></td>
+                <td>
+                    {% if backend == 'edgetpu' %}
+                    <span class="backend-badge backend-edgetpu">EdgeTPU</span>
+                    {% elif backend == 'cpu' %}
+                    <span class="backend-badge backend-cpu">CPU</span>
+                    {% elif backend %}
+                    <span class="backend-badge backend-cpu">{{ backend }}</span>
+                    {% else %}-{% endif %}
+                </td>
+                <td>{{ exp.device_name or exp.device_id[:8] }}</td>
+                <td>
+                    <span class="status-badge status-{{ exp.status }}">
+                        {% if exp.status == 'running' %}<span class="spinner"></span>{% endif %}
+                        {% if exp.status == 'completed' %}завершён
+                        {% elif exp.status == 'running' %}выполняется
+                        {% elif exp.status == 'queued' %}в очереди
+                        {% elif exp.status == 'failed' %}<span title="{{ exp.error_message or 'Ошибка' }}">ошибка</span>
+                        {% else %}{{ exp.status }}{% endif %}
+                    </span>
+                </td>
+                <td>{{ exp.created_at[:10] }}</td>
+                <td class="actions-cell">
+                    <div class="action-buttons-inline">
+                        <a href="/experiments/{{ exp.id }}" class="action-btn" title="Просмотр">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                            </svg>
+                        </a>
+                        {% if exp.status == 'failed' %}
+                        <button onclick="showReassign('{{ exp.id }}', '{{ exp.device_id }}')" class="action-btn action-reassign" title="Сменить устройство">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                            </svg>
+                        </button>
+                        <button onclick="retryExperiment('{{ exp.id }}')" class="action-btn action-retry" title="Повторить">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                                <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                            </svg>
+                        </button>
+                        {% else %}
+                        <button onclick="rerunExperiment('{{ exp.id }}')" class="action-btn" title="Создать копию">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                            </svg>
+                        </button>
+                        {% endif %}
+                        <button onclick="deleteExperiment('{{ exp.id }}')" class="action-btn action-danger" title="Удалить">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    <!-- No results after filtering -->
+    <div class="filter-no-results" id="noResults">
+        <svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+        </svg>
+        <h3>Ничего не найдено</h3>
+        <p>Попробуйте изменить параметры поиска или сбросить фильтры</p>
+    </div>
+
+    <!-- Status delete modal -->
+    <div class="modal" id="statusDeleteModal" style="display:none;">
+        <div class="modal-content" style="max-width:440px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="margin:0;">Удалить по статусу</h3>
+                <button onclick="document.getElementById('statusDeleteModal').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;">&times;</button>
+            </div>
+            <div class="sd-modal-body">
+                <p style="color:var(--text-muted);font-size:14px;margin:0 0 8px;">Выберите статус для массового удаления:</p>
+                <div class="sd-options" id="sdOptions"></div>
+                <div class="sd-danger-note">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>
+                    Действие необратимо. Результаты также будут удалены.
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+                <button class="btn" onclick="document.getElementById('statusDeleteModal').style.display='none'">Отмена</button>
+                <button class="btn btn-danger-outline" id="sdConfirmBtn" onclick="confirmStatusDelete()">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reassign Device Modal -->
+    <div class="modal" id="reassignModal" style="display:none;">
+        <div class="modal-content" style="max-width:420px;border-radius:14px;overflow:hidden;padding:0;">
+            <div class="reassign-header">
+                <div class="reassign-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                        <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                        <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                    </svg>
+                </div>
+                <h3>Сменить устройство</h3>
+                <button onclick="closeReassign()" class="reassign-close">&times;</button>
+            </div>
+            <div class="reassign-body">
+                <input type="hidden" id="reassignExpId">
+                <p class="reassign-hint">Выберите устройство для повторного запуска эксперимента:</p>
+                <div class="reassign-devices" id="reassignDevices">
+                    <!-- filled by JS -->
+                </div>
+            </div>
+            <div class="reassign-footer">
+                <button onclick="closeReassign()" class="btn">Отмена</button>
+                <button onclick="doReassign(false)" class="btn btn-primary" id="reassignBtn">Назначить</button>
+                <button onclick="doReassign(true)" class="btn btn-primary reassign-retry-btn" id="reassignRetryBtn">Назначить и повторить</button>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 16 16" fill="currentColor" class="empty-icon">
+            <path d="M9.669.864 8 0 6.331.864l-1.858.282-.842 1.68-1.337 1.32L2.6 6l-.306 1.854 1.337 1.32.842 1.68 1.858.282L8 12l1.669-.864 1.858-.282.842-1.68 1.337-1.32L13.4 6l.306-1.854-1.337-1.32-.842-1.68L9.669.864z"/>
+        </svg>
+        <h3>Экспериментов пока нет</h3>
+        <p>Создайте первый эксперимент для бенчмаркинга вашей модели</p>
+        <a href="/new-experiment" class="btn btn-primary">Создать эксперимент</a>
+    </div>
+    {% endif %}
+</section>
+
+<style>
+.container:has(.experiments-section) {
+    max-width: none;
+    width: 100%;
+    padding: 24px 5%;
+}
+
+.experiments-section {
+    width: 100% !important;
+    max-width: 1800px;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+.page-header { margin-bottom: 24px; }
+.page-header h1 { margin-bottom: 4px; }
+.page-subtitle { color: var(--text-muted); margin: 0; }
+
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px 8px 0 0;
+    border-bottom: none;
+}
+
+.toolbar-left, .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Filter Bar */
+.filter-bar {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 0 0 8px 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.filter-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.filter-search-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--text-muted);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.filter-search input {
+    width: 100%;
+    padding: 10px 38px 10px 40px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-search input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+.filter-search input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.filter-search-clear {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+}
+
+.filter-search-clear:hover {
+    color: var(--text);
+    background: rgba(139, 148, 158, 0.15);
+}
+
+.filter-dropdowns {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 130px;
+}
+
+.filter-group label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding-left: 2px;
+}
+
+.filter-group select {
+    padding: 8px 28px 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='%238b949e'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+}
+
+.filter-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.filter-group select.active {
+    border-color: var(--accent);
+    background-color: rgba(88, 166, 255, 0.06);
+}
+
+.filter-reset-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    white-space: nowrap;
+    margin-left: auto;
+}
+
+.filter-reset-btn:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(248, 81, 73, 0.06);
+}
+
+/* Filter footer: chips + count */
+.filter-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.filter-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 12px;
+    background: rgba(88, 166, 255, 0.1);
+    border: 1px solid rgba(88, 166, 255, 0.25);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.filter-chip-label {
+    font-weight: 600;
+    opacity: 0.7;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+}
+
+.filter-chip-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--accent);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.filter-chip-remove:hover {
+    opacity: 1;
+}
+
+.filter-count {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.filter-count strong {
+    color: var(--accent);
+}
+
+/* No results message */
+.filter-no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    display: none;
+}
+
+.filter-no-results svg {
+    opacity: 0.3;
+    margin-bottom: 12px;
+}
+
+.filter-no-results p {
+    margin: 4px 0 0;
+    font-size: 14px;
+}
+
+/* Queue Status Panel */
+.queue-status-panel {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(88, 166, 255, 0.05) 100%);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.queue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.queue-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.queue-title svg { color: var(--accent); }
+
+.queue-actions-panel {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+}
+
+.queue-stats {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.queue-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--bg);
+    border-radius: 6px;
+    min-width: 80px;
+}
+
+.queue-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.queue-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.queue-stat-queued .queue-stat-value { color: var(--text-muted); }
+.queue-stat-running .queue-stat-value { color: var(--accent); }
+.queue-stat-failed .queue-stat-value { color: var(--danger); }
+.queue-stat-retry .queue-stat-value { color: #f59e0b; }
+
+.queue-current {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.current-label { font-size: 0.85rem; color: var(--text-muted); }
+
+.current-task {
+    font-family: monospace;
+    font-size: 0.85rem;
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+
+/* Stats Bar */
+.stats-bar {
+    display: flex;
+    gap: 24px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.stat-value { font-size: 1.25rem; font-weight: 600; }
+.stat-label { font-size: 0.85rem; color: var(--text-muted); }
+
+.stat-completed .stat-value { color: var(--success); }
+.stat-running .stat-value { color: var(--accent); }
+.stat-failed .stat-value { color: var(--danger); }
+
+/* Table */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+}
+
+.experiments-table {
+    width: 100%;
+    min-width: 800px;
+    border: none;
+    margin: 0;
+}
+
+.id-code {
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-completed { background: rgba(63, 185, 80, 0.15); color: var(--success); }
+.status-running { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
+.status-queued { background: rgba(128, 128, 128, 0.15); color: var(--text-muted); }
+.status-failed { background: rgba(248, 81, 73, 0.15); color: var(--danger); }
+
+.spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.actions-cell { width: 120px; }
+
+.action-buttons-inline {
+    display: flex;
+    gap: 4px;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 4px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+}
+
+.action-btn:hover { background: var(--bg-secondary); color: var(--text); }
+.action-danger:hover { color: var(--danger); }
+.action-retry { color: #f59e0b !important; }
+.action-retry:hover { background: rgba(245, 158, 11, 0.15) !important; }
+.action-reassign { color: var(--accent) !important; }
+.action-reassign:hover { background: rgba(88, 166, 255, 0.15) !important; }
+
+/* Reassign modal */
+.reassign-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(88,166,255,0.08) 0%, rgba(136,87,255,0.08) 100%);
+}
+.reassign-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+}
+.reassign-header h3 { flex: 1; margin: 0; font-size: 1rem; }
+.reassign-close {
+    background: none; border: none; font-size: 22px;
+    color: var(--text-muted); cursor: pointer; padding: 0 4px;
+}
+.reassign-close:hover { color: var(--danger); }
+.reassign-body { padding: 18px; }
+.reassign-hint { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 12px; }
+.reassign-devices { display: flex; flex-direction: column; gap: 6px; }
+.reassign-dev {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border: 2px solid var(--border);
+    border-radius: 10px; cursor: pointer; transition: all 0.15s;
+}
+.reassign-dev:hover { border-color: var(--accent); background: rgba(88,166,255,0.04); }
+.reassign-dev.selected { border-color: var(--accent); background: rgba(88,166,255,0.08); }
+.reassign-dev.current { opacity: 0.45; pointer-events: none; }
+.reassign-dev-radio {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; transition: all 0.15s;
+}
+.reassign-dev.selected .reassign-dev-radio {
+    background: var(--accent); border-color: var(--accent);
+}
+.reassign-dev.selected .reassign-dev-radio::after {
+    content: ''; width: 6px; height: 6px; background: #fff; border-radius: 50%;
+}
+.reassign-dev-info { flex: 1; }
+.reassign-dev-name { font-weight: 500; font-size: 0.9rem; }
+.reassign-dev-ip { font-size: 0.8rem; color: var(--text-muted); }
+.reassign-dev-status {
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 500;
+}
+.reassign-dev-status.online { background: rgba(63,185,80,0.15); color: #3fb950; }
+.reassign-dev-status.offline { background: rgba(248,81,73,0.15); color: #f85149; }
+.reassign-dev-current-tag {
+    font-size: 0.65rem; padding: 1px 6px; border-radius: 4px;
+    background: rgba(139,148,158,0.15); color: var(--text-muted);
+    margin-left: 6px;
+}
+.reassign-footer {
+    display: flex; gap: 8px; justify-content: flex-end;
+    padding: 14px 18px; border-top: 1px solid var(--border);
+    background: var(--bg);
+}
+.reassign-retry-btn { background: #3fb950 !important; }
+.reassign-retry-btn:hover { background: #2ea043 !important; }
+.reassign-no-devices {
+    text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    color: var(--text-muted);
+    opacity: 0.5;
+    margin-bottom: 16px;
+}
+
+.backend-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+.backend-cpu {
+    background: rgba(139, 148, 158, 0.2);
+    color: var(--text-muted);
+}
+.backend-edgetpu {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent);
+}
+
+/* Checkbox */
+.exp-cb-wrap {
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; position: relative; width: 20px; height: 20px;
+}
+.exp-cb-wrap input { position: absolute; opacity: 0; width: 0; height: 0; }
+.exp-cb-box {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-radius: 4px; display: flex; align-items: center;
+    justify-content: center; transition: all 0.15s; flex-shrink: 0;
+}
+.exp-cb-wrap input:checked + .exp-cb-box {
+    background: var(--accent); border-color: var(--accent);
+}
+.exp-cb-wrap input:checked + .exp-cb-box::after {
+    content: ''; display: block; width: 5px; height: 9px;
+    border: solid #fff; border-width: 0 2px 2px 0;
+    transform: rotate(45deg); margin-top: -2px;
+}
+.exp-cb-wrap:hover .exp-cb-box { border-color: var(--accent); }
+
+.experiment-row.row-selected { background: rgba(88,166,255,0.06); }
+
+/* Bulk actions bar */
+.bulk-bar {
+    display: none; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 12px 16px; margin-bottom: 12px;
+    background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25);
+    border-radius: 10px; flex-wrap: wrap;
+    animation: bulkSlide 0.25s ease;
+}
+.bulk-bar.visible { display: flex; }
+@keyframes bulkSlide {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.bulk-left { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text); }
+.bulk-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--accent); color: #fff; font-weight: 700;
+    min-width: 26px; height: 26px; border-radius: 13px;
+    font-size: 13px; padding: 0 8px;
+}
+.bulk-clear {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 13px; text-decoration: underline;
+    padding: 0; transition: color 0.15s;
+}
+.bulk-clear:hover { color: var(--text); }
+.bulk-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bulk-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+
+.btn-danger-outline {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; border: 1px solid var(--danger);
+    color: var(--danger); padding: 6px 14px; border-radius: 6px;
+    font-size: 13px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn-danger-outline:hover {
+    background: rgba(248,81,73,0.12); border-color: var(--danger);
+}
+.bulk-btn-reassign {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; border: 1px solid var(--accent);
+    color: var(--accent); white-space: nowrap;
+}
+.bulk-btn-reassign:hover { background: rgba(88,166,255,0.12); }
+.bulk-btn-retry {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; border: 1px solid #f59e0b;
+    color: #f59e0b; white-space: nowrap;
+}
+.bulk-btn-retry:hover { background: rgba(245,158,11,0.12); }
+
+/* Status delete modal */
+.sd-modal-body { padding: 0; }
+.sd-options { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.sd-opt {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer; transition: all 0.15s;
+}
+.sd-opt:hover { border-color: var(--accent); background: rgba(88,166,255,0.04); }
+.sd-opt input { display: none; }
+.sd-opt input:checked ~ .sd-opt-body { font-weight: 600; }
+.sd-opt input:checked ~ .sd-radio { background: var(--accent); border-color: var(--accent); }
+.sd-opt input:checked ~ .sd-radio::after {
+    content: ''; display: block; width: 6px; height: 6px;
+    background: #fff; border-radius: 50%;
+}
+.sd-radio {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; transition: all 0.15s;
+}
+.sd-opt-body { display: flex; flex-direction: column; gap: 2px; }
+.sd-opt-label { font-size: 14px; color: var(--text); }
+.sd-opt-count { font-size: 12px; color: var(--text-muted); }
+.sd-danger-note {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: rgba(248,81,73,0.08);
+    border: 1px solid rgba(248,81,73,0.2); border-radius: 8px;
+    font-size: 13px; color: var(--danger); margin-top: 12px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ---- Reassign device ----
+let reassignSelectedDevice = null;
+let cachedDevices = null;
+
+async function loadDevices() {
+    if (cachedDevices) return cachedDevices;
+    try {
+        const resp = await fetch('/api/devices');
+        if (resp.ok) {
+            cachedDevices = await resp.json();
+            return cachedDevices;
+        }
+    } catch {}
+    return [];
+}
+
+async function showReassign(expId, currentDeviceId) {
+    bulkReassignMode = false;
+    document.getElementById('reassignExpId').value = expId;
+    reassignSelectedDevice = null;
+
+    const container = document.getElementById('reassignDevices');
+    container.innerHTML = '<div class="reassign-no-devices">Загрузка устройств...</div>';
+    document.getElementById('reassignModal').style.display = 'flex';
+    document.getElementById('reassignBtn').disabled = true;
+    document.getElementById('reassignRetryBtn').disabled = true;
+
+    const devices = await loadDevices();
+
+    if (devices.length === 0) {
+        container.innerHTML = '<div class="reassign-no-devices">Нет зарегистрированных устройств</div>';
+        return;
+    }
+
+    // Check status for each device
+    const statusChecks = await Promise.allSettled(
+        devices.map(d => fetch(`/api/devices/${d.id}/status`).then(r => r.json()).catch(() => ({status:'offline'})))
+    );
+
+    let html = '';
+    devices.forEach((dev, i) => {
+        const check = statusChecks[i]?.value || {};
+        const isOnline = check.status === 'online';
+        const isCurrent = dev.id === currentDeviceId;
+
+        html += `<div class="reassign-dev${isCurrent ? ' current' : ''}" data-id="${dev.id}" onclick="selectReassignDev(this, '${dev.id}')">
+            <div class="reassign-dev-radio"></div>
+            <div class="reassign-dev-info">
+                <div class="reassign-dev-name">
+                    ${dev.name}
+                    ${isCurrent ? '<span class="reassign-dev-current-tag">текущее</span>' : ''}
+                </div>
+                <div class="reassign-dev-ip">${dev.ip}:${dev.port}</div>
+            </div>
+            <span class="reassign-dev-status ${isOnline ? 'online' : 'offline'}">${isOnline ? 'online' : 'offline'}</span>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function selectReassignDev(el, deviceId) {
+    document.querySelectorAll('.reassign-dev').forEach(d => d.classList.remove('selected'));
+    el.classList.add('selected');
+    reassignSelectedDevice = deviceId;
+    document.getElementById('reassignBtn').disabled = false;
+    document.getElementById('reassignRetryBtn').disabled = false;
+}
+
+function closeReassign() {
+    document.getElementById('reassignModal').style.display = 'none';
+    reassignSelectedDevice = null;
+}
+
+async function doReassign(andRetry) {
+    if (!reassignSelectedDevice) return;
+    const expId = document.getElementById('reassignExpId').value;
+
+    const btn = andRetry ? document.getElementById('reassignRetryBtn') : document.getElementById('reassignBtn');
+    btn.disabled = true;
+    btn.textContent = 'Сохраняю...';
+
+    try {
+        // Reassign
+        const resp = await fetch(`/api/experiments/${expId}/reassign`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({device_id: reassignSelectedDevice})
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            alert('Ошибка: ' + (err.detail || 'Не удалось переназначить'));
+            return;
+        }
+
+        const data = await resp.json();
+
+        // Update device name in row
+        const row = document.querySelector(`tr[data-id="${expId}"]`);
+        if (row) {
+            const deviceCell = row.children[5]; // 6th column = device
+            if (deviceCell) deviceCell.textContent = data.new_device_name;
+            row.dataset.device = data.new_device_name;
+        }
+
+        // Optionally retry
+        if (andRetry) {
+            await retryExperiment(expId);
+        }
+
+        closeReassign();
+    } catch (e) {
+        alert('Ошибка сети: ' + e);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = andRetry ? 'Назначить и повторить' : 'Назначить';
+    }
+}
+
+let bulkReassignMode = false;
+
+async function showBulkReassign() {
+    const failedIds = getSelectedExpIds().filter(id => {
+        const cb = document.querySelector(`.exp-cb[value="${id}"]`);
+        return cb && cb.dataset.status === 'failed';
+    });
+    if (!failedIds.length) { alert('Нет неудавшихся среди выбранных'); return; }
+
+    bulkReassignMode = true;
+    document.getElementById('reassignExpId').value = failedIds.join(',');
+    reassignSelectedDevice = null;
+
+    const container = document.getElementById('reassignDevices');
+    container.innerHTML = '<div class="reassign-no-devices">Загрузка устройств...</div>';
+    document.getElementById('reassignModal').style.display = 'flex';
+    document.getElementById('reassignBtn').disabled = true;
+    document.getElementById('reassignRetryBtn').disabled = true;
+
+    const devices = await loadDevices();
+
+    if (devices.length === 0) {
+        container.innerHTML = '<div class="reassign-no-devices">Нет зарегистрированных устройств</div>';
+        return;
+    }
+
+    const statusChecks = await Promise.allSettled(
+        devices.map(d => fetch(`/api/devices/${d.id}/status`).then(r => r.json()).catch(() => ({status:'offline'})))
+    );
+
+    let html = `<p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 8px;">Переназначить ${failedIds.length} эксперимент(ов)</p>`;
+    devices.forEach((dev, i) => {
+        const check = statusChecks[i]?.value || {};
+        const isOnline = check.status === 'online';
+
+        html += `<div class="reassign-dev" data-id="${dev.id}" onclick="selectReassignDev(this, '${dev.id}')">
+            <div class="reassign-dev-radio"></div>
+            <div class="reassign-dev-info">
+                <div class="reassign-dev-name">${dev.name}</div>
+                <div class="reassign-dev-ip">${dev.ip}:${dev.port}</div>
+            </div>
+            <span class="reassign-dev-status ${isOnline ? 'online' : 'offline'}">${isOnline ? 'online' : 'offline'}</span>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// Override doReassign for bulk mode
+const _origDoReassign = doReassign;
+doReassign = async function(andRetry) {
+    if (!reassignSelectedDevice) return;
+    const rawIds = document.getElementById('reassignExpId').value;
+    const ids = rawIds.split(',').filter(Boolean);
+
+    if (ids.length <= 1 && !bulkReassignMode) {
+        // Single mode
+        return _origDoReassign(andRetry);
+    }
+
+    const btn = andRetry ? document.getElementById('reassignRetryBtn') : document.getElementById('reassignBtn');
+    btn.disabled = true;
+    btn.textContent = `Назначаю (0/${ids.length})...`;
+
+    let ok = 0;
+    for (const expId of ids) {
+        try {
+            const resp = await fetch(`/api/experiments/${expId}/reassign`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({device_id: reassignSelectedDevice})
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                const row = document.querySelector(`tr[data-id="${expId}"]`);
+                if (row) {
+                    const deviceCell = row.children[5];
+                    if (deviceCell) deviceCell.textContent = data.new_device_name;
+                    row.dataset.device = data.new_device_name;
+                }
+                if (andRetry) await retryExperiment(expId);
+                ok++;
+                btn.textContent = `Назначаю (${ok}/${ids.length})...`;
+            }
+        } catch {}
+    }
+
+    closeReassign();
+    bulkReassignMode = false;
+    btn.disabled = false;
+    btn.textContent = andRetry ? 'Назначить и повторить' : 'Назначить';
+    refreshQueueStatus();
+};
+
+// Close reassign modal on background click / Escape
+document.getElementById('reassignModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'reassignModal') closeReassign();
+});
+
+// Queue Status
+async function refreshQueueStatus() {
+    try {
+        const resp = await fetch('/api/experiments/queue/status');
+        if (resp.ok) {
+            const data = await resp.json();
+
+            const dbCounts = data.db_counts || {};
+            const queuedCount = dbCounts.queued || 0;
+            const runningCount = dbCounts.running || 0;
+            const failedCount = dbCounts.failed || 0;
+            const retryCount = Object.keys(data.retry_counts || {}).length;
+
+            document.getElementById('queuedCount').textContent = queuedCount;
+            document.getElementById('runningCount').textContent = runningCount;
+            document.getElementById('failedCount').textContent = failedCount;
+            document.getElementById('retryCount').textContent = retryCount;
+
+            const retryAllBtn = document.getElementById('retryAllBtn');
+            retryAllBtn.style.display = failedCount > 0 ? 'flex' : 'none';
+
+            const currentTaskDiv = document.getElementById('queueCurrent');
+            const currentTaskSpan = document.getElementById('currentTask');
+            if (data.current_task) {
+                currentTaskDiv.style.display = 'flex';
+                currentTaskSpan.textContent = data.current_task;
+            } else {
+                currentTaskDiv.style.display = 'none';
+            }
+        }
+    } catch (e) {
+        console.error('Failed to fetch queue status:', e);
+    }
+}
+
+function hasSelection() {
+    return document.querySelectorAll('.exp-cb:checked').length > 0;
+}
+
+function safeReload() {
+    if (hasSelection()) {
+        if (!confirm('Есть выбранные элементы. Обновить страницу и сбросить выбор?')) return;
+    }
+    location.reload();
+}
+
+async function retryAllFailed() {
+    if (!confirm('Повторить все неудавшиеся эксперименты?')) return;
+
+    try {
+        const resp = await fetch('/api/experiments/retry-all-failed', {method: 'POST'});
+        if (resp.ok) {
+            const data = await resp.json();
+            alert(`${data.retried} эксперимент(ов) добавлено в очередь`);
+            // Update row statuses without reload
+            document.querySelectorAll('.experiment-row[data-status="failed"]').forEach(row => {
+                row.dataset.status = 'queued';
+                const badge = row.querySelector('.status-badge');
+                if (badge) {
+                    badge.className = 'status-badge status-queued';
+                    badge.textContent = 'в очереди';
+                }
+            });
+            refreshQueueStatus();
+        }
+    } catch (e) {
+        alert('Ошибка при повторе экспериментов');
+    }
+}
+
+async function retryExperiment(id) {
+    try {
+        const resp = await fetch(`/api/experiments/${id}/retry`, {method: 'POST'});
+        if (resp.ok) {
+            // Update row in place
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (row) {
+                row.dataset.status = 'queued';
+                const badge = row.querySelector('.status-badge');
+                if (badge) {
+                    badge.className = 'status-badge status-queued';
+                    badge.textContent = 'в очереди';
+                }
+            }
+            refreshQueueStatus();
+        }
+    } catch (e) {
+        console.error('Retry failed:', e);
+    }
+}
+
+async function rerunExperiment(id) {
+    if (hasSelection() && !confirm('Есть выбранные элементы. Перейти к новому эксперименту?')) return;
+    const resp = await fetch(`/api/experiments/${id}/rerun`, {method: 'POST'});
+    if (resp.ok) {
+        const data = await resp.json();
+        window.location.href = '/experiments/' + data.new_experiment_id;
+    }
+}
+
+async function deleteExperiment(id) {
+    if (!confirm('Удалить этот эксперимент?')) return;
+    await fetch(`/api/experiments/${id}`, {method: 'DELETE'});
+    document.querySelector(`tr[data-id="${id}"]`)?.remove();
+    updateExpBulkBar();
+}
+
+// ---- Bulk selection ----
+function toggleExpSelectAll(el) {
+    // Only check visible rows
+    document.querySelectorAll('.experiment-row').forEach(row => {
+        if (row.style.display !== 'none') {
+            const cb = row.querySelector('.exp-cb');
+            if (cb) cb.checked = el.checked;
+        }
+    });
+    updateExpBulkBar();
+}
+
+function updateExpBulkBar() {
+    const checked = document.querySelectorAll('.exp-cb:checked');
+    const bar = document.getElementById('bulkBar');
+    const cnt = document.getElementById('bulkCount');
+    cnt.textContent = checked.length;
+
+    if (checked.length > 0) {
+        bar.classList.add('visible');
+    } else {
+        bar.classList.remove('visible');
+    }
+
+    // Highlight selected rows
+    document.querySelectorAll('.exp-cb').forEach(cb => {
+        const row = cb.closest('tr');
+        if (row) row.classList.toggle('row-selected', cb.checked);
+    });
+
+    // Show retry / reassign buttons if any failed selected
+    const hasFailed = Array.from(checked).some(cb => cb.dataset.status === 'failed');
+    document.getElementById('bulkRetryBtn').style.display = hasFailed ? 'inline-flex' : 'none';
+    document.getElementById('bulkReassignBtn').style.display = hasFailed ? 'inline-flex' : 'none';
+
+    // Update select-all state
+    const visibleCbs = Array.from(document.querySelectorAll('.experiment-row'))
+        .filter(r => r.style.display !== 'none')
+        .map(r => r.querySelector('.exp-cb'))
+        .filter(Boolean);
+    const allEl = document.getElementById('expSelectAll');
+    if (allEl && visibleCbs.length > 0) {
+        const checkedVisible = visibleCbs.filter(cb => cb.checked).length;
+        allEl.checked = checkedVisible === visibleCbs.length;
+        allEl.indeterminate = checkedVisible > 0 && checkedVisible < visibleCbs.length;
+    }
+}
+
+function clearExpSelection() {
+    document.querySelectorAll('.exp-cb').forEach(cb => { cb.checked = false; });
+    const allEl = document.getElementById('expSelectAll');
+    if (allEl) { allEl.checked = false; allEl.indeterminate = false; }
+    updateExpBulkBar();
+}
+
+function getSelectedExpIds() {
+    return Array.from(document.querySelectorAll('.exp-cb:checked')).map(cb => cb.value);
+}
+
+async function bulkDelete() {
+    const ids = getSelectedExpIds();
+    if (!ids.length) return;
+    if (!confirm(`Удалить ${ids.length} эксперимент(ов) и их результаты? Это необратимо.`)) return;
+
+    try {
+        const resp = await fetch('/api/experiments/batch-delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ids})
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            // Remove rows from DOM
+            ids.forEach(id => {
+                document.querySelector(`tr[data-id="${id}"]`)?.remove();
+            });
+            clearExpSelection();
+            // Update stats
+            const totalEl = document.getElementById('totalCount');
+            if (totalEl) {
+                const remaining = document.querySelectorAll('.experiment-row').length;
+                totalEl.textContent = remaining;
+            }
+            refreshQueueStatus();
+        } else {
+            const err = await resp.json().catch(() => ({}));
+            alert('Ошибка: ' + (err.detail || 'Не удалось удалить'));
+        }
+    } catch (e) { alert('Ошибка сети: ' + e); }
+}
+
+async function bulkRetry() {
+    const ids = getSelectedExpIds().filter(id => {
+        const cb = document.querySelector(`.exp-cb[value="${id}"]`);
+        return cb && cb.dataset.status === 'failed';
+    });
+    if (!ids.length) { alert('Нет неудавшихся среди выбранных'); return; }
+    if (!confirm(`Повторить ${ids.length} неудавшихся эксперимент(ов)?`)) return;
+
+    let ok = 0;
+    for (const id of ids) {
+        try {
+            const resp = await fetch(`/api/experiments/${id}/retry`, {method: 'POST'});
+            if (resp.ok) ok++;
+        } catch {}
+    }
+    alert(`${ok} эксперимент(ов) добавлено в очередь`);
+    // Update retried rows in place
+    ids.forEach(id => {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (row) {
+            row.dataset.status = 'queued';
+            const badge = row.querySelector('.status-badge');
+            if (badge) { badge.className = 'status-badge status-queued'; badge.textContent = 'в очереди'; }
+            const cb = row.querySelector('.exp-cb');
+            if (cb) cb.dataset.status = 'queued';
+        }
+    });
+    refreshQueueStatus();
+}
+
+function bulkDeleteByStatus() {
+    // Count experiments by status
+    const rows = document.querySelectorAll('.experiment-row');
+    const counts = {};
+    rows.forEach(r => {
+        const s = r.dataset.status;
+        counts[s] = (counts[s] || 0) + 1;
+    });
+
+    const statusLabels = {
+        failed: 'Ошибка',
+        completed: 'Завершён',
+        queued: 'В очереди',
+        cancelled: 'Отменён',
+        running: 'Выполняется',
+    };
+
+    const optionsEl = document.getElementById('sdOptions');
+    optionsEl.innerHTML = '';
+
+    for (const [status, count] of Object.entries(counts)) {
+        if (count === 0) continue;
+        optionsEl.innerHTML += `<label class="sd-opt">
+            <input type="radio" name="sdStatus" value="${status}">
+            <span class="sd-radio"></span>
+            <div class="sd-opt-body">
+                <span class="sd-opt-label">${statusLabels[status] || status}</span>
+                <span class="sd-opt-count">${count} эксперимент(ов)</span>
+            </div>
+        </label>`;
+    }
+
+    document.getElementById('statusDeleteModal').style.display = 'flex';
+}
+
+async function confirmStatusDelete() {
+    const selected = document.querySelector('input[name="sdStatus"]:checked');
+    if (!selected) { alert('Выберите статус'); return; }
+
+    const status = selected.value;
+    const statusLabels = {failed:'Ошибка',completed:'Завершён',queued:'В очереди',cancelled:'Отменён',running:'Выполняется'};
+    if (!confirm(`Удалить ВСЕ эксперименты со статусом "${statusLabels[status] || status}"? Это необратимо.`)) return;
+
+    try {
+        const resp = await fetch('/api/experiments/batch-delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({filter_status: status})
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            document.getElementById('statusDeleteModal').style.display = 'none';
+            // Remove matching rows
+            document.querySelectorAll(`.experiment-row[data-status="${status}"]`).forEach(r => r.remove());
+            clearExpSelection();
+            const totalEl = document.getElementById('totalCount');
+            if (totalEl) totalEl.textContent = document.querySelectorAll('.experiment-row').length;
+            refreshQueueStatus();
+        } else {
+            const err = await resp.json().catch(() => ({}));
+            alert('Ошибка: ' + (err.detail || 'Не удалось удалить'));
+        }
+    } catch (e) { alert('Ошибка сети: ' + e); }
+}
+
+// ---- Filtering system ----
+const FILTER_LABELS = {
+    status: 'Статус',
+    backend: 'Бэкенд',
+    model: 'Модель',
+    device: 'Устройство',
+    search: 'Поиск',
+};
+
+const STATUS_DISPLAY = {
+    completed: 'Завершён',
+    running: 'Выполняется',
+    queued: 'В очереди',
+    failed: 'Ошибка',
+};
+
+function getActiveFilters() {
+    return {
+        search: (document.getElementById('searchInput').value || '').toLowerCase().trim(),
+        status: document.getElementById('filterStatus').value,
+        backend: document.getElementById('filterBackend').value,
+        model: document.getElementById('filterModel').value,
+        device: document.getElementById('filterDevice').value,
+    };
+}
+
+function applyAllFilters() {
+    const f = getActiveFilters();
+    const rows = document.querySelectorAll('.experiment-row');
+    let visible = 0;
+    const total = rows.length;
+
+    rows.forEach(row => {
+        let show = true;
+
+        // Text search
+        if (f.search && !row.textContent.toLowerCase().includes(f.search)) show = false;
+
+        // Status filter
+        if (f.status && row.dataset.status !== f.status) show = false;
+
+        // Backend filter
+        if (f.backend && row.dataset.backend !== f.backend) show = false;
+
+        // Model filter
+        if (f.model && row.dataset.model !== f.model) show = false;
+
+        // Device filter
+        if (f.device && row.dataset.device !== f.device) show = false;
+
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+
+    // Update search clear button
+    document.getElementById('searchClear').style.display = f.search ? 'flex' : 'none';
+
+    // Mark active selects
+    document.getElementById('filterStatus').classList.toggle('active', !!f.status);
+    document.getElementById('filterBackend').classList.toggle('active', !!f.backend);
+    document.getElementById('filterModel').classList.toggle('active', !!f.model);
+    document.getElementById('filterDevice').classList.toggle('active', !!f.device);
+
+    // Show/hide reset button
+    const hasFilters = f.search || f.status || f.backend || f.model || f.device;
+    document.getElementById('filterResetBtn').style.display = hasFilters ? 'inline-flex' : 'none';
+
+    // Update chips and counter
+    updateFilterFooter(f, visible, total);
+
+    // No results message
+    const noRes = document.getElementById('noResults');
+    const tableContainer = document.querySelector('.table-container');
+    if (noRes && tableContainer) {
+        if (visible === 0 && total > 0 && hasFilters) {
+            noRes.style.display = 'block';
+            tableContainer.style.display = 'none';
+        } else {
+            noRes.style.display = 'none';
+            tableContainer.style.display = '';
+        }
+    }
+
+    // Persist filters to URL so they survive page reloads
+    saveFiltersToUrl(f);
+}
+
+// ---- URL persistence for filters ----
+function saveFiltersToUrl(f) {
+    const params = new URLSearchParams();
+    if (f.search) params.set('q', f.search);
+    if (f.status) params.set('status', f.status);
+    if (f.backend) params.set('backend', f.backend);
+    if (f.model) params.set('model', f.model);
+    if (f.device) params.set('device', f.device);
+
+    const qs = params.toString();
+    const newUrl = window.location.pathname + (qs ? '?' + qs : '');
+    history.replaceState(null, '', newUrl);
+}
+
+function restoreFiltersFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+
+    const q = params.get('q') || '';
+    const status = params.get('status') || '';
+    const backend = params.get('backend') || '';
+    const model = params.get('model') || '';
+    const device = params.get('device') || '';
+
+    if (q) document.getElementById('searchInput').value = q;
+    if (status) document.getElementById('filterStatus').value = status;
+    if (backend) document.getElementById('filterBackend').value = backend;
+    if (model) document.getElementById('filterModel').value = model;
+    if (device) document.getElementById('filterDevice').value = device;
+
+    // Apply if any filter was restored
+    if (q || status || backend || model || device) {
+        applyAllFilters();
+    }
+}
+
+function updateFilterFooter(f, visible, total) {
+    const footer = document.getElementById('filterFooter');
+    const chipsEl = document.getElementById('filterChips');
+    const countEl = document.getElementById('filterCount');
+
+    const hasFilters = f.search || f.status || f.backend || f.model || f.device;
+
+    if (!hasFilters) {
+        footer.style.display = 'none';
+        return;
+    }
+
+    footer.style.display = 'flex';
+
+    // Build chips
+    let chips = '';
+    if (f.search) {
+        chips += buildChip('search', 'Поиск', `"${f.search}"`);
+    }
+    if (f.status) {
+        chips += buildChip('status', 'Статус', STATUS_DISPLAY[f.status] || f.status);
+    }
+    if (f.backend) {
+        chips += buildChip('backend', 'Бэкенд', f.backend.toUpperCase());
+    }
+    if (f.model) {
+        const shortModel = f.model.length > 30 ? f.model.substring(0, 27) + '...' : f.model;
+        chips += buildChip('model', 'Модель', shortModel);
+    }
+    if (f.device) {
+        chips += buildChip('device', 'Устр.', f.device);
+    }
+    chipsEl.innerHTML = chips;
+
+    // Counter
+    countEl.innerHTML = `Показано <strong>${visible}</strong> из ${total}`;
+}
+
+function buildChip(key, label, value) {
+    return `<span class="filter-chip">
+        <span class="filter-chip-label">${label}:</span> ${value}
+        <button class="filter-chip-remove" onclick="removeFilter('${key}')" title="Убрать">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
+        </button>
+    </span>`;
+}
+
+function removeFilter(key) {
+    if (key === 'search') {
+        document.getElementById('searchInput').value = '';
+    } else if (key === 'status') {
+        document.getElementById('filterStatus').value = '';
+    } else if (key === 'backend') {
+        document.getElementById('filterBackend').value = '';
+    } else if (key === 'model') {
+        document.getElementById('filterModel').value = '';
+    } else if (key === 'device') {
+        document.getElementById('filterDevice').value = '';
+    }
+    applyAllFilters();
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    applyAllFilters();
+    document.getElementById('searchInput').focus();
+}
+
+function resetAllFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterBackend').value = '';
+    document.getElementById('filterModel').value = '';
+    document.getElementById('filterDevice').value = '';
+    applyAllFilters(); // also clears URL params via saveFiltersToUrl
+}
+
+function populateFilterDropdowns() {
+    const rows = document.querySelectorAll('.experiment-row');
+    const models = new Set();
+    const devices = new Set();
+
+    rows.forEach(row => {
+        if (row.dataset.model) models.add(row.dataset.model);
+        if (row.dataset.device) devices.add(row.dataset.device);
+    });
+
+    const modelSel = document.getElementById('filterModel');
+    [...models].sort().forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        modelSel.appendChild(opt);
+    });
+
+    const deviceSel = document.getElementById('filterDevice');
+    [...devices].sort().forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = d;
+        deviceSel.appendChild(opt);
+    });
+}
+
+// Keyboard shortcut: Escape clears search, / focuses search
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeReassign();
+        const searchInput = document.getElementById('searchInput');
+        if (document.activeElement === searchInput && searchInput.value) {
+            clearSearch();
+            e.preventDefault();
+        }
+    }
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
+        document.getElementById('searchInput').focus();
+        e.preventDefault();
+    }
+});
+
+// Auto-refresh
+let queueRefreshInterval;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.querySelector('.container');
+    if (container) {
+        container.style.maxWidth = 'none';
+        container.style.width = '100%';
+        container.style.padding = '24px 5%';
+    }
+
+    populateFilterDropdowns();
+    restoreFiltersFromUrl();
+
+    // Restore bulk bar if browser restored checkbox state
+    updateExpBulkBar();
+
+    refreshQueueStatus();
+    queueRefreshInterval = setInterval(refreshQueueStatus, 10000);
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        clearInterval(queueRefreshInterval);
+    } else {
+        refreshQueueStatus();
+        queueRefreshInterval = setInterval(refreshQueueStatus, 10000);
+    }
+});
+</script>
+{% endblock %}

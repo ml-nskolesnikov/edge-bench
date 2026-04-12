@@ -1,0 +1,987 @@
+{% extends "base.html" %}
+
+{% block title %}Модели - Edge-Bench{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1 data-i18n="Model Repository">Репозиторий моделей</h1>
+        <p class="page-subtitle">Загружайте и управляйте TFLite моделями для бенчмаркинга</p>
+    </div>
+</div>
+
+<!-- Upload section -->
+<div class="upload-card">
+    <div class="upload-icon-wrap">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+        </svg>
+    </div>
+    <div class="upload-body">
+        <h3>Загрузить модель</h3>
+        <p>Выберите .tflite файл для загрузки на сервер</p>
+    </div>
+    <form id="uploadForm" enctype="multipart/form-data" class="upload-form">
+        <input type="file" id="modelFile" name="file" accept=".tflite,.pb" required>
+        <select id="quantType" name="quantization">
+            <option value="">Автоопределение</option>
+            <option value="float32">Float32</option>
+            <option value="float16">Float16</option>
+            <option value="int8">Int8</option>
+            <option value="int8_edgetpu">Int8 EdgeTPU</option>
+        </select>
+        <button type="submit" class="btn btn-primary upload-submit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5z"/></svg>
+            Загрузить
+        </button>
+    </form>
+</div>
+
+<!-- Bulk actions bar (hidden by default) -->
+<div class="bulk-bar" id="bulkBar">
+    <div class="bulk-left">
+        <span class="bulk-count" id="bulkCount">0</span>
+        <span>моделей выбрано</span>
+        <button class="bulk-clear" onclick="clearSelection()">Сбросить</button>
+    </div>
+    <div class="bulk-right">
+        <select class="bulk-device-select" id="bulkDeviceSelect">
+            <option value="">Выберите устройство...</option>
+            {% for device in devices %}
+            <option value="{{ device.id }}">{{ device.name }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-primary bulk-deploy-btn" id="bulkDeployBtn" onclick="bulkDeploy()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Развернуть выбранные
+        </button>
+    </div>
+</div>
+
+<!-- Models list -->
+<div class="section" style="margin-top:24px;">
+    <div class="section-header">
+        <h2 style="display:flex; align-items:center; gap:10px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent)"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
+            Доступные модели
+            <span class="m-count">{{ models|length }}</span>
+        </h2>
+        <button onclick="location.reload()" class="btn" title="Обновить">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        </button>
+    </div>
+
+    {% if models %}
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+                <tr>
+                    <th style="width:40px;">
+                        <label class="m-cb-wrap">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                            <span class="m-cb-box"></span>
+                        </label>
+                    </th>
+                    <th>Модель</th>
+                    <th>Размер</th>
+                    <th>Тип</th>
+                    <th>Дата</th>
+                    <th>Развернуть</th>
+                    <th style="width:90px;">Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model in models %}
+                <tr id="model-{{ model.id }}" data-model-id="{{ model.id }}" data-model-name="{{ model.name }}">
+                    <td>
+                        <label class="m-cb-wrap">
+                            <input type="checkbox" class="model-cb" value="{{ model.id }}" data-name="{{ model.name }}" onchange="updateBulkBar()">
+                            <span class="m-cb-box"></span>
+                        </label>
+                    </td>
+                    <td>
+                        <div class="m-name-cell">
+                            {% if '_edgetpu' in model.name %}
+                            <span class="m-icon m-icon-tpu">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7v7l9-11h-7V3z"/></svg>
+                            </span>
+                            {% else %}
+                            <span class="m-icon m-icon-cpu">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
+                            </span>
+                            {% endif %}
+                            <span class="m-name" title="{{ model.name }}">{{ model.name }}</span>
+                        </div>
+                    </td>
+                    <td class="m-size">{{ "%.1f"|format(model.size_bytes / 1024 / 1024) }} MB</td>
+                    <td>
+                        {% if model.quantization %}
+                        <span class="q-badge q-{{ model.quantization }}">{{ model.quantization }}</span>
+                        {% elif '_fp32' in model.name or 'float32' in model.name %}
+                        <span class="q-badge q-fp32">fp32</span>
+                        {% elif '_fp16' in model.name or 'float16' in model.name %}
+                        <span class="q-badge q-fp16">fp16</span>
+                        {% elif '_int8' in model.name %}
+                        <span class="q-badge q-int8">int8</span>
+                        {% endif %}
+                        {% if '_edgetpu' in model.name %}
+                        <span class="q-badge q-edgetpu">EdgeTPU</span>
+                        {% endif %}
+                    </td>
+                    <td class="m-date">{{ model.created_at[:10] if model.created_at else '--' }}</td>
+                    <td>
+                        <div class="m-deploy" id="deploy-wrap-{{ model.id }}">
+                            <!-- Normal state -->
+                            <div class="deploy-normal" id="deploy-normal-{{ model.id }}">
+                                <select class="m-deploy-select" id="deploy-{{ model.id }}">
+                                    <option value="">Устройство...</option>
+                                    {% for device in devices %}
+                                    <option value="{{ device.id }}">{{ device.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button onclick="deployModel('{{ model.id }}')" class="m-deploy-btn" title="Развернуть">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                                </button>
+                            </div>
+                            <!-- Deploying state -->
+                            <div class="deploy-progress" id="deploy-progress-{{ model.id }}" style="display:none;">
+                                <div class="deploy-spinner"></div>
+                                <span class="deploy-status-text">Развертывание...</span>
+                            </div>
+                            <!-- Done state -->
+                            <div class="deploy-done" id="deploy-done-{{ model.id }}" style="display:none;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                <span class="deploy-done-text">Готово</span>
+                            </div>
+                            <!-- Error state -->
+                            <div class="deploy-error" id="deploy-error-{{ model.id }}" style="display:none;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>
+                                <span class="deploy-error-text">Ошибка</span>
+                            </div>
+                            <!-- Skipped state (hash match) -->
+                            <div class="deploy-skip" id="deploy-skip-{{ model.id }}" style="display:none;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                <span class="deploy-skip-text">Уже на устройстве</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="m-actions">
+                            <a href="/api/files/{{ model.id }}/download" class="m-act-btn" title="Скачать">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                            </a>
+                            <button onclick="deleteModel('{{ model.id }}')" class="m-act-btn m-act-danger" title="Удалить">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="m-empty">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.15;">
+            <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/>
+        </svg>
+        <h3>Модели ещё не загружены</h3>
+        <p>Загрузите первую модель через форму выше</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Bulk deploy modal -->
+<div class="modal" id="bulkModal" style="display:none;">
+    <div class="modal-content" style="max-width:560px;">
+        <div class="bm-header">
+            <h3>Массовое развертывание</h3>
+            <button class="bm-close" onclick="closeBulkModal()">&times;</button>
+        </div>
+        <div class="bm-body">
+            <div class="bm-target">
+                <span class="bm-target-label">Устройство:</span>
+                <strong id="bmDeviceName">--</strong>
+            </div>
+            <div class="bm-progress-bar">
+                <div class="bm-progress-fill" id="bmProgressFill"></div>
+            </div>
+            <div class="bm-counter" id="bmCounter">0 / 0</div>
+            <div class="bm-log" id="bmLog"></div>
+        </div>
+        <div class="bm-footer" id="bmFooter" style="display:none;">
+            <div class="bm-result" id="bmResult"></div>
+            <button class="btn btn-primary" onclick="closeBulkModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<!-- Models on devices -->
+<div class="section" style="margin-top:24px;">
+    <div class="section-header">
+        <h2 style="display:flex; align-items:center; gap:10px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent)"><path d="M4 6c0-1.1.9-2 2-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm2 0v10h12V6H6z"/><path d="M9 20h6v2H9z"/></svg>
+            Модели на устройствах
+        </h2>
+    </div>
+
+    {% if devices %}
+    <div class="dm-grid">
+        {% for device in devices %}
+        <div class="dm-card">
+            <div class="dm-header">
+                <div class="dm-device-info">
+                    <strong>{{ device.name }}</strong>
+                    <code>{{ device.ip }}</code>
+                </div>
+                <span class="dm-dot" id="dm-status-{{ device.id }}"></span>
+            </div>
+            <div class="dm-models" id="device-models-{{ device.id }}">
+                <span class="dm-loading">Загрузка...</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="m-empty" style="padding:32px;">
+        <p>Сначала <a href="/devices">добавьте устройства</a></p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+/* Page head */
+.page-head { margin-bottom: 24px; }
+.page-head h1 { margin-bottom: 4px; }
+.page-subtitle { color: var(--text-muted); font-size: 15px; margin: 0; }
+
+/* Upload card */
+.upload-card {
+    display: flex; align-items: center; gap: 20px;
+    padding: 24px; background: var(--bg-secondary);
+    border: 2px dashed var(--border); border-radius: 12px; flex-wrap: wrap;
+}
+.upload-icon-wrap {
+    width: 56px; height: 56px; display: flex; align-items: center;
+    justify-content: center; border-radius: 14px;
+    background: rgba(88,166,255,0.12); color: var(--accent); flex-shrink: 0;
+}
+.upload-body { flex: 1; min-width: 160px; }
+.upload-body h3 { margin: 0 0 4px; font-size: 16px; color: var(--text); }
+.upload-body p { margin: 0; font-size: 13px; color: var(--text-muted); }
+.upload-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.upload-form input[type="file"] {
+    padding: 8px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 13px;
+}
+.upload-form select {
+    padding: 9px 12px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 13px;
+}
+.upload-submit { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+/* Models count badge */
+.m-count {
+    background: rgba(88,166,255,0.15); color: var(--accent);
+    padding: 2px 10px; border-radius: 12px; font-size: 13px; font-weight: 600;
+}
+
+/* Checkbox */
+.m-cb-wrap {
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; position: relative; width: 20px; height: 20px;
+}
+.m-cb-wrap input { position: absolute; opacity: 0; width: 0; height: 0; }
+.m-cb-box {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-radius: 4px; display: flex; align-items: center;
+    justify-content: center; transition: all 0.15s; flex-shrink: 0;
+}
+.m-cb-wrap input:checked + .m-cb-box {
+    background: var(--accent); border-color: var(--accent);
+}
+.m-cb-wrap input:checked + .m-cb-box::after {
+    content: ''; display: block; width: 5px; height: 9px;
+    border: solid #fff; border-width: 0 2px 2px 0;
+    transform: rotate(45deg); margin-top: -2px;
+}
+.m-cb-wrap:hover .m-cb-box { border-color: var(--accent); }
+
+/* Bulk actions bar */
+.bulk-bar {
+    display: none; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 14px 20px; margin-top: 16px;
+    background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25);
+    border-radius: 10px; flex-wrap: wrap;
+    animation: bulkSlide 0.25s ease;
+}
+.bulk-bar.visible { display: flex; }
+@keyframes bulkSlide {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.bulk-left { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text); }
+.bulk-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--accent); color: #fff; font-weight: 700;
+    min-width: 26px; height: 26px; border-radius: 13px;
+    font-size: 13px; padding: 0 8px;
+}
+.bulk-clear {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 13px; text-decoration: underline;
+    padding: 0; transition: color 0.15s;
+}
+.bulk-clear:hover { color: var(--text); }
+.bulk-right { display: flex; align-items: center; gap: 10px; }
+.bulk-device-select {
+    padding: 8px 12px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 13px; min-width: 160px;
+}
+.bulk-deploy-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+/* Models table */
+.m-table-wrap {
+    overflow-x: auto; border-radius: 8px; border: 1px solid var(--border);
+}
+.m-table { width: 100%; border-collapse: collapse; min-width: 750px; }
+.m-table th {
+    padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-muted); background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.m-table td {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    vertical-align: middle; font-size: 14px;
+}
+.m-table tbody tr { transition: background 0.15s; }
+.m-table tbody tr:hover { background: rgba(88,166,255,0.04); }
+.m-table tbody tr:last-child td { border-bottom: none; }
+.m-table tbody tr.row-selected { background: rgba(88,166,255,0.06); }
+.m-table tbody tr.row-deploying { opacity: 0.7; }
+
+/* Name cell */
+.m-name-cell { display: flex; align-items: center; gap: 10px; }
+.m-icon {
+    width: 32px; height: 32px; display: flex; align-items: center;
+    justify-content: center; border-radius: 8px; flex-shrink: 0;
+}
+.m-icon-tpu { background: rgba(251,146,60,0.15); color: #fb923c; }
+.m-icon-cpu { background: rgba(88,166,255,0.12); color: var(--accent); }
+.m-name {
+    font-weight: 600; color: var(--text); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 280px; display: block;
+}
+
+/* Size and date */
+.m-size {
+    font-family: 'SF Mono', Consolas, monospace; font-size: 13px;
+    color: var(--text-muted); white-space: nowrap;
+}
+.m-date { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+
+/* Quantization badges */
+.q-badge {
+    display: inline-block; padding: 3px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.q-int8 { background: rgba(88,166,255,0.15); color: #60a5fa; }
+.q-int8_edgetpu, .q-edgetpu { background: rgba(251,146,60,0.15); color: #fb923c; }
+.q-float32, .q-fp32 { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.q-float16, .q-fp16 { background: rgba(52,211,153,0.15); color: #34d399; }
+
+/* Deploy controls */
+.m-deploy { display: flex; gap: 6px; align-items: center; min-height: 36px; }
+.deploy-normal { display: flex; gap: 6px; align-items: center; }
+.m-deploy-select {
+    padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 12px; background: var(--bg); color: var(--text); min-width: 110px;
+}
+.m-deploy-btn {
+    width: 32px; height: 32px; display: flex; align-items: center;
+    justify-content: center; background: rgba(88,166,255,0.12);
+    border: 1px solid var(--accent); border-radius: 8px;
+    color: var(--accent); cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.m-deploy-btn:hover { background: rgba(88,166,255,0.25); }
+
+/* Deploy animation */
+.deploy-progress {
+    display: flex; align-items: center; gap: 8px;
+}
+.deploy-spinner {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: deploy-spin 0.8s linear infinite;
+}
+@keyframes deploy-spin {
+    to { transform: rotate(360deg); }
+}
+.deploy-status-text {
+    font-size: 13px; color: var(--accent); font-weight: 500;
+    animation: deploy-pulse 1.5s ease-in-out infinite;
+}
+@keyframes deploy-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Deploy done */
+.deploy-done {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--success); font-size: 13px; font-weight: 600;
+}
+.deploy-done svg { flex-shrink: 0; }
+
+/* Deploy error */
+.deploy-error {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--danger); font-size: 13px; font-weight: 500;
+}
+.deploy-error svg { flex-shrink: 0; }
+
+/* Deploy skipped (already on device) */
+.deploy-skip {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--warning); font-size: 13px; font-weight: 500;
+}
+.deploy-skip svg { flex-shrink: 0; color: var(--warning); }
+
+/* Action buttons */
+.m-actions { display: flex; gap: 6px; }
+.m-act-btn {
+    width: 32px; height: 32px; display: flex; align-items: center;
+    justify-content: center; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text-muted); cursor: pointer;
+    transition: all 0.15s; text-decoration: none;
+}
+.m-act-btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.m-act-danger:hover {
+    border-color: var(--danger); color: var(--danger);
+    background: rgba(248,81,73,0.08);
+}
+
+/* Empty state */
+.m-empty { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+.m-empty h3 { margin: 16px 0 8px; color: var(--text); font-size: 16px; }
+.m-empty p { margin: 0; font-size: 14px; color: var(--text-muted); }
+
+/* Bulk modal */
+.bm-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+}
+.bm-header h3 { margin: 0; font-size: 18px; color: var(--text); }
+.bm-close {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 24px; cursor: pointer; line-height: 1; padding: 0 4px;
+    transition: color 0.15s;
+}
+.bm-close:hover { color: var(--text); }
+.bm-body { padding: 0; }
+.bm-target {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: var(--text-muted); margin-bottom: 16px;
+}
+.bm-target strong { color: var(--text); }
+.bm-progress-bar {
+    height: 8px; background: var(--bg); border-radius: 4px;
+    overflow: hidden; margin-bottom: 8px;
+}
+.bm-progress-fill {
+    height: 100%; width: 0%; background: var(--accent);
+    border-radius: 4px; transition: width 0.3s ease;
+}
+.bm-counter {
+    font-size: 13px; color: var(--text-muted); text-align: right; margin-bottom: 12px;
+}
+.bm-log {
+    max-height: 260px; overflow-y: auto; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+    font-size: 13px; font-family: 'SF Mono', Consolas, monospace;
+}
+.bm-log-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.bm-log-item:last-child { border-bottom: none; }
+.bm-log-icon {
+    width: 20px; height: 20px; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; border-radius: 50%;
+}
+.bm-log-icon.ok { background: rgba(63,185,80,0.15); color: var(--success); }
+.bm-log-icon.fail { background: rgba(248,81,73,0.15); color: var(--danger); }
+.bm-log-icon.wait { background: rgba(88,166,255,0.12); color: var(--accent); }
+.bm-log-icon.wait .bm-mini-spin {
+    width: 12px; height: 12px; border: 2px solid rgba(88,166,255,0.3);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: deploy-spin 0.8s linear infinite;
+}
+.bm-log-icon.skip { background: rgba(227,179,65,0.15); color: var(--warning); }
+.bm-log-status.skip { color: var(--warning); }
+.bm-log-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-log-status { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+.bm-log-status.ok { color: var(--success); }
+.bm-log-status.fail { color: var(--danger); }
+
+.bm-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 16px; border-top: 1px solid var(--border); margin-top: 16px;
+}
+.bm-result { font-size: 14px; color: var(--text); }
+.bm-result strong { color: var(--success); }
+
+/* Device models grid */
+.dm-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;
+}
+.dm-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+}
+.dm-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+}
+.dm-device-info { display: flex; flex-direction: column; gap: 2px; }
+.dm-device-info strong { font-size: 14px; color: var(--text); }
+.dm-device-info code {
+    font-size: 12px; color: var(--text-muted); background: none; padding: 0;
+}
+.dm-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--text-muted); flex-shrink: 0;
+}
+.dm-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.dm-dot.offline { background: var(--danger); }
+.dm-dot.checking { background: var(--warning); animation: dm-blink 1.2s infinite; }
+@keyframes dm-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.dm-models { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; }
+.dm-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--text);
+    transition: border-color 0.15s;
+}
+.dm-tag:hover { border-color: var(--text-muted); }
+.dm-tag.tpu {
+    background: rgba(251,146,60,0.1); border-color: rgba(251,146,60,0.3); color: #fb923c;
+}
+.dm-tag.tpu:hover { border-color: rgba(251,146,60,0.6); }
+.dm-tag-name { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm-tag-size { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.dm-tag-del {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: transparent; border: none; color: var(--text-muted);
+    cursor: pointer; padding: 0; transition: all 0.15s; flex-shrink: 0;
+    opacity: 0;
+}
+.dm-tag:hover .dm-tag-del { opacity: 1; }
+.dm-tag-del:hover { background: rgba(248,81,73,0.15); color: var(--danger); }
+.dm-tag.deleting {
+    opacity: 0.5; pointer-events: none;
+}
+.dm-loading { color: var(--text-muted); font-size: 13px; font-style: italic; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* === Helper: set deploy row state === */
+function setDeployState(modelId, state, text) {
+    const states = ['normal', 'progress', 'done', 'error', 'skip'];
+    const row = document.getElementById(`model-${modelId}`);
+    states.forEach(s => {
+        const el = document.getElementById(`deploy-${s}-${modelId}`);
+        if (el) el.style.display = (s === state) ? 'flex' : 'none';
+    });
+    if (row) row.classList.toggle('row-deploying', state === 'progress');
+
+    if (text) {
+        const textEl =
+            document.querySelector(`#deploy-${state}-${modelId} .deploy-${state}-text`) ||
+            document.querySelector(`#deploy-${state}-${modelId} .deploy-status-text`);
+        if (textEl) textEl.textContent = text;
+    }
+}
+
+/* === Deploy single model with hash check === */
+async function deployModel(modelId) {
+    const select = document.getElementById(`deploy-${modelId}`);
+    const deviceId = select.value;
+    if (!deviceId) { alert('Сначала выберите устройство'); return; }
+
+    // Phase 1: checking
+    setDeployState(modelId, 'progress', 'Проверка...');
+
+    try {
+        const resp = await fetch(`/api/devices/${deviceId}/upload-model`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({file_id: modelId})
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.skipped) {
+                // Hash match -- model already on device
+                setDeployState(modelId, 'skip', data.detail || 'Уже на устройстве');
+                setTimeout(() => setDeployState(modelId, 'normal'), 4000);
+            } else {
+                setDeployState(modelId, 'done', 'Развернуто');
+                loadDeviceModels(deviceId);
+                setTimeout(() => setDeployState(modelId, 'normal'), 4000);
+            }
+        } else {
+            const err = await resp.json().catch(() => ({}));
+            setDeployState(modelId, 'error', err.detail || 'Ошибка');
+            setTimeout(() => setDeployState(modelId, 'normal'), 5000);
+        }
+    } catch (e) {
+        setDeployState(modelId, 'error', String(e).slice(0, 40));
+        setTimeout(() => setDeployState(modelId, 'normal'), 5000);
+    }
+}
+
+/* === Checkbox selection === */
+function toggleSelectAll(el) {
+    document.querySelectorAll('.model-cb').forEach(cb => { cb.checked = el.checked; });
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    const checked = document.querySelectorAll('.model-cb:checked');
+    const bar = document.getElementById('bulkBar');
+    const cnt = document.getElementById('bulkCount');
+    cnt.textContent = checked.length;
+
+    if (checked.length > 0) {
+        bar.classList.add('visible');
+    } else {
+        bar.classList.remove('visible');
+    }
+
+    // Update row highlights
+    document.querySelectorAll('.model-cb').forEach(cb => {
+        const row = cb.closest('tr');
+        if (row) row.classList.toggle('row-selected', cb.checked);
+    });
+
+    // Update select-all state
+    const allCbs = document.querySelectorAll('.model-cb');
+    const selAll = document.getElementById('selectAll');
+    if (selAll) {
+        selAll.checked = checked.length === allCbs.length && allCbs.length > 0;
+        selAll.indeterminate = checked.length > 0 && checked.length < allCbs.length;
+    }
+}
+
+function clearSelection() {
+    document.querySelectorAll('.model-cb').forEach(cb => { cb.checked = false; });
+    const selAll = document.getElementById('selectAll');
+    if (selAll) { selAll.checked = false; selAll.indeterminate = false; }
+    updateBulkBar();
+}
+
+function getSelectedModels() {
+    return Array.from(document.querySelectorAll('.model-cb:checked')).map(cb => ({
+        id: cb.value,
+        name: cb.dataset.name
+    }));
+}
+
+/* === Bulk deploy === */
+let bulkDeploying = false;
+
+async function bulkDeploy() {
+    if (bulkDeploying) return;
+    const models = getSelectedModels();
+    const deviceId = document.getElementById('bulkDeviceSelect').value;
+
+    if (!models.length) { alert('Выберите хотя бы одну модель'); return; }
+    if (!deviceId) { alert('Выберите устройство для развертывания'); return; }
+
+    const deviceSelect = document.getElementById('bulkDeviceSelect');
+    const deviceName = deviceSelect.options[deviceSelect.selectedIndex].text;
+
+    const modal = document.getElementById('bulkModal');
+    const fill = document.getElementById('bmProgressFill');
+    const counter = document.getElementById('bmCounter');
+    const log = document.getElementById('bmLog');
+    const footer = document.getElementById('bmFooter');
+    const result = document.getElementById('bmResult');
+
+    document.getElementById('bmDeviceName').textContent = deviceName;
+    fill.style.width = '0%';
+    counter.textContent = 'Проверка хешей...';
+    log.innerHTML = '';
+    footer.style.display = 'none';
+    modal.style.display = 'flex';
+    bulkDeploying = true;
+
+    // Pre-populate log with waiting items
+    models.forEach(m => {
+        log.innerHTML += `<div class="bm-log-item" id="bm-item-${m.id}">
+            <div class="bm-log-icon wait"><div class="bm-mini-spin"></div></div>
+            <span class="bm-log-name" title="${m.name}">${m.name}</span>
+            <span class="bm-log-status">Проверка...</span>
+        </div>`;
+    });
+
+    // Phase 1: pre-check all models by hash
+    let checkResults = {};
+    try {
+        const checkResp = await fetch(`/api/devices/${deviceId}/check-deploy`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({file_ids: models.map(m => m.id)})
+        });
+        if (checkResp.ok) {
+            const checkData = await checkResp.json();
+            (checkData.results || []).forEach(r => { checkResults[r.file_id] = r; });
+        }
+    } catch { /* proceed without pre-check */ }
+
+    // Update log with check results
+    let skipCount = 0;
+    const toUpload = [];
+    for (const m of models) {
+        const cr = checkResults[m.id];
+        const itemEl = document.getElementById(`bm-item-${m.id}`);
+        const iconEl = itemEl?.querySelector('.bm-log-icon');
+        const statusEl = itemEl?.querySelector('.bm-log-status');
+
+        if (cr && cr.status === 'skip') {
+            skipCount++;
+            if (iconEl) {
+                iconEl.className = 'bm-log-icon skip';
+                iconEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>';
+            }
+            if (statusEl) { statusEl.textContent = cr.detail || 'Пропуск'; statusEl.className = 'bm-log-status skip'; }
+            // Update table row too
+            setDeployState(m.id, 'skip', cr.detail || 'Уже на устройстве');
+            setTimeout(() => setDeployState(m.id, 'normal'), 4000);
+        } else {
+            const label = (cr && cr.status === 'update') ? 'Обновление...' : 'Ожидание...';
+            if (statusEl) { statusEl.textContent = label; statusEl.className = 'bm-log-status'; }
+            toUpload.push({...m, checkStatus: cr?.status || 'new', checkDetail: cr?.detail || ''});
+        }
+    }
+
+    // Phase 2: deploy only models that need it
+    const total = models.length;
+    let processed = skipCount;
+    let okCount = 0, failCount = 0;
+
+    counter.textContent = `${processed} / ${total}`;
+    fill.style.width = `${(processed / total) * 100}%`;
+
+    for (let i = 0; i < toUpload.length; i++) {
+        const m = toUpload[i];
+        const itemEl = document.getElementById(`bm-item-${m.id}`);
+        const iconEl = itemEl?.querySelector('.bm-log-icon');
+        const statusEl = itemEl?.querySelector('.bm-log-status');
+
+        if (iconEl) { iconEl.className = 'bm-log-icon wait'; iconEl.innerHTML = '<div class="bm-mini-spin"></div>'; }
+        if (statusEl) { statusEl.textContent = 'Развертывание...'; statusEl.className = 'bm-log-status'; }
+
+        setDeployState(m.id, 'progress', 'Развертывание...');
+
+        try {
+            const resp = await fetch(`/api/devices/${deviceId}/upload-model`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({file_id: m.id, force: true})
+            });
+
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data.skipped) {
+                    skipCount++;
+                    if (iconEl) {
+                        iconEl.className = 'bm-log-icon skip';
+                        iconEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>';
+                    }
+                    if (statusEl) { statusEl.textContent = data.detail || 'Пропуск'; statusEl.className = 'bm-log-status skip'; }
+                    setDeployState(m.id, 'skip', data.detail || 'Уже на устройстве');
+                    setTimeout(() => setDeployState(m.id, 'normal'), 4000);
+                } else {
+                    okCount++;
+                    if (iconEl) {
+                        iconEl.className = 'bm-log-icon ok';
+                        iconEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+                    }
+                    if (statusEl) { statusEl.textContent = 'Готово'; statusEl.className = 'bm-log-status ok'; }
+                    setDeployState(m.id, 'done', 'Развернуто');
+                    setTimeout(() => setDeployState(m.id, 'normal'), 4000);
+                }
+            } else {
+                failCount++;
+                const err = await resp.json().catch(() => ({}));
+                if (iconEl) {
+                    iconEl.className = 'bm-log-icon fail';
+                    iconEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+                }
+                if (statusEl) { statusEl.textContent = err.detail || 'Ошибка'; statusEl.className = 'bm-log-status fail'; }
+                setDeployState(m.id, 'error', err.detail || 'Ошибка');
+                setTimeout(() => setDeployState(m.id, 'normal'), 5000);
+            }
+        } catch (e) {
+            failCount++;
+            if (iconEl) {
+                iconEl.className = 'bm-log-icon fail';
+                iconEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+            }
+            if (statusEl) { statusEl.textContent = 'Сеть'; statusEl.className = 'bm-log-status fail'; }
+            setDeployState(m.id, 'error', String(e).slice(0, 30));
+            setTimeout(() => setDeployState(m.id, 'normal'), 5000);
+        }
+
+        processed++;
+        fill.style.width = `${(processed / total) * 100}%`;
+        counter.textContent = `${processed} / ${total}`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    // Summary
+    bulkDeploying = false;
+    const parts = [];
+    if (okCount) parts.push(`<strong style="color:var(--success)">${okCount}</strong> развернуто`);
+    if (skipCount) parts.push(`<strong style="color:var(--warning)">${skipCount}</strong> пропущено`);
+    if (failCount) parts.push(`<strong style="color:var(--danger)">${failCount}</strong> ошибок`);
+    result.innerHTML = parts.join(', ');
+    footer.style.display = 'flex';
+
+    loadDeviceModels(deviceId);
+}
+
+function closeBulkModal() {
+    if (bulkDeploying) return;
+    document.getElementById('bulkModal').style.display = 'none';
+}
+
+/* === Delete model === */
+async function deleteModel(modelId) {
+    if (!confirm('Удалить модель с сервера?')) return;
+    try {
+        const resp = await fetch(`/api/files/${modelId}`, {method: 'DELETE'});
+        if (resp.ok) {
+            const row = document.getElementById(`model-${modelId}`);
+            if (row) row.remove();
+            updateBulkBar();
+        } else {
+            const err = await resp.json();
+            alert('Ошибка: ' + (err.detail || 'Неизвестная ошибка'));
+        }
+    } catch (e) { alert('Ошибка: ' + e); }
+}
+
+/* === Device models === */
+async function loadDeviceModels(deviceId) {
+    const container = document.getElementById(`device-models-${deviceId}`);
+    if (!container) return;
+    try {
+        const resp = await fetch(`/api/devices/${deviceId}/models`);
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.models && data.models.length > 0) {
+                container.innerHTML = data.models.map(m => {
+                    const isTPU = m.name.toLowerCase().includes('edgetpu');
+                    const cls = isTPU ? 'dm-tag tpu' : 'dm-tag';
+                    const sizeMB = (m.size_bytes / 1024 / 1024).toFixed(1);
+                    const eName = m.name.replace(/'/g, "\\'");
+                    return `<span class="${cls}" id="dm-${deviceId}-${m.name}" title="${m.path}">
+                        <span class="dm-tag-name">${m.name}</span>
+                        <span class="dm-tag-size">${sizeMB} MB</span>
+                        <button class="dm-tag-del" onclick="deleteDeviceModel('${deviceId}','${eName}',this)" title="Удалить с устройства">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </button>
+                    </span>`;
+                }).join('');
+            } else {
+                container.innerHTML = '<span class="dm-loading">Нет моделей</span>';
+            }
+        } else {
+            container.innerHTML = '<span class="dm-loading">Устройство оффлайн</span>';
+        }
+    } catch {
+        container.innerHTML = '<span class="dm-loading">Ошибка загрузки</span>';
+    }
+}
+
+async function deleteDeviceModel(deviceId, filename, btnEl) {
+    if (!confirm(`Удалить "${filename}" с устройства?`)) return;
+
+    const tag = btnEl.closest('.dm-tag');
+    if (tag) tag.classList.add('deleting');
+
+    try {
+        const resp = await fetch(`/api/devices/${deviceId}/models/${encodeURIComponent(filename)}`, {
+            method: 'DELETE'
+        });
+        if (resp.ok) {
+            if (tag) {
+                tag.style.transition = 'all 0.3s';
+                tag.style.transform = 'scale(0.8)';
+                tag.style.opacity = '0';
+                setTimeout(() => { tag.remove(); }, 300);
+            }
+        } else {
+            const err = await resp.json().catch(() => ({}));
+            alert('Ошибка: ' + (err.detail || 'Не удалось удалить'));
+            if (tag) tag.classList.remove('deleting');
+        }
+    } catch (e) {
+        alert('Ошибка сети: ' + e);
+        if (tag) tag.classList.remove('deleting');
+    }
+}
+
+/* === Upload form === */
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fileInput = document.getElementById('modelFile');
+    const quantSelect = document.getElementById('quantType');
+    if (!fileInput.files.length) return;
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('file_type', 'model');
+    if (quantSelect.value) formData.append('quantization', quantSelect.value);
+
+    try {
+        const resp = await fetch('/api/files/upload', { method: 'POST', body: formData });
+        if (resp.ok) { alert('Модель загружена!'); location.reload(); }
+        else {
+            const err = await resp.json();
+            if (err.duplicate) alert('Эта модель уже загружена на сервер.');
+            else alert('Ошибка: ' + (err.detail || 'Неизвестная ошибка'));
+        }
+    } catch (e) { alert('Ошибка: ' + e); }
+});
+
+/* === Init: load device statuses and models === */
+document.addEventListener('DOMContentLoaded', () => {
+    const containers = document.querySelectorAll('[id^="device-models-"]');
+    const ids = Array.from(containers).map(el => el.id.replace('device-models-', ''));
+
+    ids.forEach(async (deviceId) => {
+        const dot = document.getElementById(`dm-status-${deviceId}`);
+        if (dot) dot.classList.add('checking');
+        try {
+            const pingResp = await fetch(`/api/devices/${deviceId}/ping`, { method: 'POST' });
+            if (dot) {
+                dot.classList.remove('checking');
+                dot.classList.add(pingResp.ok ? 'online' : 'offline');
+            }
+            await loadDeviceModels(deviceId);
+        } catch {
+            if (dot) { dot.classList.remove('checking'); dot.classList.add('offline'); }
+            const container = document.getElementById(`device-models-${deviceId}`);
+            if (container) container.innerHTML = '<span class="dm-loading">Оффлайн</span>';
+        }
+    });
+});
+</script>
+{% endblock %}

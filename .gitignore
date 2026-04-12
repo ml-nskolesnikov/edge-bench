@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Models (binary weights should not be in git)
+data/models/*.tflite
+data/models/*.pb
+data/models/*.onnx
+
+# Upload cache
+data/uploads/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Poetry
+poetry.lock
+
+# Output / generated files
+output/

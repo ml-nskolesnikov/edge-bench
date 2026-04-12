@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Результаты - Edge-Bench{% endblock %}
+
+{% block content %}
+<h1 data-i18n="Results">Результаты</h1>
+
+<section class="section">
+    <div class="section-header">
+        <h2 data-i18n="Benchmark Results">Результаты бенчмарков</h2>
+        <div class="action-buttons">
+            <a href="/api/results/export/csv" class="btn" data-i18n="Export CSV">Экспорт CSV</a>
+            <a href="/api/results/export/json" class="btn" data-i18n="Export JSON">Экспорт JSON</a>
+        </div>
+    </div>
+
+    {% if results %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th data-i18n="Experiment">Эксперимент</th>
+                <th data-i18n="Model">Модель</th>
+                <th data-i18n="Backend">Бэкенд</th>
+                <th data-i18n="Device">Устройство</th>
+                <th data-i18n="Latency (mean)">Задержка (средн.)</th>
+                <th data-i18n="Latency (p95)">Задержка (p95)</th>
+                <th>FPS</th>
+                <th data-i18n="Created">Создан</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            {% set lat = r.metrics.get('latency', {}) if r.metrics else {} %}
+            {% set thr = r.metrics.get('throughput', {}) if r.metrics else {} %}
+            {% set params = r.metrics.get('params', {}) if r.metrics else {} %}
+            {% set backend = params.get('backend', '') if params else '' %}
+            <tr>
+                <td><a href="/experiments/{{ r.experiment_id }}">{{ r.experiment_name }}</a></td>
+                <td><code>{{ r.model_name }}</code></td>
+                <td>
+                    {% if backend == 'edgetpu' %}
+                    <span class="backend-badge backend-edgetpu">EdgeTPU</span>
+                    {% elif backend == 'cpu' %}
+                    <span class="backend-badge backend-cpu">CPU</span>
+                    {% else %}
+                    <span class="backend-badge backend-cpu">{{ backend or '-' }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ r.device_name or '-' }}</td>
+                <td>{% if lat and lat.get('mean_ms') %}{{ '%.2f'|format(lat.mean_ms) }} мс{% else %}-{% endif %}</td>
+                <td>{% if lat and lat.get('p95_ms') %}{{ '%.2f'|format(lat.p95_ms) }} мс{% else %}-{% endif %}</td>
+                <td>{% if thr and thr.get('fps') %}{{ '%.1f'|format(thr.fps) }}{% else %}-{% endif %}</td>
+                <td>{{ r.created_at[:19] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <style>
+    .backend-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+    .backend-cpu {
+        background: rgba(139, 148, 158, 0.2);
+        color: var(--text-muted);
+    }
+    .backend-edgetpu {
+        background: rgba(88, 166, 255, 0.15);
+        color: var(--accent);
+    }
+    </style>
+    {% else %}
+    <p class="empty-state" data-i18n="No results yet. Run some experiments first.">Результатов пока нет. Сначала запустите эксперименты.</p>
+    {% endif %}
+</section>
+{% endblock %}

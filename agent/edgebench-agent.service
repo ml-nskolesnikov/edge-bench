@@ -1,0 +1,22 @@
+[Unit]
+Description=Edge-Bench Agent - ML Benchmark Executor
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/edge-bench-agent
+Environment=EDGEBENCH_AGENT_PORT=8001
+ExecStart=/usr/bin/python3 /home/pi/edge-bench-agent/main.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/pi/models /tmp /var/lib/edgebench
+
+[Install]
+WantedBy=multi-user.target

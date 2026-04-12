@@ -1,0 +1,737 @@
+{% extends "base.html" %}
+
+{% block title %}Сравнение результатов - Edge-Bench{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Сравнение результатов</h1>
+        <p class="page-subtitle">Выберите эксперименты для визуального сравнения производительности</p>
+    </div>
+</div>
+
+<div class="cmp-layout">
+    <!-- Step 1: Selection -->
+    <div class="section">
+        <div class="cmp-panel-head">
+            <h2 style="display:flex; align-items:center; gap:10px; margin:0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent)"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                Выберите эксперименты
+            </h2>
+            <span class="cmp-count">{{ experiments|length }} завершённых</span>
+        </div>
+
+        <!-- Filters -->
+        <div class="cmp-filters">
+            <div class="cmp-filter">
+                <label>Модель</label>
+                <select id="filterModel" onchange="applyFilters()">
+                    <option value="">Все</option>
+                </select>
+            </div>
+            <div class="cmp-filter">
+                <label>Backend</label>
+                <select id="filterBackend" onchange="applyFilters()">
+                    <option value="">Все</option>
+                    <option value="cpu">CPU</option>
+                    <option value="edgetpu">EdgeTPU</option>
+                </select>
+            </div>
+            <div class="cmp-filter">
+                <label>Устройство</label>
+                <select id="filterDevice" onchange="applyFilters()">
+                    <option value="">Все</option>
+                </select>
+            </div>
+            <button class="cmp-clear-btn" onclick="clearFilters()">Сбросить</button>
+        </div>
+
+        <!-- Experiments list -->
+        {% if experiments %}
+        <div class="cmp-list" id="experimentsList">
+            {% for exp in experiments %}
+            <label class="cmp-item" data-exp-id="{{ exp.id }}"
+                   data-model="{{ exp.model_name }}"
+                   data-backend="{{ exp.params.backend or 'cpu' }}"
+                   data-device="{{ exp.device_name }}">
+                <input type="checkbox" value="{{ exp.id }}" onchange="updateSelection()">
+                <div class="cmp-item-body">
+                    <div class="cmp-item-top">
+                        <span class="cmp-item-name">{{ exp.name }}</span>
+                        <span class="cmp-badge cmp-badge-{{ exp.params.backend or 'cpu' }}">{{ (exp.params.backend or 'cpu')|upper }}</span>
+                    </div>
+                    <div class="cmp-item-meta">
+                        <span>{{ exp.model_name or '--' }}</span>
+                        <span class="cmp-sep">|</span>
+                        <span>{{ exp.device_name or '--' }}</span>
+                    </div>
+                    {% if exp.metrics and exp.metrics.latency %}
+                    <div class="cmp-item-stats">
+                        <span class="cmp-stat-val">{{ "%.1f"|format(exp.metrics.latency.mean_ms|default(0)) }} <small>ms</small></span>
+                        <span class="cmp-stat-sep"></span>
+                        <span class="cmp-stat-val">{{ "%.0f"|format(exp.metrics.throughput.fps|default(0)) }} <small>FPS</small></span>
+                    </div>
+                    {% endif %}
+                </div>
+            </label>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="cmp-empty">
+            <p>Нет завершённых экспериментов</p>
+            <a href="/new-experiment" class="btn btn-primary">Создать эксперимент</a>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="cmp-footer">
+            <div class="cmp-footer-info">
+                <span class="cmp-sel-count" id="selectedCount">0</span>
+                <span>выбрано для сравнения</span>
+            </div>
+            <button class="btn btn-primary" onclick="compareSelected()" id="compareBtn" disabled style="display:flex; align-items:center; gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                Сравнить
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 2: Results -->
+    <div class="section" id="comparisonPanel" style="display:none;">
+        <div class="cmp-panel-head">
+            <h2 style="display:flex; align-items:center; gap:10px; margin:0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent)"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                Результаты сравнения
+            </h2>
+            <button class="btn" onclick="clearComparison()" style="font-size:13px;">Очистить</button>
+        </div>
+
+        <!-- Quick stats -->
+        <div class="cmp-stats" id="quickStats"></div>
+
+        <!-- Charts -->
+        <div class="cmp-charts">
+            <div class="cmp-chart-card">
+                <div class="cmp-chart-head">
+                    <h3>Латентность (ms)</h3>
+                </div>
+                <div class="cmp-chart-area">
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </div>
+            <div class="cmp-chart-card">
+                <div class="cmp-chart-head">
+                    <h3>Пропускная способность (FPS)</h3>
+                </div>
+                <div class="cmp-chart-area">
+                    <canvas id="throughputChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison table -->
+        <div style="margin-top:20px;">
+            <h3 style="margin:0 0 12px; font-size:15px;">Детальное сравнение</h3>
+            <div class="cmp-table-wrap">
+                <table class="cmp-table" id="comparisonTable">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Эксперимент</th>
+                            <th style="text-align:left;">Модель</th>
+                            <th>Backend</th>
+                            <th>Latency</th>
+                            <th>P95</th>
+                            <th>FPS</th>
+                            <th>CPU</th>
+                            <th>RAM</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparisonBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Full-width override */
+.container:has(.cmp-layout) {
+    max-width: 100%;
+    padding: 24px 32px;
+}
+
+.page-head {
+    margin-bottom: 24px;
+}
+.page-head h1 { margin-bottom: 4px; }
+.page-subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin: 0;
+}
+
+.cmp-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.cmp-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+.cmp-count {
+    background: rgba(88, 166, 255, 0.12);
+    color: var(--accent);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Filters */
+.cmp-filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+.cmp-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.cmp-filter label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+.cmp-filter select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    min-width: 140px;
+    font-size: 13px;
+}
+.cmp-filter select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+.cmp-clear-btn {
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-muted);
+    margin-left: auto;
+    transition: all 0.15s;
+}
+.cmp-clear-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Experiments list */
+.cmp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 2px;
+}
+.cmp-item {
+    display: flex;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    align-items: flex-start;
+}
+.cmp-item:hover {
+    border-color: rgba(88, 166, 255, 0.3);
+}
+.cmp-item:has(input:checked) {
+    border-color: var(--accent);
+    background: rgba(88, 166, 255, 0.06);
+}
+.cmp-item.hidden { display: none; }
+
+.cmp-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+}
+.cmp-item-body {
+    flex: 1;
+    min-width: 0;
+}
+.cmp-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    gap: 10px;
+}
+.cmp-item-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cmp-badge {
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+.cmp-badge-cpu {
+    background: rgba(139, 148, 158, 0.2);
+    color: var(--text-muted);
+}
+.cmp-badge-edgetpu {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent);
+}
+.cmp-item-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+.cmp-sep {
+    margin: 0 6px;
+    opacity: 0.4;
+}
+.cmp-item-stats {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+.cmp-stat-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'SF Mono', Consolas, monospace;
+}
+.cmp-stat-val small {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+.cmp-stat-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+}
+.cmp-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
+}
+
+/* Footer */
+.cmp-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+.cmp-footer-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+.cmp-sel-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+/* Quick stats */
+.cmp-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.cmp-stat-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+}
+.cmp-stat-card.best {
+    border-color: var(--success);
+    background: rgba(63, 185, 80, 0.06);
+}
+.cmp-stat-card.fast {
+    border-color: var(--accent);
+    background: rgba(88, 166, 255, 0.06);
+}
+.cmp-sv {
+    font-size: 26px;
+    font-weight: 700;
+    font-family: 'SF Mono', Consolas, monospace;
+    color: var(--text);
+}
+.cmp-stat-card.best .cmp-sv { color: var(--success); }
+.cmp-stat-card.fast .cmp-sv { color: var(--accent); }
+.cmp-sl {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+.cmp-sn {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Charts */
+.cmp-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+@media (max-width: 900px) {
+    .cmp-charts { grid-template-columns: 1fr; }
+}
+.cmp-chart-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+}
+.cmp-chart-head {
+    margin-bottom: 12px;
+}
+.cmp-chart-head h3 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text);
+}
+.cmp-chart-area {
+    height: 260px;
+    position: relative;
+}
+
+/* Table */
+.cmp-table-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+.cmp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 700px;
+}
+.cmp-table th {
+    padding: 12px 14px;
+    text-align: right;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+}
+.cmp-table td {
+    padding: 12px 14px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+.cmp-table tbody tr {
+    transition: background 0.15s;
+}
+.cmp-table tbody tr:hover {
+    background: rgba(88, 166, 255, 0.04);
+}
+.cmp-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.cmp-table .best-val {
+    color: var(--success);
+    font-weight: 700;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const experiments = {{ experiments | tojson | safe }};
+let selectedIds = [];
+let latencyChart = null;
+let throughputChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const models = [...new Set(experiments.map(e => e.model_name).filter(Boolean))];
+    const devices = [...new Set(experiments.map(e => e.device_name).filter(Boolean))];
+
+    const modelSel = document.getElementById('filterModel');
+    models.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m; o.textContent = m;
+        modelSel.appendChild(o);
+    });
+
+    const devSel = document.getElementById('filterDevice');
+    devices.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d; o.textContent = d;
+        devSel.appendChild(o);
+    });
+});
+
+function applyFilters() {
+    const model = document.getElementById('filterModel').value;
+    const backend = document.getElementById('filterBackend').value;
+    const device = document.getElementById('filterDevice').value;
+
+    document.querySelectorAll('.cmp-item').forEach(item => {
+        const ok = (!model || item.dataset.model === model)
+                && (!backend || item.dataset.backend === backend)
+                && (!device || item.dataset.device === device);
+        item.classList.toggle('hidden', !ok);
+    });
+}
+
+function clearFilters() {
+    document.getElementById('filterModel').value = '';
+    document.getElementById('filterBackend').value = '';
+    document.getElementById('filterDevice').value = '';
+    applyFilters();
+}
+
+function updateSelection() {
+    const checked = document.querySelectorAll('.cmp-item input:checked');
+    selectedIds = Array.from(checked).map(cb => cb.value);
+    document.getElementById('selectedCount').textContent = selectedIds.length;
+    document.getElementById('compareBtn').disabled = selectedIds.length < 2;
+}
+
+function compareSelected() {
+    if (selectedIds.length < 2) { alert('Выберите минимум 2 эксперимента'); return; }
+
+    const selected = experiments.filter(e => selectedIds.includes(e.id));
+    renderComparison(selected);
+    document.getElementById('comparisonPanel').style.display = 'block';
+    document.getElementById('comparisonPanel').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderComparison(data) {
+    data.sort((a, b) => {
+        const la = a.metrics?.latency?.mean_ms || Infinity;
+        const lb = b.metrics?.latency?.mean_ms || Infinity;
+        return la - lb;
+    });
+
+    const bestLat = data[0];
+    const bestFps = data.reduce((best, c) => {
+        return (c.metrics?.throughput?.fps || 0) > (best.metrics?.throughput?.fps || 0) ? c : best;
+    }, data[0]);
+
+    renderQuickStats(data, bestLat, bestFps);
+    renderTable(data, bestLat, bestFps);
+    renderCharts(data);
+}
+
+function renderQuickStats(data, bestLat, bestFps) {
+    const lats = data.map(e => e.metrics?.latency?.mean_ms).filter(Boolean);
+    const fpss = data.map(e => e.metrics?.throughput?.fps).filter(Boolean);
+
+    const minL = Math.min(...lats);
+    const maxL = Math.max(...lats);
+    const maxF = Math.max(...fpss);
+    const speedup = maxL / minL;
+
+    document.getElementById('quickStats').innerHTML = `
+        <div class="cmp-stat-card best">
+            <div class="cmp-sv">${minL.toFixed(1)} ms</div>
+            <div class="cmp-sl">Лучшая латентность</div>
+            <div class="cmp-sn" title="${bestLat.name}">${bestLat.name}</div>
+        </div>
+        <div class="cmp-stat-card fast">
+            <div class="cmp-sv">${maxF.toFixed(0)} FPS</div>
+            <div class="cmp-sl">Макс. пропускная способность</div>
+            <div class="cmp-sn" title="${bestFps.name}">${bestFps.name}</div>
+        </div>
+        <div class="cmp-stat-card">
+            <div class="cmp-sv">${speedup.toFixed(1)}x</div>
+            <div class="cmp-sl">Разница лучший / худший</div>
+        </div>
+        <div class="cmp-stat-card">
+            <div class="cmp-sv">${data.length}</div>
+            <div class="cmp-sl">Экспериментов</div>
+        </div>
+    `;
+}
+
+function renderTable(data, bestLat, bestFps) {
+    const tbody = document.getElementById('comparisonBody');
+    tbody.innerHTML = '';
+
+    data.forEach(exp => {
+        const m = exp.metrics || {};
+        const lat = m.latency || {};
+        const thr = m.throughput || {};
+        const sys = m.system || {};
+
+        const isBestLat = exp.id === bestLat.id;
+        const isBestFps = exp.id === bestFps.id;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="text-align:left;"><strong>${exp.name}</strong></td>
+            <td style="text-align:left;">${exp.model_name || '--'}</td>
+            <td><span class="cmp-badge cmp-badge-${exp.params?.backend || 'cpu'}">${(exp.params?.backend || 'cpu').toUpperCase()}</span></td>
+            <td class="${isBestLat ? 'best-val' : ''}">${lat.mean_ms?.toFixed(2) || '--'} ms</td>
+            <td>${lat.p95_ms?.toFixed(2) || '--'} ms</td>
+            <td class="${isBestFps ? 'best-val' : ''}">${thr.fps?.toFixed(1) || '--'}</td>
+            <td>${sys.cpu_percent_mean?.toFixed(0) || '--'}%</td>
+            <td>${sys.memory_mb_mean?.toFixed(0) || '--'} MB</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderCharts(data) {
+    const labels = data.map(e => e.name.length > 28 ? e.name.substring(0, 25) + '...' : e.name);
+    const latencies = data.map(e => e.metrics?.latency?.mean_ms || 0);
+    const throughputs = data.map(e => e.metrics?.throughput?.fps || 0);
+
+    const colors = [
+        'rgba(88, 166, 255, 0.8)',
+        'rgba(63, 185, 80, 0.8)',
+        'rgba(251, 146, 60, 0.8)',
+        'rgba(167, 139, 250, 0.8)',
+        'rgba(236, 72, 153, 0.8)',
+        'rgba(52, 211, 153, 0.8)',
+        'rgba(251, 191, 36, 0.8)',
+        'rgba(99, 102, 241, 0.8)',
+        'rgba(248, 81, 73, 0.8)',
+        'rgba(210, 153, 34, 0.8)',
+        'rgba(139, 148, 158, 0.8)',
+        'rgba(88, 166, 255, 0.5)',
+    ];
+
+    if (latencyChart) latencyChart.destroy();
+    if (throughputChart) throughputChart.destroy();
+
+    const baseOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'rgba(22,27,34,0.95)',
+                titleColor: '#c9d1d9',
+                bodyColor: '#c9d1d9',
+                borderColor: '#30363d',
+                borderWidth: 1,
+                padding: 12,
+                cornerRadius: 8,
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: 'rgba(48,54,61,0.5)', drawBorder: false },
+                ticks: { color: '#8b949e', maxRotation: 45, font: { size: 11 } }
+            },
+            y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(48,54,61,0.5)', drawBorder: false },
+                ticks: { color: '#8b949e', font: { size: 11 } }
+            }
+        }
+    };
+
+    latencyChart = new Chart(document.getElementById('latencyChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data: latencies,
+                backgroundColor: colors.slice(0, data.length),
+                borderRadius: 6,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            ...baseOpts,
+            scales: {
+                ...baseOpts.scales,
+                y: { ...baseOpts.scales.y, title: { display: true, text: 'ms', color: '#8b949e' } }
+            }
+        }
+    });
+
+    throughputChart = new Chart(document.getElementById('throughputChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data: throughputs,
+                backgroundColor: colors.slice(0, data.length),
+                borderRadius: 6,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            ...baseOpts,
+            scales: {
+                ...baseOpts.scales,
+                y: { ...baseOpts.scales.y, title: { display: true, text: 'FPS', color: '#8b949e' } }
+            }
+        }
+    });
+}
+
+function clearComparison() {
+    document.getElementById('comparisonPanel').style.display = 'none';
+    document.querySelectorAll('.cmp-item input').forEach(cb => cb.checked = false);
+    selectedIds = [];
+    updateSelection();
+}
+</script>
+{% endblock %}

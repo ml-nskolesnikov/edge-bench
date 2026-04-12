@@ -1,0 +1,648 @@
+{% extends "base.html" %}
+
+{% block title %}Зависимости - Edge-Bench{% endblock %}
+
+{% block content %}
+<h1>Управление зависимостями</h1>
+
+<div class="dependencies-layout">
+    <!-- Device selector -->
+    <section class="section">
+        <h2>Выберите устройство</h2>
+        <div class="device-grid" id="deviceGrid">
+            {% if devices %}
+                {% for device in devices %}
+                <div class="device-card-select {% if loop.first %}selected{% endif %}"
+                     data-device-id="{{ device.id }}"
+                     onclick="selectDevice('{{ device.id }}')">
+                    <div class="device-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6c0-1.1.9-2 2-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm2 0v10h12V6H6z"/>
+                            <path d="M9 20h6v2H9z"/>
+                        </svg>
+                    </div>
+                    <div class="device-details">
+                        <span class="device-name">{{ device.name }}</span>
+                        <span class="device-ip">{{ device.ip }}:{{ device.port }}</span>
+                    </div>
+                    <span class="status-dot" id="status-{{ device.id }}"></span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-state">Нет зарегистрированных устройств</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Dependencies table -->
+    <section class="section">
+        <div class="section-header">
+            <h2>Состояние зависимостей</h2>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="checkAllDependencies()">
+                    Проверить все
+                </button>
+                <button class="btn" onclick="addDependency()">
+                    + Добавить
+                </button>
+            </div>
+        </div>
+
+        <div class="deps-summary" id="depsSummary">
+            <div class="summary-item">
+                <span class="summary-value" id="installedCount">-</span>
+                <span class="summary-label">Установлено</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-value missing" id="missingCount">-</span>
+                <span class="summary-label">Отсутствует</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-value error" id="errorCount">-</span>
+                <span class="summary-label">Ошибки</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-value" id="unknownCount">-</span>
+                <span class="summary-label">Не проверено</span>
+            </div>
+        </div>
+
+        <table class="data-table deps-table">
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Пакет</th>
+                    <th>Статус</th>
+                    <th>Версия</th>
+                    <th>Обязательно</th>
+                    <th>Проверено</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="depsTable">
+                {% for dep in dependencies %}
+                <tr data-dep-id="{{ dep.id }}">
+                    <td class="dep-name">
+                        <strong>{{ dep.name }}</strong>
+                        {% if dep.description %}
+                        <small>{{ dep.description }}</small>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ dep.package }}</code></td>
+                    <td class="dep-status">
+                        <span class="status-badge status-unknown">Не проверено</span>
+                    </td>
+                    <td class="dep-version">-</td>
+                    <td>
+                        {% if dep.is_required %}
+                        <span class="badge badge-required">Да</span>
+                        {% else %}
+                        <span class="badge">Нет</span>
+                        {% endif %}
+                    </td>
+                    <td class="dep-checked">-</td>
+                    <td class="dep-actions">
+                        <button class="btn btn-small" onclick="checkDependency('{{ dep.id }}')">
+                            Проверить
+                        </button>
+                        <button class="btn btn-small btn-danger" onclick="deleteDependency('{{ dep.id }}')">
+                            Удалить
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+
+<!-- Add Dependency Modal -->
+<div id="addDepModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Добавить зависимость</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="addDepForm" onsubmit="submitDependency(event)">
+            <div class="form-group">
+                <label for="depName">Название</label>
+                <input type="text" id="depName" required placeholder="NumPy">
+            </div>
+            <div class="form-group">
+                <label for="depPackage">Пакет (pip)</label>
+                <input type="text" id="depPackage" required placeholder="numpy">
+            </div>
+            <div class="form-group">
+                <label for="depCheckCmd">Команда проверки</label>
+                <input type="text" id="depCheckCmd"
+                       placeholder='python3 -c "import numpy; print(numpy.__version__)"'>
+            </div>
+            <div class="form-group">
+                <label for="depDescription">Описание</label>
+                <input type="text" id="depDescription" placeholder="Библиотека для вычислений">
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="depRequired" checked>
+                    Обязательная зависимость
+                </label>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn" onclick="closeModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Добавить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.dependencies-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.device-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+}
+
+.device-card-select {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.device-card-select:hover {
+    border-color: var(--primary-color);
+    background: var(--bg-hover);
+}
+
+.device-card-select.selected {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+}
+
+.device-icon {
+    color: var(--text-secondary);
+}
+
+.device-details {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.device-name {
+    font-weight: 600;
+}
+
+.device-ip {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #aaa;
+}
+
+.status-dot.online {
+    background: #22c55e;
+}
+
+.status-dot.offline {
+    background: #ef4444;
+}
+
+.status-dot.checking {
+    background: #f59e0b;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.deps-summary {
+    display: flex;
+    gap: 24px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+}
+
+.summary-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.summary-value.missing {
+    color: #f59e0b;
+}
+
+.summary-value.error {
+    color: #ef4444;
+}
+
+.summary-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.deps-table .dep-name {
+    min-width: 150px;
+}
+
+.deps-table .dep-name small {
+    display: block;
+    color: var(--text-secondary);
+    font-weight: normal;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge.status-unknown {
+    background: #e5e7eb;
+    color: #6b7280;
+}
+
+.status-badge.status-installed {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.status-badge.status-missing {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.status-badge.status-error {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    background: #e5e7eb;
+    color: #6b7280;
+}
+
+.badge-required {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.dep-actions {
+    white-space: nowrap;
+}
+
+.dep-actions .btn-small {
+    margin-right: 4px;
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.open {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-header h3 {
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.form-group input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedDeviceId = '{{ devices[0].id if devices else "" }}';
+
+function selectDevice(deviceId) {
+    selectedDeviceId = deviceId;
+    document.querySelectorAll('.device-card-select').forEach(card => {
+        card.classList.toggle('selected', card.dataset.deviceId === deviceId);
+    });
+    loadDeviceDependencies(deviceId);
+}
+
+async function loadDeviceDependencies(deviceId) {
+    try {
+        const resp = await fetch(`/api/dependencies/device/${deviceId}`);
+        const data = await resp.json();
+
+        updateDependenciesTable(data.dependencies);
+        updateSummary(data.dependencies);
+    } catch (err) {
+        console.error('Error loading dependencies:', err);
+    }
+}
+
+function updateDependenciesTable(deps) {
+    deps.forEach(dep => {
+        const row = document.querySelector(`tr[data-dep-id="${dep.id}"]`);
+        if (!row) return;
+
+        const statusCell = row.querySelector('.dep-status');
+        const versionCell = row.querySelector('.dep-version');
+        const checkedCell = row.querySelector('.dep-checked');
+
+        const status = dep.status || 'unknown';
+        const statusLabels = {
+            'installed': 'Установлено',
+            'missing': 'Отсутствует',
+            'error': 'Ошибка',
+            'unknown': 'Не проверено'
+        };
+
+        statusCell.innerHTML = `<span class="status-badge status-${status}">${statusLabels[status]}</span>`;
+
+        if (status === 'error' && dep.error_message) {
+            statusCell.innerHTML += `<small style="display:block;color:#dc2626;font-size:11px;">${dep.error_message}</small>`;
+        }
+
+        versionCell.textContent = dep.installed_version || '-';
+        checkedCell.textContent = dep.checked_at ? new Date(dep.checked_at).toLocaleString('ru') : '-';
+    });
+}
+
+function updateSummary(deps) {
+    let installed = 0, missing = 0, errors = 0, unknown = 0;
+
+    deps.forEach(dep => {
+        switch (dep.status) {
+            case 'installed': installed++; break;
+            case 'missing': missing++; break;
+            case 'error': errors++; break;
+            default: unknown++;
+        }
+    });
+
+    document.getElementById('installedCount').textContent = installed;
+    document.getElementById('missingCount').textContent = missing;
+    document.getElementById('errorCount').textContent = errors;
+    document.getElementById('unknownCount').textContent = unknown;
+}
+
+async function checkAllDependencies() {
+    if (!selectedDeviceId) {
+        alert('Выберите устройство');
+        return;
+    }
+
+    // Show checking state
+    document.querySelectorAll('.dep-status').forEach(cell => {
+        cell.innerHTML = '<span class="status-badge status-unknown">Проверка...</span>';
+    });
+
+    try {
+        const resp = await fetch(`/api/dependencies/device/${selectedDeviceId}/check`, {
+            method: 'POST'
+        });
+        const data = await resp.json();
+
+        updateDependenciesTable(data.dependencies);
+        updateSummary(data.dependencies);
+    } catch (err) {
+        alert('Ошибка проверки: ' + err.message);
+    }
+}
+
+async function checkDependency(depId) {
+    if (!selectedDeviceId) {
+        alert('Выберите устройство');
+        return;
+    }
+
+    const row = document.querySelector(`tr[data-dep-id="${depId}"]`);
+    const statusCell = row.querySelector('.dep-status');
+    statusCell.innerHTML = '<span class="status-badge status-unknown">Проверка...</span>';
+
+    try {
+        const resp = await fetch(`/api/dependencies/device/${selectedDeviceId}/check/${depId}`, {
+            method: 'POST'
+        });
+        const result = await resp.json();
+
+        // Update single row
+        const statusLabels = {
+            'installed': 'Установлено',
+            'missing': 'Отсутствует',
+            'error': 'Ошибка',
+            'unknown': 'Не проверено'
+        };
+
+        statusCell.innerHTML = `<span class="status-badge status-${result.status}">${statusLabels[result.status]}</span>`;
+
+        if (result.status === 'error' && result.error_message) {
+            statusCell.innerHTML += `<small style="display:block;color:#dc2626;font-size:11px;">${result.error_message}</small>`;
+        }
+
+        row.querySelector('.dep-version').textContent = result.installed_version || '-';
+        row.querySelector('.dep-checked').textContent = new Date().toLocaleString('ru');
+
+        // Reload summary
+        loadDeviceDependencies(selectedDeviceId);
+    } catch (err) {
+        statusCell.innerHTML = '<span class="status-badge status-error">Ошибка</span>';
+    }
+}
+
+async function deleteDependency(depId) {
+    if (!confirm('Удалить эту зависимость?')) return;
+
+    try {
+        const resp = await fetch(`/api/dependencies/${depId}`, { method: 'DELETE' });
+        if (resp.ok) {
+            document.querySelector(`tr[data-dep-id="${depId}"]`).remove();
+        } else {
+            alert('Ошибка удаления');
+        }
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+function addDependency() {
+    document.getElementById('addDepModal').classList.add('open');
+}
+
+function closeModal() {
+    document.getElementById('addDepModal').classList.remove('open');
+    document.getElementById('addDepForm').reset();
+}
+
+async function submitDependency(event) {
+    event.preventDefault();
+
+    const data = {
+        name: document.getElementById('depName').value,
+        package: document.getElementById('depPackage').value,
+        check_command: document.getElementById('depCheckCmd').value,
+        description: document.getElementById('depDescription').value,
+        is_required: document.getElementById('depRequired').checked
+    };
+
+    try {
+        const resp = await fetch('/api/dependencies', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (resp.ok) {
+            closeModal();
+            location.reload();
+        } else {
+            const err = await resp.json();
+            alert('Ошибка: ' + (err.detail || 'Неизвестная ошибка'));
+        }
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+// Check device status on load
+async function checkDeviceStatuses() {
+    {% for device in devices %}
+    try {
+        const resp = await fetch('/api/devices/{{ device.id }}/ping');
+        const dot = document.getElementById('status-{{ device.id }}');
+        dot.classList.remove('checking');
+        dot.classList.add(resp.ok ? 'online' : 'offline');
+    } catch {
+        document.getElementById('status-{{ device.id }}').classList.add('offline');
+    }
+    {% endfor %}
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    {% for device in devices %}
+    document.getElementById('status-{{ device.id }}').classList.add('checking');
+    {% endfor %}
+
+    checkDeviceStatuses();
+
+    if (selectedDeviceId) {
+        loadDeviceDependencies(selectedDeviceId);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,987 @@
+{% extends "base.html" %}
+
+{% block title %}Бенчмарк - Edge-Bench{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Запуск бенчмарков</h1>
+        <p class="page-subtitle">Запускайте тесты производительности моделей на Edge-устройствах</p>
+    </div>
+</div>
+
+<div class="bench-layout">
+    <!-- Device selection -->
+    <div class="section">
+        <h2 style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent)">
+                <path d="M4 6c0-1.1.9-2 2-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm2 0v10h12V6H6z"/>
+                <path d="M9 20h6v2H9z"/>
+            </svg>
+            Устройство
+        </h2>
+        <div class="dev-select-grid">
+            {% if devices %}
+                {% for device in devices %}
+                <div class="dev-select-card {% if loop.first %}active{% endif %}"
+                     id="bench-dev-{{ device.id }}"
+                     data-device-id="{{ device.id }}"
+                     onclick="selectDevice('{{ device.id }}')">
+                    <div class="dev-sel-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6c0-1.1.9-2 2-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm2 0v10h12V6H6z"/>
+                            <path d="M9 20h6v2H9z"/>
+                        </svg>
+                    </div>
+                    <div class="dev-sel-info">
+                        <span class="dev-sel-name">{{ device.name }}</span>
+                        <code class="dev-sel-ip">{{ device.ip }}:{{ device.port }}</code>
+                    </div>
+                    <span class="dev-sel-dot" id="bench-status-{{ device.id }}"></span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="bench-empty">
+                    Нет устройств. <a href="/devices">Добавить</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Benchmark modes -->
+    <div class="section">
+        <h2 style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent)">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+            </svg>
+            Режим бенчмарка
+        </h2>
+
+        <div class="bench-modes">
+            <!-- Single -->
+            <div class="bm-card" id="modeSingle">
+                <div class="bm-header" onclick="toggleMode('single')">
+                    <div class="bm-h-icon" style="background:rgba(88,166,255,0.12); color:var(--accent);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    </div>
+                    <div class="bm-h-text">
+                        <strong>Одиночный бенчмарк</strong>
+                        <span>Детальный тест одной модели с полной статистикой</span>
+                    </div>
+                    <span class="bm-arrow" id="arrow-single">&#9660;</span>
+                </div>
+                <div class="bm-body" id="singleContent">
+                    <div class="form-group">
+                        <label>Модель на устройстве</label>
+                        <select id="singleModel">
+                            <option value="">Выберите устройство...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Бэкенд</label>
+                        <select id="singleBackend">
+                            <option value="cpu">CPU</option>
+                            <option value="edgetpu">Edge TPU</option>
+                        </select>
+                    </div>
+                    <div class="bm-params">
+                        <div class="form-group">
+                            <label>Прогрев</label>
+                            <input type="number" id="singleWarmup" value="20" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Итераций</label>
+                            <input type="number" id="singleRuns" value="100" min="10">
+                        </div>
+                        <div class="form-group">
+                            <label>Потоки (CPU)</label>
+                            <input type="number" id="singleThreads" value="4" min="1">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="runSingleBenchmark()" id="btnSingle">
+                        Запустить бенчмарк
+                    </button>
+                </div>
+            </div>
+
+            <!-- Batch -->
+            <div class="bm-card" id="modeBatch">
+                <div class="bm-header" onclick="toggleMode('batch')">
+                    <div class="bm-h-icon" style="background:rgba(52,211,153,0.12); color:#34d399;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+                    </div>
+                    <div class="bm-h-text">
+                        <strong>Пакетный бенчмарк</strong>
+                        <span>Автоматический тест всех моделей в директории</span>
+                    </div>
+                    <span class="bm-arrow" id="arrow-batch">&#9660;</span>
+                </div>
+                <div class="bm-body" id="batchContent" style="display:none;">
+                    <div class="form-group">
+                        <label>Директория моделей</label>
+                        <input type="text" id="batchModelsDir" value="~/models" placeholder="/home/pi/models">
+                    </div>
+                    <div class="form-group">
+                        <label>Бэкенды</label>
+                        <div class="bm-checks">
+                            <label class="bm-check"><input type="checkbox" id="batchCpu" checked> CPU</label>
+                            <label class="bm-check"><input type="checkbox" id="batchEdgetpu" checked> Edge TPU</label>
+                        </div>
+                    </div>
+                    <div class="bm-params">
+                        <div class="form-group">
+                            <label>Прогрев</label>
+                            <input type="number" id="batchWarmup" value="20" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Итераций</label>
+                            <input type="number" id="batchRuns" value="100" min="10">
+                        </div>
+                        <div class="form-group">
+                            <label>Потоки</label>
+                            <input type="number" id="batchThreads" value="4" min="1">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="runBatchBenchmark()" id="btnBatch">
+                        Запустить пакетный бенчмарк
+                    </button>
+                </div>
+            </div>
+
+            <!-- ECCV -->
+            <div class="bm-card" id="modeEccv">
+                <div class="bm-header" onclick="toggleMode('eccv')">
+                    <div class="bm-h-icon" style="background:rgba(167,139,250,0.12); color:#a78bfa;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+                    </div>
+                    <div class="bm-h-text">
+                        <strong>ECCV Benchmark</strong>
+                        <span>Воспроизводимый бенчмарк для ECCV2026 paper</span>
+                    </div>
+                    <span class="bm-arrow" id="arrow-eccv">&#9660;</span>
+                </div>
+                <div class="bm-body" id="eccvContent" style="display:none;">
+                    <div class="form-group">
+                        <label>Стратегии</label>
+                        <div class="bm-checks">
+                            <label class="bm-check"><input type="checkbox" id="eccvHybrid" checked> Hybrid</label>
+                            <label class="bm-check"><input type="checkbox" id="eccvFuzzy" checked> Fuzzy</label>
+                            <label class="bm-check"><input type="checkbox" id="eccvSbert" checked> SBERT</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Архитектуры</label>
+                        <div class="bm-checks">
+                            <label class="bm-check"><input type="checkbox" id="eccvMobilenetv2" checked> MobileNetV2</label>
+                            <label class="bm-check"><input type="checkbox" id="eccvMobilenetv1" checked> MobileNetV1</label>
+                            <label class="bm-check"><input type="checkbox" id="eccvEfflite0" checked> EfficientNet-Lite0</label>
+                            <label class="bm-check"><input type="checkbox" id="eccvEfficientnet"> EfficientNet-B3</label>
+                            <label class="bm-check"><input type="checkbox" id="eccvResnet"> ResNet-50</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Бэкенды</label>
+                        <div class="bm-checks">
+                            <label class="bm-check"><input type="checkbox" id="eccvCpu" checked> CPU</label>
+                            <label class="bm-check"><input type="checkbox" id="eccvEdgetpu" checked> Edge TPU</label>
+                        </div>
+                        <p class="bm-hint">EfficientNet-B3 не совместим с EdgeTPU -- для него будет использован только CPU</p>
+                    </div>
+                    <div class="bm-params">
+                        <div class="form-group">
+                            <label>Итераций</label>
+                            <input type="number" id="eccvRuns" value="100" min="10">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="runEccvBenchmark()" id="btnEccv">
+                        Запустить ECCV Benchmark
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results panel -->
+    <div class="section" id="resultsPanel" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="display:flex; align-items:center; gap:10px; margin:0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--accent)"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                Результаты
+            </h2>
+            <div style="display:flex; gap:8px;">
+                <button class="btn" onclick="downloadResults()" style="font-size:13px;">Скачать JSON</button>
+                <button class="btn" onclick="clearResults()" style="font-size:13px;">Очистить</button>
+            </div>
+        </div>
+
+        <div class="res-status" id="resultsStatus">
+            <div class="res-spinner"></div>
+            <span>Выполняется бенчмарк... Это может занять несколько минут.</span>
+        </div>
+
+        <div id="resultsContent" style="display:none;">
+            <div class="res-summary" id="resultsSummary"></div>
+            <details class="res-details" open>
+                <summary>Подробный JSON-отчёт</summary>
+                <pre id="resultsJson"></pre>
+            </details>
+        </div>
+    </div>
+</div>
+
+<style>
+.page-head {
+    margin-bottom: 24px;
+}
+.page-head h1 { margin-bottom: 4px; }
+.page-subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin: 0;
+}
+
+.bench-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Device selection grid */
+.dev-select-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+}
+.dev-select-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.dev-select-card:hover {
+    border-color: var(--accent);
+}
+.dev-select-card.active {
+    border-color: var(--accent);
+    background: rgba(88, 166, 255, 0.06);
+}
+.dev-sel-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent);
+    flex-shrink: 0;
+}
+.dev-sel-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+.dev-sel-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+}
+.dev-sel-ip {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: none;
+    padding: 0;
+}
+.dev-sel-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+}
+.dev-sel-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.dev-sel-dot.offline { background: var(--danger); }
+.dev-sel-dot.checking {
+    background: var(--text-muted);
+    animation: dot-blink 1.2s infinite;
+}
+@keyframes dot-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+.bench-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* Benchmark mode cards */
+.bench-modes {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.bm-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.bm-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    cursor: pointer;
+    background: var(--bg);
+    transition: background 0.15s;
+}
+.bm-header:hover {
+    background: rgba(88, 166, 255, 0.04);
+}
+.bm-h-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.bm-h-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.bm-h-text strong {
+    font-size: 15px;
+    color: var(--text);
+}
+.bm-h-text span {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.bm-arrow {
+    color: var(--text-muted);
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+.bm-card.expanded .bm-arrow {
+    transform: rotate(180deg);
+}
+.bm-body {
+    padding: 18px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+.bm-body .form-group {
+    margin-bottom: 14px;
+}
+.bm-body .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.bm-body .form-group input,
+.bm-body .form-group select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+}
+.bm-body .form-group input:focus,
+.bm-body .form-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+.bm-params {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+}
+.bm-checks {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+.bm-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+}
+.bm-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+}
+.bm-hint {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Results panel */
+.res-status {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+.res-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.res-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.res-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+}
+.res-card .res-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+.res-card .res-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'SF Mono', Consolas, monospace;
+}
+.res-card .res-unit {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+.res-card.res-error {
+    border-color: var(--danger);
+    grid-column: 1 / -1;
+}
+.res-card.res-error .res-value {
+    color: var(--danger);
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 500;
+}
+.res-card.res-ok {
+    border-color: var(--success);
+    grid-column: 1 / -1;
+}
+.res-card.res-ok .res-value {
+    color: var(--success);
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 500;
+}
+
+.res-card.res-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    grid-column: 1 / -1;
+}
+.res-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    padding: 12px 28px;
+}
+
+.res-details {
+    margin-top: 12px;
+}
+.res-details summary {
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 8px 0;
+}
+.res-details pre {
+    max-height: 400px;
+    overflow: auto;
+    font-size: 12px;
+    margin-top: 8px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedDeviceId = null;
+let currentResults = null;
+
+{% if devices %}
+selectedDeviceId = '{{ devices[0].id }}';
+{% endif %}
+
+function selectDevice(id) {
+    selectedDeviceId = id;
+    document.querySelectorAll('.dev-select-card').forEach(c => {
+        c.classList.toggle('active', c.dataset.deviceId === id);
+    });
+    loadDeviceModels();
+}
+
+async function loadDeviceModels() {
+    const select = document.getElementById('singleModel');
+    select.innerHTML = '<option value="">Загрузка...</option>';
+
+    if (!selectedDeviceId) return;
+
+    try {
+        const resp = await fetch(`/api/devices/${selectedDeviceId}/models`);
+        if (resp.ok) {
+            const data = await resp.json();
+            select.innerHTML = '<option value="">Выберите модель...</option>';
+            if (data.models && data.models.length > 0) {
+                data.models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.path;
+                    const sizeMB = (m.size_bytes / 1024 / 1024).toFixed(1);
+                    opt.textContent = `${m.name} (${sizeMB} MB)`;
+                    select.appendChild(opt);
+                });
+            } else {
+                select.innerHTML = '<option value="">Нет моделей на устройстве</option>';
+            }
+        } else {
+            select.innerHTML = '<option value="">Устройство недоступно</option>';
+        }
+    } catch {
+        select.innerHTML = '<option value="">Ошибка загрузки</option>';
+    }
+}
+
+function toggleMode(mode) {
+    const modes = ['single', 'batch', 'eccv'];
+    modes.forEach(m => {
+        const card = document.getElementById(`mode${m.charAt(0).toUpperCase() + m.slice(1)}`);
+        const content = document.getElementById(`${m}Content`);
+
+        if (m === mode) {
+            card.classList.toggle('expanded');
+            content.style.display = card.classList.contains('expanded') ? 'block' : 'none';
+        } else {
+            card.classList.remove('expanded');
+            content.style.display = 'none';
+        }
+    });
+}
+
+function showResults(inProgress) {
+    const panel = document.getElementById('resultsPanel');
+    const status = document.getElementById('resultsStatus');
+    const content = document.getElementById('resultsContent');
+
+    panel.style.display = 'block';
+    status.style.display = inProgress ? 'flex' : 'none';
+    content.style.display = inProgress ? 'none' : 'block';
+
+    panel.scrollIntoView({ behavior: 'smooth' });
+}
+
+function displayResults(results) {
+    currentResults = results;
+    const summary = document.getElementById('resultsSummary');
+    const json = document.getElementById('resultsJson');
+
+    let html = '';
+
+    if (results.status === 'failed') {
+        html = `
+            <div class="res-card res-error">
+                <div class="res-label">Ошибка</div>
+                <div class="res-value">${results.error || 'Неизвестная ошибка'}</div>
+            </div>`;
+    } else if (results.message) {
+        const hasExperiments = results.experiments_created && results.experiments_created.length > 0;
+        html = `
+            <div class="res-card res-ok">
+                <div class="res-label">Статус</div>
+                <div class="res-value">${results.message}</div>
+            </div>`;
+        if (hasExperiments) {
+            html += `
+            <div class="res-card res-nav">
+                <a href="/experiments" class="btn btn-primary res-nav-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                    Перейти к экспериментам
+                </a>
+            </div>`;
+        }
+    } else {
+        if (results.latency) {
+            html += `
+                <div class="res-card">
+                    <div class="res-label">Средняя задержка</div>
+                    <div class="res-value">${results.latency.mean_ms.toFixed(2)}<span class="res-unit"> ms</span></div>
+                </div>
+                <div class="res-card">
+                    <div class="res-label">P95 задержка</div>
+                    <div class="res-value">${results.latency.p95_ms.toFixed(2)}<span class="res-unit"> ms</span></div>
+                </div>`;
+        }
+        if (results.throughput) {
+            html += `
+                <div class="res-card">
+                    <div class="res-label">Throughput</div>
+                    <div class="res-value">${results.throughput.fps.toFixed(1)}<span class="res-unit"> FPS</span></div>
+                </div>`;
+        }
+        if (results.cold_start) {
+            html += `
+                <div class="res-card">
+                    <div class="res-label">Загрузка модели</div>
+                    <div class="res-value">${results.cold_start.model_load_ms.toFixed(0)}<span class="res-unit"> ms</span></div>
+                </div>`;
+        }
+        if (results.system && results.system.cpu_percent) {
+            html += `
+                <div class="res-card">
+                    <div class="res-label">CPU (avg)</div>
+                    <div class="res-value">${results.system.cpu_percent.mean.toFixed(1)}<span class="res-unit">%</span></div>
+                </div>`;
+        }
+    }
+
+    summary.innerHTML = html;
+
+    // Clean display JSON
+    const displayData = JSON.parse(JSON.stringify(results));
+    if (displayData.latency) delete displayData.latency.all_values_ms;
+    json.textContent = JSON.stringify(displayData, null, 2);
+
+    showResults(false);
+}
+
+async function runSingleBenchmark() {
+    if (!selectedDeviceId) { alert('Выберите устройство'); return; }
+    const modelPath = document.getElementById('singleModel').value;
+    if (!modelPath) { alert('Выберите модель'); return; }
+
+    showResults(true);
+
+    try {
+        const resp = await fetch(`/api/devices/${selectedDeviceId}/benchmark/full`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model_path: modelPath,
+                backend: document.getElementById('singleBackend').value,
+                warmup: parseInt(document.getElementById('singleWarmup').value),
+                runs: parseInt(document.getElementById('singleRuns').value),
+                threads: parseInt(document.getElementById('singleThreads').value),
+            })
+        });
+        const result = await resp.json();
+        displayResults(result);
+    } catch (e) {
+        displayResults({ status: 'failed', error: e.message });
+    }
+}
+
+async function runBatchBenchmark() {
+    if (!selectedDeviceId) { alert('Выберите устройство'); return; }
+
+    const backends = [];
+    if (document.getElementById('batchCpu').checked) backends.push('cpu');
+    if (document.getElementById('batchEdgetpu').checked) backends.push('edgetpu');
+    if (backends.length === 0) { alert('Выберите хотя бы один бэкенд'); return; }
+
+    showResults(true);
+
+    try {
+        const resp = await fetch(`/api/devices/${selectedDeviceId}/benchmark/batch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                models_dir: document.getElementById('batchModelsDir').value,
+                backends: backends,
+                warmup: parseInt(document.getElementById('batchWarmup').value),
+                runs: parseInt(document.getElementById('batchRuns').value),
+                threads: parseInt(document.getElementById('batchThreads').value),
+            })
+        });
+        const result = await resp.json();
+        if (result.stdout) {
+            try { displayResults(JSON.parse(result.stdout)); } catch { displayResults(result); }
+        } else {
+            displayResults(result);
+        }
+    } catch (e) {
+        displayResults({ status: 'failed', error: e.message });
+    }
+}
+
+function updateEccvStatus(msg) {
+    const statusText = document.querySelector('#resultsStatus span');
+    if (statusText) statusText.textContent = msg;
+}
+
+// Architectures that are NOT compatible with EdgeTPU
+const CPU_ONLY_ARCHS = ['efficientnet'];
+
+async function runEccvBenchmark() {
+    if (!selectedDeviceId) { alert('Выберите устройство'); return; }
+
+    const strategies = [];
+    if (document.getElementById('eccvHybrid').checked) strategies.push('hybrid');
+    if (document.getElementById('eccvFuzzy').checked) strategies.push('Fuzzy');
+    if (document.getElementById('eccvSbert').checked) strategies.push('sbert');
+
+    const architectures = [];
+    if (document.getElementById('eccvMobilenetv2').checked) architectures.push('mobilenetv2');
+    if (document.getElementById('eccvMobilenetv1').checked) architectures.push('mobilenetv1');
+    if (document.getElementById('eccvEfflite0').checked) architectures.push('efficientnet_lite0');
+    if (document.getElementById('eccvEfficientnet').checked) architectures.push('efficientnet');
+    if (document.getElementById('eccvResnet').checked) architectures.push('resnet50');
+
+    const backends = [];
+    if (document.getElementById('eccvCpu').checked) backends.push('cpu');
+    if (document.getElementById('eccvEdgetpu').checked) backends.push('edgetpu');
+
+    if (strategies.length === 0 || architectures.length === 0) {
+        alert('Выберите хотя бы одну стратегию и архитектуру');
+        return;
+    }
+    if (backends.length === 0) {
+        alert('Выберите хотя бы один бэкенд');
+        return;
+    }
+
+    showResults(true);
+
+    // Step 1: Build list of required model filenames
+    const requiredModels = [];
+    for (const arch of architectures) {
+        for (const strategy of strategies) {
+            // CPU backend always needs the base model
+            if (backends.includes('cpu')) {
+                requiredModels.push(`${arch}_int8_ptq_${strategy}.tflite`);
+            }
+            // EdgeTPU backend needs _edgetpu model (skip CPU-only architectures)
+            if (backends.includes('edgetpu') && !CPU_ONLY_ARCHS.includes(arch)) {
+                requiredModels.push(`${arch}_int8_ptq_${strategy}_edgetpu.tflite`);
+            }
+        }
+    }
+
+    // Step 2: Check which models already exist on device
+    updateEccvStatus('Проверяю модели на устройстве...');
+    let deviceModels = [];
+    try {
+        const resp = await fetch(`/api/devices/${selectedDeviceId}/models`);
+        if (resp.ok) {
+            const data = await resp.json();
+            deviceModels = (data.models || []).map(m => m.name);
+        }
+    } catch { /* ignore */ }
+
+    // Step 3: Find missing models and deploy them
+    const missing = requiredModels.filter(name => !deviceModels.includes(name));
+    const deployResults = { deployed: [], failed: [] };
+
+    if (missing.length > 0) {
+        updateEccvStatus(`Загружаю ${missing.length} моделей на устройство...`);
+
+        for (let i = 0; i < missing.length; i++) {
+            const modelName = missing[i];
+            updateEccvStatus(`Загружаю модель ${i + 1}/${missing.length}: ${modelName}`);
+
+            try {
+                const resp = await fetch(`/api/devices/${selectedDeviceId}/deploy-by-name`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_name: modelName })
+                });
+
+                if (resp.ok) {
+                    deployResults.deployed.push(modelName);
+                } else {
+                    const err = await resp.json();
+                    deployResults.failed.push({ name: modelName, error: err.detail || 'Unknown' });
+                }
+            } catch (e) {
+                deployResults.failed.push({ name: modelName, error: e.message });
+            }
+        }
+    }
+
+    // Step 4: If critical models missing, show error
+    if (deployResults.failed.length > 0) {
+        const failedNames = deployResults.failed.map(f => f.name);
+        const failedDetails = deployResults.failed.map(f => `${f.name}: ${f.error}`).join('\n');
+
+        // Filter out experiments that would use missing models
+        const availableModels = [...deviceModels, ...deployResults.deployed];
+        console.warn('Failed to deploy:', failedDetails);
+    }
+
+    // Step 5: Create experiments
+    updateEccvStatus('Создаю эксперименты...');
+
+    const allDeployed = [...deviceModels, ...deployResults.deployed];
+    const experiments = [];
+
+    for (const arch of architectures) {
+        for (const strategy of strategies) {
+            // Determine which backends apply to this architecture
+            const archBackends = backends.filter(b => {
+                if (b === 'edgetpu' && CPU_ONLY_ARCHS.includes(arch)) return false;
+                return true;
+            });
+
+            for (const backend of archBackends) {
+                const modelName = `${arch}_int8_ptq_${strategy}${backend === 'edgetpu' ? '_edgetpu' : ''}.tflite`;
+
+                // Only create experiment if model is available
+                if (!allDeployed.includes(modelName)) {
+                    continue;
+                }
+
+                experiments.push({
+                    name: `eccv_${arch}_${strategy}_${backend}`,
+                    device_id: selectedDeviceId,
+                    model_path: `~/models/${modelName}`,
+                    params: {
+                        backend: backend,
+                        warmup_runs: 20,
+                        benchmark_runs: parseInt(document.getElementById('eccvRuns').value),
+                    }
+                });
+            }
+        }
+    }
+
+    const results = { created: [], errors: [] };
+
+    for (const exp of experiments) {
+        try {
+            const resp = await fetch('/api/experiments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(exp)
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                results.created.push(data.id);
+            } else {
+                results.errors.push(exp.name);
+            }
+        } catch {
+            results.errors.push(exp.name);
+        }
+    }
+
+    // Build summary message
+    let message = `Создано ${results.created.length} экспериментов`;
+    if (deployResults.deployed.length > 0) {
+        message += `, загружено ${deployResults.deployed.length} моделей`;
+    }
+    if (deployResults.failed.length > 0) {
+        message += `, не найдено ${deployResults.failed.length} моделей`;
+    }
+    if (results.errors.length > 0) {
+        message += `, ошибок создания: ${results.errors.length}`;
+    }
+
+    displayResults({
+        status: deployResults.failed.length > 0 && results.created.length === 0 ? 'failed' : 'completed',
+        message: message,
+        error: deployResults.failed.length > 0 && results.created.length === 0
+            ? 'Модели не найдены на сервере. Загрузите их через страницу "Модели":\n' +
+              deployResults.failed.map(f => `  - ${f.name}`).join('\n')
+            : undefined,
+        experiments_created: results.created,
+        models_deployed: deployResults.deployed,
+        models_failed: deployResults.failed.map(f => f.name),
+        experiment_errors: results.errors,
+    });
+
+}
+
+function downloadResults() {
+    if (!currentResults) return;
+    const blob = new Blob([JSON.stringify(currentResults, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `benchmark_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function clearResults() {
+    document.getElementById('resultsPanel').style.display = 'none';
+    currentResults = null;
+}
+
+// Check device statuses and load models on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const cards = document.querySelectorAll('.dev-select-card');
+    cards.forEach(async (card) => {
+        const id = card.dataset.deviceId;
+        const dot = document.getElementById(`bench-status-${id}`);
+        dot.classList.add('checking');
+
+        try {
+            const resp = await fetch(`/api/devices/${id}/ping`, { method: 'POST' });
+            const data = await resp.json();
+            dot.classList.remove('checking');
+            dot.classList.add(data.status === 'ok' ? 'online' : 'offline');
+        } catch {
+            dot.classList.remove('checking');
+            dot.classList.add('offline');
+        }
+    });
+
+    // Load models for first device
+    if (selectedDeviceId) {
+        loadDeviceModels();
+    }
+
+    // Expand first mode
+    toggleMode('single');
+});
+</script>
+{% endblock %}

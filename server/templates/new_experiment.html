@@ -1,0 +1,950 @@
+{% extends "base.html" %}
+
+{% block title %}Новый эксперимент - Edge-Bench{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Новый эксперимент</h1>
+        <p class="page-subtitle">Создайте и запустите бенчмарк на Edge-устройстве</p>
+    </div>
+</div>
+
+<!-- Mode selector -->
+<div class="ne-modes">
+    <button class="ne-mode active" onclick="switchMode('single')" id="modeSingle">
+        <div class="ne-mode-icon ne-mode-icon-single">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+        </div>
+        <div>
+            <strong>Одиночный эксперимент</strong>
+            <span>Один тест с детальными настройками</span>
+        </div>
+    </button>
+    <button class="ne-mode" onclick="switchMode('batch')" id="modeBatch">
+        <div class="ne-mode-icon ne-mode-icon-batch">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>
+            </svg>
+        </div>
+        <div>
+            <strong>Пакетный эксперимент</strong>
+            <span>Множество тестов за один раз</span>
+        </div>
+    </button>
+</div>
+
+<!-- ===== SINGLE MODE ===== -->
+<div id="singleMode">
+    <form onsubmit="createExperiment(event)">
+        <!-- Step 1 -->
+        <div class="ne-step">
+            <div class="ne-step-head"><span class="ne-step-num">1</span> Основная информация</div>
+            <div class="ne-step-body">
+                <div class="form-group">
+                    <label>Название эксперимента</label>
+                    <input type="text" id="expName" required placeholder="mobilenet_v2_edgetpu_benchmark" class="ne-input">
+                    <p class="form-hint">Используйте понятное название для идентификации результатов</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="ne-step">
+            <div class="ne-step-head"><span class="ne-step-num">2</span> Целевое устройство</div>
+            <div class="ne-step-body">
+                {% if devices %}
+                <div class="ne-dev-grid">
+                    {% for d in devices %}
+                    <label class="ne-dev-opt">
+                        <input type="radio" name="singleDevice" value="{{ d.id }}" onchange="onSingleDeviceChange('{{ d.id }}')" {% if loop.first %}checked{% endif %}>
+                        <div class="ne-dev-card">
+                            <div class="ne-dev-icon">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M4 6c0-1.1.9-2 2-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm2 0v10h12V6H6z"/>
+                                    <path d="M9 20h6v2H9z"/>
+                                </svg>
+                            </div>
+                            <div class="ne-dev-info">
+                                <strong>{{ d.name }}</strong>
+                                <code>{{ d.ip }}:{{ d.port }}</code>
+                            </div>
+                            <span class="ne-dot" id="single-device-status-{{ d.id }}"></span>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="ne-alert">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                    <span>Нет устройств.</span>
+                    <a href="/devices" class="btn btn-primary" style="font-size:13px; padding:6px 14px;">Добавить</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="ne-step">
+            <div class="ne-step-head"><span class="ne-step-num">3</span> Модель</div>
+            <div class="ne-step-body">
+                <label style="font-size:13px; color:var(--text-muted); font-weight:500; margin-bottom:8px; display:block;">Источник модели</label>
+                <div class="ne-src-tabs">
+                    <button type="button" class="ne-src-tab active" onclick="setModelSource('device', this)">На устройстве</button>
+                    <button type="button" class="ne-src-tab" onclick="setModelSource('repository', this)">Из репозитория</button>
+                    <button type="button" class="ne-src-tab" onclick="setModelSource('manual', this)">Вручную</button>
+                </div>
+                <input type="hidden" name="modelSource" value="device">
+
+                <div class="form-group" id="deviceModelGroup" style="margin-top:14px;">
+                    <label>Выберите модель</label>
+                    <select id="expDeviceModel" class="ne-input">
+                        <option value="">Загрузка моделей...</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="repoModelGroup" style="display:none; margin-top:14px;">
+                    <label>Модель из репозитория</label>
+                    <select id="expRepoModel" class="ne-input">
+                        <option value="">Выберите модель...</option>
+                        {% for m in models %}
+                        <option value="{{ m.id }}" data-name="{{ m.name }}">
+                            {{ m.name }} ({{ "%.1f"|format(m.size_bytes / 1024 / 1024) }} MB)
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="form-hint">Модель будет автоматически загружена на устройство</p>
+                </div>
+
+                <div class="form-group" id="manualModelGroup" style="display:none; margin-top:14px;">
+                    <label>Путь к модели на устройстве</label>
+                    <input type="text" id="expModelPath" placeholder="/home/pi/models/model.tflite" class="ne-input">
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="ne-step">
+            <div class="ne-step-head"><span class="ne-step-num">4</span> Параметры бенчмарка</div>
+            <div class="ne-step-body">
+                <div class="ne-params">
+                    <div class="ne-param">
+                        <label>Бэкенд</label>
+                        <div class="ne-toggle">
+                            <label class="ne-toggle-opt">
+                                <input type="radio" name="expBackend" value="cpu" checked>
+                                <span>CPU</span>
+                            </label>
+                            <label class="ne-toggle-opt">
+                                <input type="radio" name="expBackend" value="edgetpu">
+                                <span>EdgeTPU</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="ne-param">
+                        <label>Прогрев</label>
+                        <input type="number" id="expWarmup" value="10" min="0">
+                        <small>запусков</small>
+                    </div>
+                    <div class="ne-param">
+                        <label>Тестов</label>
+                        <input type="number" id="expRuns" value="100" min="1">
+                        <small>запусков</small>
+                    </div>
+                    <div class="ne-param">
+                        <label>Потоков</label>
+                        <input type="number" id="expThreads" value="4" min="1">
+                        <small>CPU</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ne-actions">
+            <a href="/experiments" class="btn">Отмена</a>
+            <button type="submit" class="btn btn-primary" style="display:flex; align-items:center; gap:8px; padding:12px 24px; font-size:15px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                Создать и запустить
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- ===== BATCH MODE ===== -->
+<div id="batchMode" style="display:none;">
+    <form onsubmit="createBatchExperiments(event)">
+        <div class="ne-step">
+            <div class="ne-step-head"><span class="ne-step-num">1</span> Устройство</div>
+            <div class="ne-step-body">
+                {% if devices %}
+                <div class="ne-dev-grid">
+                    {% for device in devices %}
+                    <label class="ne-dev-opt">
+                        <input type="radio" name="batchDevice" value="{{ device.id }}" onchange="onBatchDeviceChange('{{ device.id }}')" {% if loop.first %}checked{% endif %}>
+                        <div class="ne-dev-card">
+                            <div class="ne-dev-icon">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M4 6c0-1.1.9-2 2-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm2 0v10h12V6H6z"/>
+                                    <path d="M9 20h6v2H9z"/>
+                                </svg>
+                            </div>
+                            <div class="ne-dev-info">
+                                <strong>{{ device.name }}</strong>
+                                <code>{{ device.ip }}:{{ device.port }}</code>
+                            </div>
+                            <span class="ne-dot" id="batch-status-{{ device.id }}"></span>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="ne-alert">Нет устройств. <a href="/devices">Добавьте</a></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="ne-step">
+            <div class="ne-step-head"><span class="ne-step-num">2</span> Модели на устройстве</div>
+            <div class="ne-step-body">
+                <div class="ne-model-list" id="batchModelsList">
+                    <div class="ne-model-loading">Выберите устройство...</div>
+                </div>
+                <div class="ne-model-footer">
+                    <span id="selectedModelsCount" style="color:var(--text-muted); font-size:13px;">0 моделей выбрано</span>
+                    <button type="button" class="btn" style="font-size:12px; padding:5px 12px;" onclick="toggleAllModels()">Выбрать все</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="ne-step">
+            <div class="ne-step-head"><span class="ne-step-num">3</span> Бэкенды</div>
+            <div class="ne-step-body">
+                <div class="ne-backend-grid">
+                    <label class="ne-backend-opt">
+                        <input type="checkbox" name="batchBackend" value="cpu" checked onchange="updateExperimentsCount()">
+                        <div class="ne-backend-card">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15 9H9v6h6V9zm-2 4h-2v-2h2v2zm8-2V9h-2V7c0-1.1-.9-2-2-2h-2V3h-2v2h-2V3H9v2H7c-1.1 0-2 .9-2 2v2H3v2h2v2H3v2h2v2c0 1.1.9 2 2 2h2v2h2v-2h2v2h2v-2h2c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2z"/></svg>
+                            <strong>CPU</strong>
+                            <span>TFLite на процессоре</span>
+                        </div>
+                    </label>
+                    <label class="ne-backend-opt">
+                        <input type="checkbox" name="batchBackend" value="edgetpu" checked onchange="updateExperimentsCount()">
+                        <div class="ne-backend-card">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7v7l9-11h-7V3z"/></svg>
+                            <strong>Edge TPU</strong>
+                            <span>Coral Accelerator</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="ne-step">
+            <div class="ne-step-head"><span class="ne-step-num">4</span> Общие параметры</div>
+            <div class="ne-step-body">
+                <div class="ne-params">
+                    <div class="ne-param">
+                        <label>Прогрев</label>
+                        <input type="number" id="batchWarmup" value="10" min="0">
+                        <small>запусков</small>
+                    </div>
+                    <div class="ne-param">
+                        <label>Тестов</label>
+                        <input type="number" id="batchRuns" value="100" min="1">
+                        <small>запусков</small>
+                    </div>
+                    <div class="ne-param">
+                        <label>Потоков</label>
+                        <input type="number" id="batchThreads" value="4" min="1">
+                        <small>CPU</small>
+                    </div>
+                    <div class="ne-param">
+                        <label>Батч</label>
+                        <input type="number" id="batchBatchSize" value="1" min="1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="ne-summary">
+            <div class="ne-summary-num" id="totalExperimentsCount">0</div>
+            <div class="ne-summary-text">
+                <strong>экспериментов будет создано</strong>
+                <span id="summaryFormula">0 моделей x 0 бэкендов = 0</span>
+            </div>
+        </div>
+
+        <div class="ne-actions">
+            <a href="/experiments" class="btn">Отмена</a>
+            <button type="submit" class="btn btn-primary" id="batchSubmitBtn" disabled style="padding:12px 24px; font-size:15px;">
+                Создать все эксперименты
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Progress modal -->
+<div id="progressModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:500px; text-align:center;">
+        <h3 style="margin-bottom:20px;">Создание экспериментов...</h3>
+        <div class="ne-progress-bar"><div class="ne-progress-fill" id="progressFill"></div></div>
+        <p id="progressText" style="margin-top:12px; color:var(--text-muted); font-size:14px;">0 / 0</p>
+        <div class="ne-progress-log" id="progressLog"></div>
+    </div>
+</div>
+
+<style>
+.page-head { margin-bottom: 24px; }
+.page-head h1 { margin-bottom: 4px; }
+.page-subtitle { color: var(--text-muted); font-size: 15px; margin: 0; }
+
+/* Mode selector */
+.ne-modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+.ne-mode {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    color: var(--text);
+}
+.ne-mode:hover { border-color: var(--accent); }
+.ne-mode.active {
+    border-color: var(--accent);
+    background: rgba(88, 166, 255, 0.06);
+}
+.ne-mode div strong {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 2px;
+}
+.ne-mode div span {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.ne-mode-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+.ne-mode-icon-single { background: rgba(88, 166, 255, 0.12); color: var(--accent); }
+.ne-mode-icon-batch { background: rgba(52, 211, 153, 0.12); color: #34d399; }
+.ne-mode.active .ne-mode-icon-single { background: var(--accent); color: #fff; }
+.ne-mode.active .ne-mode-icon-batch { background: #34d399; color: #fff; }
+
+/* Steps */
+.ne-step {
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.ne-step-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+}
+.ne-step-num {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+}
+.ne-step-body {
+    padding: 18px;
+    background: var(--bg-secondary);
+}
+
+/* Inputs */
+.ne-input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+}
+.ne-input:focus { outline: none; border-color: var(--accent); }
+
+/* Device grid */
+.ne-dev-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+}
+.ne-dev-opt { cursor: pointer; }
+.ne-dev-opt input { display: none; }
+.ne-dev-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    transition: all 0.15s;
+}
+.ne-dev-opt:hover .ne-dev-card { border-color: var(--accent); }
+.ne-dev-opt input:checked + .ne-dev-card {
+    border-color: var(--accent);
+    background: rgba(88, 166, 255, 0.06);
+}
+.ne-dev-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent);
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.ne-dev-info {
+    flex: 1;
+    min-width: 0;
+}
+.ne-dev-info strong {
+    display: block;
+    font-size: 14px;
+    color: var(--text);
+}
+.ne-dev-info code {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: none;
+    padding: 0;
+}
+.ne-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+}
+.ne-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.ne-dot.offline { background: var(--danger); }
+.ne-dot.checking { animation: ne-blink 1.2s infinite; }
+@keyframes ne-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.ne-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    background: rgba(210, 153, 34, 0.1);
+    border: 1px solid rgba(210, 153, 34, 0.3);
+    border-radius: 8px;
+    color: var(--warning);
+    font-size: 14px;
+}
+
+/* Source tabs */
+.ne-src-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+.ne-src-tab {
+    padding: 8px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s;
+}
+.ne-src-tab:hover { border-color: var(--accent); color: var(--text); }
+.ne-src-tab.active {
+    background: rgba(88, 166, 255, 0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Parameters */
+.ne-params {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+}
+.ne-param {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.ne-param label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.ne-param input {
+    padding: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+}
+.ne-param input:focus { outline: none; border-color: var(--accent); }
+.ne-param small {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* Toggle */
+.ne-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.ne-toggle-opt { flex: 1; cursor: pointer; }
+.ne-toggle-opt input { display: none; }
+.ne-toggle-opt span {
+    display: block;
+    padding: 10px;
+    text-align: center;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+}
+.ne-toggle-opt:hover span { background: rgba(88,166,255,0.04); }
+.ne-toggle-opt input:checked + span {
+    background: var(--accent);
+    color: #fff;
+}
+
+/* Actions */
+.ne-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+/* Batch models list */
+.ne-model-list {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+.ne-model-loading {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+.ne-model-opt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--border);
+}
+.ne-model-opt:last-child { border-bottom: none; }
+.ne-model-opt:hover { background: rgba(88,166,255,0.04); }
+.ne-model-opt input { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+.ne-model-opt .m-info { flex: 1; min-width: 0; }
+.ne-model-opt .m-name { font-size: 13px; font-weight: 500; color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ne-model-opt .m-meta { font-size: 11px; color: var(--text-muted); }
+.ne-model-opt .m-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.ne-model-opt .m-badge.tpu { background: rgba(251,146,60,0.15); color: #fb923c; }
+.ne-model-opt .m-badge.cpu { background: rgba(139,148,158,0.15); color: var(--text-muted); }
+
+.ne-model-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
+/* Backend grid */
+.ne-backend-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.ne-backend-opt { cursor: pointer; }
+.ne-backend-opt input { display: none; }
+.ne-backend-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 18px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+    transition: all 0.15s;
+    color: var(--text-muted);
+}
+.ne-backend-opt:hover .ne-backend-card { border-color: var(--accent); }
+.ne-backend-opt input:checked + .ne-backend-card {
+    border-color: var(--accent);
+    background: rgba(88,166,255,0.06);
+    color: var(--text);
+}
+.ne-backend-card strong { font-size: 15px; color: var(--text); }
+.ne-backend-card span { font-size: 12px; }
+
+/* Summary bar */
+.ne-summary {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 20px;
+    background: rgba(88,166,255,0.08);
+    border: 1px solid rgba(88,166,255,0.2);
+    border-radius: 10px;
+    margin-top: 16px;
+}
+.ne-summary-num {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'SF Mono', Consolas, monospace;
+    min-width: 50px;
+    text-align: center;
+}
+.ne-summary-text strong {
+    display: block;
+    font-size: 14px;
+    color: var(--text);
+}
+.ne-summary-text span {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: 'SF Mono', Consolas, monospace;
+}
+
+/* Progress */
+.ne-progress-bar {
+    height: 10px;
+    background: var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+}
+.ne-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s;
+    border-radius: 5px;
+}
+.ne-progress-log {
+    margin-top: 16px;
+    max-height: 160px;
+    overflow-y: auto;
+    text-align: left;
+    font-size: 12px;
+    font-family: 'SF Mono', Consolas, monospace;
+    background: var(--bg);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+}
+.log-item { padding: 3px 0; }
+.log-item.success { color: var(--success); }
+.log-item.error { color: var(--danger); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let batchModels = [];
+let currentBatchDeviceId = null;
+let currentModelSource = 'device';
+let singleDeviceId = null;
+
+function switchMode(mode) {
+    document.getElementById('singleMode').style.display = mode === 'single' ? 'block' : 'none';
+    document.getElementById('batchMode').style.display = mode === 'batch' ? 'block' : 'none';
+    document.getElementById('modeSingle').classList.toggle('active', mode === 'single');
+    document.getElementById('modeBatch').classList.toggle('active', mode === 'batch');
+
+    if (mode === 'batch') {
+        checkBatchDevicesStatus();
+        const first = document.querySelector('input[name="batchDevice"]:checked');
+        if (first) onBatchDeviceChange(first.value);
+    }
+}
+
+async function checkBatchDevicesStatus() {
+    {% for device in devices %}
+    (async () => {
+        const dot = document.getElementById('batch-status-{{ device.id }}');
+        if (dot) dot.classList.add('checking');
+        try {
+            const r = await fetch('/api/devices/{{ device.id }}/ping', {method:'POST'});
+            const d = await r.json();
+            dot.classList.remove('checking');
+            dot.classList.add(d.status === 'ok' ? 'online' : 'offline');
+        } catch { dot.classList.remove('checking'); dot.classList.add('offline'); }
+    })();
+    {% endfor %}
+}
+
+async function onBatchDeviceChange(deviceId) {
+    currentBatchDeviceId = deviceId;
+    await loadBatchModels(deviceId);
+}
+
+async function loadBatchModels(deviceId) {
+    const container = document.getElementById('batchModelsList');
+    container.innerHTML = '<div class="ne-model-loading">Загрузка моделей...</div>';
+    batchModels = [];
+
+    try {
+        const resp = await fetch(`/api/devices/${deviceId}/models`);
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.models && data.models.length > 0) {
+                batchModels = data.models;
+                renderBatchModels(data.models, container);
+            } else {
+                container.innerHTML = '<div class="ne-model-loading">Нет моделей. <a href="/models">Загрузите</a></div>';
+            }
+        } else {
+            container.innerHTML = '<div class="ne-model-loading">Ошибка загрузки</div>';
+        }
+    } catch { container.innerHTML = '<div class="ne-model-loading">Устройство недоступно</div>'; }
+    updateExperimentsCount();
+}
+
+function renderBatchModels(models, container) {
+    container.innerHTML = '';
+    models.forEach(m => {
+        const isTPU = m.name.toLowerCase().includes('edgetpu');
+        const sizeMB = (m.size_bytes / 1024 / 1024).toFixed(1);
+        const lbl = document.createElement('label');
+        lbl.className = 'ne-model-opt';
+        lbl.innerHTML = `
+            <input type="checkbox" name="batchModel" value="${m.path}" data-name="${m.name}" onchange="updateExperimentsCount()">
+            <div class="m-info">
+                <span class="m-name">${m.name}</span>
+                <span class="m-meta">${sizeMB} MB</span>
+            </div>
+            <span class="m-badge ${isTPU ? 'tpu' : 'cpu'}">${isTPU ? 'EdgeTPU' : 'TFLite'}</span>
+        `;
+        container.appendChild(lbl);
+    });
+}
+
+function toggleAllModels() {
+    const cbs = document.querySelectorAll('input[name="batchModel"]');
+    const all = Array.from(cbs).every(c => c.checked);
+    cbs.forEach(c => c.checked = !all);
+    updateExperimentsCount();
+}
+
+function updateExperimentsCount() {
+    const mc = document.querySelectorAll('input[name="batchModel"]:checked').length;
+    const bc = document.querySelectorAll('input[name="batchBackend"]:checked').length;
+    const t = mc * bc;
+    document.getElementById('selectedModelsCount').textContent = `${mc} моделей выбрано`;
+    document.getElementById('totalExperimentsCount').textContent = t;
+    document.getElementById('summaryFormula').textContent = `${mc} моделей x ${bc} бэкендов = ${t}`;
+    document.getElementById('batchSubmitBtn').disabled = t === 0;
+}
+
+async function createBatchExperiments(e) {
+    e.preventDefault();
+    const deviceId = document.querySelector('input[name="batchDevice"]:checked')?.value;
+    if (!deviceId) { alert('Выберите устройство'); return; }
+
+    const selModels = Array.from(document.querySelectorAll('input[name="batchModel"]:checked'))
+        .map(cb => ({ path: cb.value, name: cb.dataset.name }));
+    const selBackends = Array.from(document.querySelectorAll('input[name="batchBackend"]:checked'))
+        .map(cb => cb.value);
+
+    if (!selModels.length || !selBackends.length) { alert('Выберите модели и бэкенды'); return; }
+
+    const params = {
+        batch_size: parseInt(document.getElementById('batchBatchSize').value),
+        num_threads: parseInt(document.getElementById('batchThreads').value),
+        warmup_runs: parseInt(document.getElementById('batchWarmup').value),
+        benchmark_runs: parseInt(document.getElementById('batchRuns').value)
+    };
+
+    const modal = document.getElementById('progressModal');
+    const pFill = document.getElementById('progressFill');
+    const pText = document.getElementById('progressText');
+    const pLog = document.getElementById('progressLog');
+    modal.style.display = 'flex'; pLog.innerHTML = '';
+
+    const total = selModels.length * selBackends.length;
+    let done = 0, errs = 0;
+
+    for (const model of selModels) {
+        for (const backend of selBackends) {
+            const name = `${model.name}_${backend}`;
+            try {
+                const r = await fetch('/api/experiments', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name, device_id: deviceId, model_path: model.path, params: {...params, backend} })
+                });
+                if (r.ok) { pLog.innerHTML += `<div class="log-item success">+ ${name}</div>`; }
+                else { pLog.innerHTML += `<div class="log-item error">x ${name}</div>`; errs++; }
+            } catch { pLog.innerHTML += `<div class="log-item error">x ${name}</div>`; errs++; }
+            done++;
+            pFill.style.width = `${(done/total)*100}%`;
+            pText.textContent = `${done} / ${total}`;
+            pLog.scrollTop = pLog.scrollHeight;
+        }
+    }
+    setTimeout(() => { modal.style.display = 'none'; window.location.href = '/experiments'; }, 1000);
+}
+
+// Single experiment
+function setModelSource(source, btn) {
+    currentModelSource = source;
+    document.querySelector('input[name="modelSource"]').value = source;
+    document.querySelectorAll('.ne-src-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('deviceModelGroup').style.display = source === 'device' ? 'block' : 'none';
+    document.getElementById('repoModelGroup').style.display = source === 'repository' ? 'block' : 'none';
+    document.getElementById('manualModelGroup').style.display = source === 'manual' ? 'block' : 'none';
+}
+
+async function onSingleDeviceChange(deviceId) {
+    singleDeviceId = deviceId;
+    const sel = document.getElementById('expDeviceModel');
+    sel.innerHTML = '<option value="">Загрузка...</option>';
+    try {
+        const r = await fetch(`/api/devices/${deviceId}/models`);
+        if (r.ok) {
+            const d = await r.json();
+            sel.innerHTML = '<option value="">Выберите модель...</option>';
+            if (d.models?.length) {
+                d.models.forEach(m => {
+                    const o = document.createElement('option');
+                    o.value = m.path;
+                    const sz = (m.size_bytes/1024/1024).toFixed(1);
+                    const badge = m.name.toLowerCase().includes('edgetpu') ? ' [EdgeTPU]' : '';
+                    o.textContent = `${m.name} (${sz} MB)${badge}`;
+                    sel.appendChild(o);
+                });
+            } else { sel.innerHTML = '<option value="">Нет моделей</option>'; }
+        }
+    } catch { sel.innerHTML = '<option value="">Устройство недоступно</option>'; }
+}
+
+async function createExperiment(e) {
+    e.preventDefault();
+    const deviceId = document.querySelector('input[name="singleDevice"]:checked')?.value || singleDeviceId;
+    if (!deviceId) { alert('Выберите устройство'); return; }
+
+    let modelPath = '';
+    if (currentModelSource === 'device') {
+        modelPath = document.getElementById('expDeviceModel').value;
+        if (!modelPath) { alert('Выберите модель'); return; }
+    } else if (currentModelSource === 'repository') {
+        const repoId = document.getElementById('expRepoModel').value;
+        if (!repoId) { alert('Выберите модель'); return; }
+        try {
+            const r = await fetch(`/api/devices/${deviceId}/upload-model`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({file_id: repoId})
+            });
+            if (r.ok) { modelPath = (await r.json()).path; }
+            else { alert('Ошибка развёртывания: ' + ((await r.json()).detail || '?')); return; }
+        } catch (ex) { alert('Ошибка: ' + ex); return; }
+    } else {
+        modelPath = document.getElementById('expModelPath').value;
+        if (!modelPath) { alert('Укажите путь'); return; }
+    }
+
+    const backend = document.querySelector('input[name="expBackend"]:checked')?.value || 'cpu';
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Создание...';
+
+    try {
+        const r = await fetch('/api/experiments', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: document.getElementById('expName').value,
+                device_id: deviceId, model_path: modelPath,
+                params: {
+                    backend, batch_size: 1,
+                    num_threads: parseInt(document.getElementById('expThreads').value),
+                    warmup_runs: parseInt(document.getElementById('expWarmup').value),
+                    benchmark_runs: parseInt(document.getElementById('expRuns').value)
+                }
+            })
+        });
+        if (r.ok) { window.location.href = '/experiments/' + (await r.json()).id; }
+        else { alert('Ошибка: ' + ((await r.json()).detail || '?')); btn.disabled = false; btn.textContent = 'Создать и запустить'; }
+    } catch (ex) { alert('Ошибка: ' + ex.message); btn.disabled = false; }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const first = document.querySelector('input[name="singleDevice"]:checked');
+    if (first) onSingleDeviceChange(first.value);
+
+    // Check single device statuses
+    {% for device in devices %}
+    (async () => {
+        const dot = document.getElementById('single-device-status-{{ device.id }}');
+        if (dot) dot.classList.add('checking');
+        try {
+            const r = await fetch('/api/devices/{{ device.id }}/ping', {method:'POST'});
+            const d = await r.json();
+            dot.classList.remove('checking');
+            dot.classList.add(d.status === 'ok' ? 'online' : 'offline');
+        } catch { dot.classList.remove('checking'); dot.classList.add('offline'); }
+    })();
+    {% endfor %}
+});
+</script>
+{% endblock %}

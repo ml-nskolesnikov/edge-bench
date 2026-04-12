@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}Эксперимент {{ experiment.id }} - Edge-Bench{% endblock %}
+
+{% block content %}
+<h1 data-i18n="Experiment Results">Результаты эксперимента</h1>
+
+{% if experiment %}
+<section class="section">
+    <div class="experiment-header">
+        <div>
+            <h2>{{ experiment.name }}</h2>
+            <p class="subtitle">
+                <code>{{ experiment.model_name }}</code> на
+                <strong>{{ experiment.device_id }}</strong>
+            </p>
+        </div>
+        <span class="status status-{{ experiment.status }}">
+            {% if experiment.status == 'completed' %}завершён
+            {% elif experiment.status == 'running' %}выполняется
+            {% elif experiment.status == 'pending' %}ожидание
+            {% elif experiment.status == 'failed' %}ошибка
+            {% else %}{{ experiment.status }}{% endif %}
+        </span>
+    </div>
+</section>
+
+{% if result and experiment.status == 'completed' %}
+<!-- Results Dashboard -->
+<div class="dashboard">
+    <!-- Key Metrics Cards -->
+    <div class="metrics-cards">
+        <div class="metric-card metric-primary">
+            <div class="metric-value">{{ "%.2f"|format(metrics.latency.mean_ms) }}<span class="unit">мс</span></div>
+            <div class="metric-label" data-i18n="Mean Latency">Средняя задержка</div>
+            <div class="metric-detail">p95: {{ "%.2f"|format(metrics.latency.p95_ms) }}мс</div>
+        </div>
+        <div class="metric-card metric-success">
+            <div class="metric-value">{{ "%.1f"|format(metrics.throughput.fps) }}<span class="unit">FPS</span></div>
+            <div class="metric-label" data-i18n="Throughput">Пропускная способность</div>
+            <div class="metric-detail">{{ "%.1f"|format(metrics.throughput.images_per_second) }} изобр/с</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ "%.1f"|format(metrics.cold_start.model_load_ms) }}<span class="unit">мс</span></div>
+            <div class="metric-label" data-i18n="Model Load">Загрузка модели</div>
+            <div class="metric-detail" data-i18n="First inference">Первый инференс: {{ "%.1f"|format(metrics.cold_start.first_inference_ms) }}мс</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ "%.1f"|format(metrics.system.cpu_temp_celsius or 0) }}<span class="unit">°C</span></div>
+            <div class="metric-label" data-i18n="CPU Temp">Температура CPU</div>
+            <div class="metric-detail">CPU: {{ "%.1f"|format(metrics.system.cpu_percent_mean) }}%</div>
+        </div>
+    </div>
+
+    <!-- Latency Distribution -->
+    <div class="chart-section">
+        <h3 data-i18n="Latency Distribution">Распределение задержки</h3>
+        <div class="latency-bars">
+            <div class="latency-bar-group">
+                <div class="latency-bar" style="--value: {{ (metrics.latency.min_ms / metrics.latency.max_ms * 100)|int }}%">
+                    <span class="bar-value">{{ "%.2f"|format(metrics.latency.min_ms) }}</span>
+                </div>
+                <span class="bar-label">Min</span>
+            </div>
+            <div class="latency-bar-group">
+                <div class="latency-bar" style="--value: {{ (metrics.latency.p50_ms / metrics.latency.max_ms * 100)|int }}%">
+                    <span class="bar-value">{{ "%.2f"|format(metrics.latency.p50_ms) }}</span>
+                </div>
+                <span class="bar-label">P50</span>
+            </div>
+            <div class="latency-bar-group">
+                <div class="latency-bar latency-bar-highlight" style="--value: {{ (metrics.latency.mean_ms / metrics.latency.max_ms * 100)|int }}%">
+                    <span class="bar-value">{{ "%.2f"|format(metrics.latency.mean_ms) }}</span>
+                </div>
+                <span class="bar-label" data-i18n="Mean">Среднее</span>
+            </div>
+            <div class="latency-bar-group">
+                <div class="latency-bar" style="--value: {{ (metrics.latency.p90_ms / metrics.latency.max_ms * 100)|int }}%">
+                    <span class="bar-value">{{ "%.2f"|format(metrics.latency.p90_ms) }}</span>
+                </div>
+                <span class="bar-label">P90</span>
+            </div>
+            <div class="latency-bar-group">
+                <div class="latency-bar" style="--value: {{ (metrics.latency.p95_ms / metrics.latency.max_ms * 100)|int }}%">
+                    <span class="bar-value">{{ "%.2f"|format(metrics.latency.p95_ms) }}</span>
+                </div>
+                <span class="bar-label">P95</span>
+            </div>
+            <div class="latency-bar-group">
+                <div class="latency-bar" style="--value: {{ (metrics.latency.p99_ms / metrics.latency.max_ms * 100)|int }}%">
+                    <span class="bar-value">{{ "%.2f"|format(metrics.latency.p99_ms) }}</span>
+                </div>
+                <span class="bar-label">P99</span>
+            </div>
+            <div class="latency-bar-group">
+                <div class="latency-bar latency-bar-max" style="--value: 100%">
+                    <span class="bar-value">{{ "%.2f"|format(metrics.latency.max_ms) }}</span>
+                </div>
+                <span class="bar-label">Max</span>
+            </div>
+        </div>
+        <p class="chart-note" data-i18n="Std">Стд. откл.: ±{{ "%.3f"|format(metrics.latency.std_ms) }}мс</p>
+    </div>
+
+    <!-- System Metrics -->
+    <div class="system-section">
+        <h3 data-i18n="System Metrics">Системные метрики</h3>
+        <div class="system-grid">
+            <div class="system-item">
+                <div class="system-bar">
+                    <div class="system-bar-fill" style="width: {{ metrics.system.cpu_percent_mean }}%"></div>
+                </div>
+                <span class="system-label" data-i18n="CPU Usage">Загрузка CPU</span>
+                <span class="system-value">{{ "%.1f"|format(metrics.system.cpu_percent_mean) }}% (макс: {{ "%.1f"|format(metrics.system.cpu_percent_max) }}%)</span>
+            </div>
+            <div class="system-item">
+                <div class="system-bar">
+                    <div class="system-bar-fill" style="width: {{ (metrics.system.memory_mb_mean / metrics.device_info.memory_total_mb * 100)|int }}%"></div>
+                </div>
+                <span class="system-label" data-i18n="Memory">Память</span>
+                <span class="system-value">{{ "%.0f"|format(metrics.system.memory_mb_mean) }} MB / {{ "%.0f"|format(metrics.device_info.memory_total_mb) }} MB</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model & Device Info -->
+    <div class="info-grid">
+        <div class="info-card">
+            <h3 data-i18n="Model Info">Информация о модели</h3>
+            <table class="info-table">
+                <tr><td data-i18n="Name">Название</td><td><code>{{ metrics.model.name }}</code></td></tr>
+                <tr><td data-i18n="Size">Размер</td><td>{{ "%.2f"|format(metrics.model.size_bytes / 1024 / 1024) }} MB</td></tr>
+                <tr><td data-i18n="Quantization">Квантизация</td><td>{{ metrics.model.quantization or 'неизвестно' }}</td></tr>
+                <tr><td data-i18n="Hash">Хэш</td><td><code>{{ metrics.model.hash[:24] }}...</code></td></tr>
+            </table>
+        </div>
+        <div class="info-card">
+            <h3 data-i18n="Device Info">Информация об устройстве</h3>
+            <table class="info-table">
+                <tr><td data-i18n="Hostname">Имя хоста</td><td>{{ metrics.device_info.hostname }}</td></tr>
+                <tr><td data-i18n="Platform">Платформа</td><td>{{ metrics.device_info.platform[:30] }}...</td></tr>
+                <tr><td>Python</td><td>{{ metrics.device_info.python_version }}</td></tr>
+                <tr><td data-i18n="CPUs">Ядра CPU</td><td>{{ metrics.device_info.cpu_count }}</td></tr>
+                <tr><td>Edge TPU</td><td>{{ 'Да' if metrics.device_info.tpu_detected else 'Нет' }}</td></tr>
+            </table>
+        </div>
+        <div class="info-card">
+            <h3 data-i18n="Test Parameters">Параметры теста</h3>
+            <table class="info-table">
+                <tr><td data-i18n="Backend">Бэкенд</td><td><strong>{{ metrics.params.backend }}</strong></td></tr>
+                <tr><td data-i18n="Threads">Потоки</td><td>{{ metrics.params.num_threads }}</td></tr>
+                <tr><td data-i18n="Warmup Runs">Прогрев</td><td>{{ metrics.params.warmup_runs }}</td></tr>
+                <tr><td data-i18n="Benchmark Runs">Тестов</td><td>{{ metrics.params.benchmark_runs }}</td></tr>
+                <tr><td data-i18n="Duration">Длительность</td><td>{{ "%.1f"|format(metrics.duration_seconds) }}с</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% elif experiment.status == 'failed' %}
+<section class="section error-section">
+    <h3 data-i18n="Error">Ошибка</h3>
+    <pre class="error-box"><code>{{ experiment.error_message }}</code></pre>
+</section>
+{% endif %}
+
+{% if experiment.logs %}
+<section class="section">
+    <h3 data-i18n="Execution Logs">Логи выполнения</h3>
+    <pre class="log-box"><code>{{ experiment.logs }}</code></pre>
+</section>
+{% endif %}
+
+<div class="action-buttons">
+    <button onclick="rerunExperiment('{{ experiment.id }}')" class="btn btn-primary" data-i18n="Rerun Experiment">Повторить эксперимент</button>
+    <a href="/api/results/{{ experiment.id }}" target="_blank" class="btn" data-i18n="Export JSON">Экспорт JSON</a>
+    <a href="/experiments" class="btn" data-i18n="Back to List">Назад к списку</a>
+</div>
+{% else %}
+<p class="empty-state" data-i18n="Experiment not found.">Эксперимент не найден.</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+.experiment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.experiment-header h2 { margin-bottom: 4px; }
+.subtitle { color: var(--text-muted); margin: 0; }
+
+.dashboard { margin-top: 24px; }
+
+.metrics-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.metric-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.metric-card.metric-primary {
+    border-color: var(--accent);
+    background: rgba(88, 166, 255, 0.05);
+}
+
+.metric-card.metric-success {
+    border-color: var(--success);
+    background: rgba(63, 185, 80, 0.05);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.metric-value .unit {
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+
+.metric-label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-top: 4px;
+}
+
+.metric-detail {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+
+.chart-section, .system-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.chart-section h3, .system-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 1rem;
+}
+
+.latency-bars {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    height: 120px;
+    gap: 12px;
+}
+
+.latency-bar-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.latency-bar {
+    width: 100%;
+    height: calc(var(--value));
+    min-height: 20px;
+    background: var(--accent);
+    border-radius: 4px 4px 0 0;
+    position: relative;
+    opacity: 0.6;
+}
+
+.latency-bar-highlight {
+    background: var(--accent);
+    opacity: 1;
+}
+
+.latency-bar-max {
+    background: var(--warning);
+    opacity: 0.8;
+}
+
+.bar-value {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    white-space: nowrap;
+}
+
+.bar-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+
+.chart-note {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 16px;
+    margin-bottom: 0;
+}
+
+.system-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.system-item {
+    display: grid;
+    grid-template-columns: 100px 1fr 200px;
+    align-items: center;
+    gap: 12px;
+}
+
+.system-bar {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.system-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+}
+
+.system-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.system-value {
+    font-size: 0.875rem;
+    text-align: right;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.info-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.info-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.info-table {
+    width: 100%;
+    font-size: 0.85rem;
+}
+
+.info-table td {
+    padding: 4px 0;
+}
+
+.info-table td:first-child {
+    color: var(--text-muted);
+    width: 40%;
+}
+
+.error-section {
+    border-color: var(--danger);
+    background: rgba(248, 81, 73, 0.05);
+}
+
+.log-box {
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 0.8rem;
+}
+</style>
+
+<script>
+async function rerunExperiment(id) {
+    const resp = await fetch(`/api/experiments/${id}/rerun`, {method: 'POST'});
+    if (resp.ok) {
+        const data = await resp.json();
+        window.location.href = '/experiments/' + data.new_experiment_id;
+    }
+}
+</script>
+{% endblock %}

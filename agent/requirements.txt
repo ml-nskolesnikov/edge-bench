@@ -1,0 +1,9 @@
+# Edge-Bench Agent Requirements (Raspberry Pi)
+fastapi>=0.109.0
+uvicorn>=0.27.0
+psutil>=5.9.0
+httpx>=0.27.0
+# IMPORTANT: tflite_runtime requires NumPy 1.x
+numpy>=1.24.0,<2.0
+# tflite-runtime устанавливается отдельно для ARM
+# pycoral устанавливается отдельно для Edge TPU

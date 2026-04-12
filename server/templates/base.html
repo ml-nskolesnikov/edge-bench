@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Edge-Bench{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/i18n.js"></script>
+    <link rel="icon" href="/static/img/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="/">Edge-Bench</a>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/" {% if request.url.path == "/" %}class="active"{% endif %} data-i18n="Dashboard">Главная</a></li>
+            <li><a href="/devices" {% if "/devices" in request.url.path %}class="active"{% endif %} data-i18n="Devices">Устройства</a></li>
+            <li><a href="/models" {% if "/models" in request.url.path %}class="active"{% endif %} data-i18n="Models">Модели</a></li>
+            <li><a href="/experiments" {% if "/experiments" in request.url.path %}class="active"{% endif %} data-i18n="Experiments">Эксперименты</a></li>
+            <li><a href="/benchmark" {% if "/benchmark" in request.url.path %}class="active"{% endif %} data-i18n="Benchmark">Бенчмарк</a></li>
+            <li><a href="/compare" {% if "/compare" in request.url.path %}class="active"{% endif %} data-i18n="Compare">Сравнение</a></li>
+            <li><a href="/new-experiment" {% if "/new-experiment" in request.url.path %}class="active"{% endif %}>+ Новый</a></li>
+            <li><a href="/settings" {% if "/settings" in request.url.path %}class="active"{% endif %} data-i18n="Settings">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:2px">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </a></li>
+        </ul>
+        <button class="lang-switch" onclick="toggleLang()" title="Switch language">
+            <span id="langLabel">EN</span>
+        </button>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>Edge-Bench v1.0 | Бенчмаркинг ML на Edge устройствах</p>
+    </footer>
+
+    <script>
+        // Language toggle
+        function toggleLang() {
+            const currentLang = localStorage.getItem('edgebench_lang') || 'ru';
+            const newLang = currentLang === 'ru' ? 'en' : 'ru';
+            localStorage.setItem('edgebench_lang', newLang);
+            location.reload();
+        }
+
+        // Update language button on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const lang = localStorage.getItem('edgebench_lang') || 'ru';
+            const label = document.getElementById('langLabel');
+            if (label) {
+                label.textContent = lang === 'ru' ? 'EN' : 'RU';
+            }
+
+            // Update footer text based on language
+            const footer = document.querySelector('.footer p');
+            if (footer && lang === 'en') {
+                footer.textContent = 'Edge-Bench v1.0 | ML Benchmarking for Edge Devices';
+            }
+        });
+
+        // Auto-refresh for running experiments
+        function checkRunningExperiments() {
+            fetch('/api/experiments?status=running')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        setTimeout(() => location.reload(), 5000);
+                    }
+                });
+        }
+
+        if (window.location.pathname.includes('experiments') || window.location.pathname === '/') {
+            checkRunningExperiments();
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

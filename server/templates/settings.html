@@ -1,0 +1,1531 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки - Edge-Bench{% endblock %}
+
+{% block content %}
+<section class="section settings-section">
+
+<!-- Page Header -->
+<div class="settings-header">
+    <div class="settings-header-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+    </div>
+    <div class="settings-header-text">
+        <h1>Настройки</h1>
+        <p>Конфигурация Edge-Bench сервера</p>
+    </div>
+</div>
+
+<!-- Server Info Cards -->
+<div class="server-info-grid">
+    <div class="server-info-card">
+        <div class="server-info-icon blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+            </svg>
+        </div>
+        <div class="server-info-data">
+            <span class="server-info-value">{{ agent_version }}</span>
+            <span class="server-info-label">Версия агента</span>
+        </div>
+    </div>
+    <div class="server-info-card">
+        <div class="server-info-icon green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+        </div>
+        <div class="server-info-data">
+            <span class="server-info-value">:{{ server_port }}</span>
+            <span class="server-info-label">Порт сервера</span>
+        </div>
+    </div>
+    <div class="server-info-card">
+        <div class="server-info-icon purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+        </div>
+        <div class="server-info-data">
+            <span class="server-info-value">{{ max_tasks }}</span>
+            <span class="server-info-label">Макс. задач</span>
+        </div>
+    </div>
+    <div class="server-info-card">
+        <div class="server-info-icon orange">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+        </div>
+        <div class="server-info-data">
+            <span class="server-info-value">{{ task_timeout }}s</span>
+            <span class="server-info-label">Таймаут задач</span>
+        </div>
+    </div>
+</div>
+
+<!-- Server Configuration -->
+<div class="settings-card">
+    <div class="settings-card-header">
+        <div class="settings-card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+        </div>
+        <h2>Параметры сервера</h2>
+        <div class="save-status" id="saveStatus" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Сохранено
+        </div>
+    </div>
+    <div class="cfg-grid">
+        <div class="cfg-item">
+            <div class="cfg-label">
+                <span class="cfg-name">Макс. параллельных задач</span>
+                <span class="cfg-hint">Количество одновременно выполняемых экспериментов</span>
+            </div>
+            <div class="cfg-control">
+                <input type="number" id="cfgMaxTasks" class="cfg-input" min="1" max="10" value="{{ max_tasks }}">
+            </div>
+        </div>
+        <div class="cfg-item">
+            <div class="cfg-label">
+                <span class="cfg-name">Таймаут задачи (сек)</span>
+                <span class="cfg-hint">Максимальное время выполнения одного эксперимента</span>
+            </div>
+            <div class="cfg-control">
+                <input type="number" id="cfgTaskTimeout" class="cfg-input" min="60" max="86400" value="{{ task_timeout }}">
+            </div>
+        </div>
+        <div class="cfg-item">
+            <div class="cfg-label">
+                <span class="cfg-name">Таймаут агента (сек)</span>
+                <span class="cfg-hint">Таймаут подключения к агенту на устройстве</span>
+            </div>
+            <div class="cfg-control">
+                <input type="number" id="cfgAgentTimeout" class="cfg-input" min="5" max="300" value="{{ agent_timeout }}">
+            </div>
+        </div>
+    </div>
+    <div class="cfg-actions">
+        <button onclick="saveServerSettings()" class="btn-save-cfg" id="btnSaveCfg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            Сохранить параметры
+        </button>
+    </div>
+</div>
+
+<!-- Paths Info -->
+<div class="settings-card">
+    <div class="settings-card-header">
+        <div class="settings-card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+        </div>
+        <h2>Пути хранения</h2>
+    </div>
+    <div class="paths-grid">
+        <div class="path-item">
+            <div class="path-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                </svg>
+            </div>
+            <div class="path-info">
+                <span class="path-label">Модели</span>
+                <code class="path-value">{{ paths.models }}</code>
+            </div>
+        </div>
+        <div class="path-item">
+            <div class="path-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+            </div>
+            <div class="path-info">
+                <span class="path-label">Скрипты</span>
+                <code class="path-value">{{ paths.scripts }}</code>
+            </div>
+        </div>
+        <div class="path-item">
+            <div class="path-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                </svg>
+            </div>
+            <div class="path-info">
+                <span class="path-label">База данных</span>
+                <code class="path-value">{{ paths.database }}</code>
+            </div>
+        </div>
+        <div class="path-item">
+            <div class="path-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+            </div>
+            <div class="path-info">
+                <span class="path-label">Загрузки</span>
+                <code class="path-value">{{ paths.uploads }}</code>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dependencies Management -->
+<div class="settings-card">
+    <div class="settings-card-header">
+        <div class="settings-card-icon dep-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+        </div>
+        <h2>Зависимости агента (RPi)</h2>
+        <span class="dep-counter" id="depCounter">{{ dependencies|length }}</span>
+        <button onclick="showAddDep()" class="add-dep-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Добавить
+        </button>
+    </div>
+
+    <p class="settings-hint">Зависимости, необходимые для работы агента на устройствах. Критические отмечены при отсутствии.</p>
+
+    <!-- Deps table header -->
+    <div class="dep-table-header">
+        <div class="dth-name">Пакет</div>
+        <div class="dth-version">Версия</div>
+        <div class="dth-check">Проверка</div>
+        <div class="dth-install">Установка</div>
+        <div class="dth-actions"></div>
+    </div>
+
+    <div class="deps-list" id="depsList">
+        {% for dep in dependencies %}
+        <div class="dep-row" data-id="{{ dep.id }}" id="dep-{{ dep.id }}">
+            <div class="dep-info">
+                <div class="dep-name">
+                    {{ dep.name }}
+                    {% if dep.is_required %}
+                    <span class="critical-badge">Обязательная</span>
+                    {% endif %}
+                </div>
+                {% if dep.description %}
+                <div class="dep-desc">{{ dep.description }}</div>
+                {% endif %}
+            </div>
+            <div class="dep-version">
+                {% if dep.version %}
+                <code class="ver-tag">{{ dep.version }}</code>
+                {% else %}
+                <span class="ver-any">any</span>
+                {% endif %}
+            </div>
+            <div class="dep-cmd">
+                {% if dep.check_command %}
+                <code title="{{ dep.check_command }}">{{ dep.check_command[:45] }}{% if dep.check_command|length > 45 %}...{% endif %}</code>
+                {% else %}
+                <span class="no-cmd">--</span>
+                {% endif %}
+            </div>
+            <div class="dep-install">
+                {% if dep.install_command %}
+                <code title="{{ dep.install_command }}">{{ dep.install_command[:35] }}{% if dep.install_command|length > 35 %}...{% endif %}</code>
+                {% else %}
+                <span class="no-cmd">pip install {{ dep.package }}{% if dep.version %}=={{ dep.version }}{% endif %}</span>
+                {% endif %}
+            </div>
+            <div class="dep-actions">
+                <button onclick="editDep('{{ dep.id }}')" class="dep-action-btn" title="Редактировать">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
+                <button onclick="deleteDep('{{ dep.id }}')" class="dep-action-btn danger" title="Удалить">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-deps" id="emptyDeps">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:8px">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            </svg>
+            <div>Зависимости не настроены</div>
+            <button onclick="showAddDep()" class="empty-add-btn">Добавить первую</button>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Check on device -->
+    {% if devices %}
+    <div class="dep-device-check">
+        <span class="dep-device-label">Проверить на устройстве:</span>
+        <select id="checkDeviceSelect" class="cfg-input cfg-select">
+            {% for dev in devices %}
+            <option value="{{ dev.id }}">{{ dev.name }} ({{ dev.ip }})</option>
+            {% endfor %}
+        </select>
+        <button onclick="checkDepsOnDevice()" class="btn-check-deps" id="btnCheckDeps">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Проверить
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+</section>
+
+<!-- Add/Edit Dependency Modal -->
+<div id="depModal" class="modal" style="display: none;">
+    <div class="modal-content dep-modal">
+        <div class="dep-modal-header">
+            <div class="dep-modal-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                </svg>
+            </div>
+            <h2 id="depModalTitle">Добавить зависимость</h2>
+            <button onclick="closeDepModal()" class="modal-close-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="dep-modal-body">
+            <input type="hidden" id="depId">
+
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                        </svg>
+                        Название *
+                    </label>
+                    <input type="text" id="depName" placeholder="NumPy" class="styled-input">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        </svg>
+                        Пакет (pip) *
+                    </label>
+                    <input type="text" id="depPackage" placeholder="numpy" class="styled-input mono">
+                </div>
+            </div>
+
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="4" y1="9" x2="20" y2="9"></line>
+                            <line x1="4" y1="15" x2="20" y2="15"></line>
+                            <line x1="10" y1="3" x2="8" y2="21"></line>
+                            <line x1="16" y1="3" x2="14" y2="21"></line>
+                        </svg>
+                        Версия
+                    </label>
+                    <input type="text" id="depVersion" placeholder="1.24.0 (пусто = любая)" class="styled-input mono">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        Описание
+                    </label>
+                    <input type="text" id="depDescription" placeholder="Математическая библиотека" class="styled-input">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 17 10 11 4 5"></polyline>
+                        <line x1="12" y1="19" x2="20" y2="19"></line>
+                    </svg>
+                    Команда проверки
+                </label>
+                <input type="text" id="depCheckCmd" placeholder='python3 -c "import numpy; print(numpy.__version__)"' class="styled-input mono">
+                <small class="form-hint">Команда должна возвращать код 0 при успехе. Если пусто -- сгенерируется автоматически.</small>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Команда установки
+                </label>
+                <input type="text" id="depInstallCmd" placeholder="pip install numpy==1.24.0" class="styled-input mono">
+                <small class="form-hint">Если пусто -- будет использована pip install {пакет}=={версия}</small>
+            </div>
+
+            <div class="checkbox-row">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="depRequired" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">
+                        Обязательная зависимость
+                        <small>Отсутствие блокирует запуск экспериментов</small>
+                    </span>
+                </label>
+            </div>
+        </div>
+        <div class="dep-modal-footer">
+            <button onclick="closeDepModal()" class="btn-cancel">Отмена</button>
+            <button onclick="saveDep()" class="btn-save" id="btnSaveDep">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                Сохранить
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Check Results Modal -->
+<div id="checkModal" class="modal" style="display:none;">
+    <div class="modal-content check-modal">
+        <div class="dep-modal-header">
+            <div class="dep-modal-icon check-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+            <h2 id="checkModalTitle">Проверка зависимостей</h2>
+            <button onclick="closeCheckModal()" class="modal-close-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="check-modal-body" id="checkResults">
+            <div class="check-loading">
+                <div class="check-spinner"></div>
+                <span>Проверяем зависимости на устройстве...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.settings-section {
+    width: 90%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 0;
+}
+
+/* Header */
+.settings-header {
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.settings-header-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.15) 0%, rgba(136, 87, 255, 0.15) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+}
+
+.settings-header-text h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.settings-header-text p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* Server Info Cards */
+.server-info-grid {
+    padding: 0 10px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.server-info-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.server-info-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.server-info-icon.blue { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+.server-info-icon.green { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+.server-info-icon.purple { background: rgba(136, 87, 255, 0.15); color: #8857ff; }
+.server-info-icon.orange { background: rgba(255, 166, 87, 0.15); color: #ffa657; }
+
+.server-info-data {
+    display: flex;
+    flex-direction: column;
+}
+
+.server-info-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.server-info-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* Settings Card */
+.settings-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 10px;
+}
+
+.settings-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.settings-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-card-icon.dep-icon {
+    background: rgba(136, 87, 255, 0.15);
+    color: #8857ff;
+}
+
+.settings-card-header h2 {
+    flex: 1;
+    margin: 0;
+    font-size: 1rem;
+}
+
+.dep-counter {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(136, 87, 255, 0.15);
+    color: #8857ff;
+    font-weight: 600;
+}
+
+.add-dep-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-dep-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
+}
+
+.settings-hint {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0 0 16px 0;
+}
+
+/* Config Grid */
+.cfg-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cfg-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    gap: 16px;
+}
+
+.cfg-label {
+    flex: 1;
+}
+
+.cfg-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.cfg-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.cfg-control {
+    flex-shrink: 0;
+}
+
+.cfg-input {
+    width: 120px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text);
+    font-size: 0.9rem;
+    text-align: center;
+    font-family: 'SF Mono', Consolas, monospace;
+    transition: border-color 0.2s;
+}
+
+.cfg-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.cfg-select {
+    width: auto;
+    min-width: 180px;
+    text-align: left;
+}
+
+.cfg-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.btn-save-cfg {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-save-cfg:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
+}
+
+.btn-save-cfg:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.save-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: #3fb950;
+    animation: fadeInOut 2s ease-in-out;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* Paths Grid */
+.paths-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.path-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.path-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.path-info { flex: 1; min-width: 0; }
+
+.path-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.path-value {
+    display: block;
+    font-size: 0.8rem;
+    word-break: break-all;
+    color: var(--text);
+}
+
+/* Dep Table Header */
+.dep-table-header {
+    display: grid;
+    grid-template-columns: 1fr 80px 200px 180px 70px;
+    gap: 12px;
+    padding: 8px 14px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+
+/* Dependencies List */
+.deps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dep-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 200px 180px 70px;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.dep-row:hover {
+    border-color: var(--accent);
+}
+
+.dep-name {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.critical-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--danger);
+    font-weight: 500;
+}
+
+.dep-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.dep-version { text-align: center; }
+
+.ver-tag {
+    font-size: 0.8rem;
+    padding: 3px 8px;
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent);
+    border-radius: 4px;
+    font-family: 'SF Mono', Consolas, monospace;
+}
+
+.ver-any {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.dep-cmd code,
+.dep-install code {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dep-install .no-cmd {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.dep-cmd .no-cmd {
+    color: var(--text-muted);
+}
+
+.dep-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+}
+
+.dep-action-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.dep-action-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--accent);
+}
+
+.dep-action-btn.danger:hover {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--danger);
+}
+
+.empty-deps {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.empty-add-btn {
+    margin-top: 12px;
+    padding: 8px 16px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.empty-add-btn:hover {
+    border-color: var(--accent);
+    background: rgba(88, 166, 255, 0.05);
+}
+
+/* Device Check */
+.dep-device-check {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.dep-device-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.btn-check-deps {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-check-deps:hover {
+    background: rgba(88, 166, 255, 0.1);
+}
+
+.btn-check-deps:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Modal */
+.dep-modal {
+    max-width: 580px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+}
+
+.dep-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.1) 0%, rgba(136, 87, 255, 0.1) 100%);
+    border-bottom: 1px solid var(--border);
+}
+
+.dep-modal-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dep-modal-icon.check-icon {
+    background: #3fb950;
+}
+
+.dep-modal-header h2 {
+    flex: 1;
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.modal-close-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close-btn:hover {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--danger);
+}
+
+.dep-modal-body {
+    padding: 20px;
+}
+
+.form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.dep-modal-body .form-group {
+    margin-bottom: 16px;
+}
+
+.dep-modal-body .form-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+    color: var(--text-muted);
+}
+
+.styled-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.styled-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.styled-input.mono {
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 0.85rem;
+}
+
+.form-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.checkbox-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 8px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.checkbox-label input { display: none; }
+
+.checkbox-custom {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.checkbox-label input:checked + .checkbox-custom {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.checkbox-label input:checked + .checkbox-custom::after {
+    content: '\2713';
+    color: white;
+    font-size: 12px;
+}
+
+.checkbox-text { font-size: 0.9rem; }
+
+.checkbox-text small {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.dep-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+}
+
+.btn-cancel {
+    padding: 10px 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.btn-cancel:hover { background: var(--bg-secondary); }
+
+.btn-save {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-save:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
+}
+
+.btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Check Modal */
+.check-modal {
+    max-width: 560px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+}
+
+.check-modal-body {
+    padding: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.check-loading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.check-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.check-summary {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.check-stat {
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.check-stat .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot-ok { background: #3fb950; }
+.dot-miss { background: #f85149; }
+.dot-err { background: #ffa657; }
+
+.check-dep-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+
+.check-dep-status {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.check-dep-status.ok { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+.check-dep-status.miss { background: rgba(248, 81, 73, 0.15); color: #f85149; }
+.check-dep-status.err { background: rgba(255, 166, 87, 0.15); color: #ffa657; }
+
+.check-dep-info { flex: 1; }
+.check-dep-name { font-weight: 500; font-size: 0.9rem; }
+.check-dep-ver { font-size: 0.8rem; color: var(--text-muted); }
+.check-dep-error { font-size: 0.75rem; color: #f85149; margin-top: 2px; }
+
+@media (max-width: 900px) {
+    .server-info-grid { grid-template-columns: repeat(2, 1fr); }
+    .dep-row { grid-template-columns: 1fr 70px 70px; }
+    .dep-table-header { grid-template-columns: 1fr 70px 70px; }
+    .dep-cmd, .dep-install,
+    .dth-check, .dth-install { display: none; }
+    .form-row-2 { grid-template-columns: 1fr; }
+    .dep-device-check { flex-wrap: wrap; }
+}
+
+@media (max-width: 600px) {
+    .paths-grid { grid-template-columns: 1fr; }
+    .server-info-grid { grid-template-columns: 1fr; }
+    .checkbox-row { flex-direction: column; gap: 12px; }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let editingDepId = null;
+
+// Dependencies data from server
+const depsData = {{ dependencies | tojson | safe }};
+
+function showAddDep() {
+    editingDepId = null;
+    document.getElementById('depModalTitle').textContent = 'Добавить зависимость';
+    document.getElementById('depId').value = '';
+    document.getElementById('depName').value = '';
+    document.getElementById('depPackage').value = '';
+    document.getElementById('depVersion').value = '';
+    document.getElementById('depCheckCmd').value = '';
+    document.getElementById('depInstallCmd').value = '';
+    document.getElementById('depDescription').value = '';
+    document.getElementById('depRequired').checked = true;
+    document.getElementById('depModal').style.display = 'flex';
+    document.getElementById('depName').focus();
+}
+
+function editDep(id) {
+    const dep = depsData.find(d => d.id === id);
+    if (!dep) return;
+
+    editingDepId = id;
+    document.getElementById('depModalTitle').textContent = 'Редактировать зависимость';
+    document.getElementById('depId').value = id;
+    document.getElementById('depName').value = dep.name || '';
+    document.getElementById('depPackage').value = dep.package || '';
+    document.getElementById('depVersion').value = dep.version || '';
+    document.getElementById('depCheckCmd').value = dep.check_command || '';
+    document.getElementById('depInstallCmd').value = dep.install_command || '';
+    document.getElementById('depDescription').value = dep.description || '';
+    document.getElementById('depRequired').checked = !!dep.is_required;
+    document.getElementById('depModal').style.display = 'flex';
+}
+
+function closeDepModal() {
+    document.getElementById('depModal').style.display = 'none';
+    editingDepId = null;
+}
+
+async function saveDep() {
+    const name = document.getElementById('depName').value.trim();
+    const pkg = document.getElementById('depPackage').value.trim() || name.toLowerCase();
+    const version = document.getElementById('depVersion').value.trim() || null;
+    const check_command = document.getElementById('depCheckCmd').value.trim() || null;
+    const install_command = document.getElementById('depInstallCmd').value.trim() || null;
+    const description = document.getElementById('depDescription').value.trim() || null;
+    const is_required = document.getElementById('depRequired').checked;
+
+    if (!name) {
+        alert('Название обязательно');
+        return;
+    }
+
+    const btn = document.getElementById('btnSaveDep');
+    btn.disabled = true;
+
+    const data = {
+        name,
+        package: pkg,
+        version,
+        check_command,
+        install_command,
+        description,
+        is_required
+    };
+
+    try {
+        let resp;
+        if (editingDepId) {
+            resp = await fetch(`/api/dependencies/${editingDepId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+        } else {
+            resp = await fetch('/api/dependencies', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+        }
+
+        if (resp.ok) {
+            location.reload();
+        } else {
+            const err = await resp.json();
+            alert('Ошибка: ' + (err.detail || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка сети: ' + e);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function deleteDep(id) {
+    if (!confirm('Удалить эту зависимость?')) return;
+
+    try {
+        const resp = await fetch(`/api/dependencies/${id}`, { method: 'DELETE' });
+
+        if (resp.ok) {
+            const row = document.getElementById('dep-' + id);
+            if (row) {
+                row.style.transition = 'all 0.3s';
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    row.remove();
+                    // Update counter
+                    const cnt = document.querySelectorAll('.dep-row').length;
+                    const counter = document.getElementById('depCounter');
+                    if (counter) counter.textContent = cnt;
+                    if (cnt === 0) {
+                        document.getElementById('depsList').innerHTML =
+                            '<div class="empty-deps" id="emptyDeps">' +
+                            '<div>Зависимости не настроены</div>' +
+                            '<button onclick="showAddDep()" class="empty-add-btn">Добавить первую</button>' +
+                            '</div>';
+                    }
+                }, 300);
+            }
+        } else {
+            alert('Ошибка удаления');
+        }
+    } catch (e) {
+        alert('Ошибка: ' + e);
+    }
+}
+
+// ---- Server settings ----
+async function saveServerSettings() {
+    const btn = document.getElementById('btnSaveCfg');
+    btn.disabled = true;
+
+    const data = {
+        max_tasks: document.getElementById('cfgMaxTasks').value,
+        task_timeout: document.getElementById('cfgTaskTimeout').value,
+        agent_timeout: document.getElementById('cfgAgentTimeout').value,
+    };
+
+    try {
+        const resp = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (resp.ok) {
+            // Show saved indicator
+            const status = document.getElementById('saveStatus');
+            status.style.display = 'flex';
+            // Update info cards
+            document.querySelectorAll('.server-info-value')[2].textContent = data.max_tasks;
+            document.querySelectorAll('.server-info-value')[3].textContent = data.task_timeout + 's';
+            setTimeout(() => { status.style.display = 'none'; }, 2000);
+        } else {
+            alert('Ошибка сохранения');
+        }
+    } catch (e) {
+        alert('Ошибка: ' + e);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ---- Check deps on device ----
+async function checkDepsOnDevice() {
+    const sel = document.getElementById('checkDeviceSelect');
+    if (!sel) return;
+    const deviceId = sel.value;
+    const deviceName = sel.options[sel.selectedIndex].text;
+
+    const btn = document.getElementById('btnCheckDeps');
+    btn.disabled = true;
+
+    const modal = document.getElementById('checkModal');
+    const body = document.getElementById('checkResults');
+    document.getElementById('checkModalTitle').textContent = 'Проверка: ' + deviceName;
+    body.innerHTML = '<div class="check-loading"><div class="check-spinner"></div><span>Проверяем зависимости на устройстве...</span></div>';
+    modal.style.display = 'flex';
+
+    try {
+        const resp = await fetch(`/api/dependencies/device/${deviceId}/check`, { method: 'POST' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+
+        let html = '<div class="check-summary">';
+        html += `<div class="check-stat"><span class="dot dot-ok"></span> Установлено: ${data.summary.installed}</div>`;
+        html += `<div class="check-stat"><span class="dot dot-miss"></span> Отсутствует: ${data.summary.missing}</div>`;
+        if (data.summary.errors > 0) {
+            html += `<div class="check-stat"><span class="dot dot-err"></span> Ошибки: ${data.summary.errors}</div>`;
+        }
+        html += '</div>';
+
+        for (const dep of data.dependencies) {
+            const st = dep.status;
+            const cls = st === 'installed' ? 'ok' : st === 'missing' ? 'miss' : 'err';
+            const icon = st === 'installed'
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+                : st === 'missing'
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+
+            html += `<div class="check-dep-row">`;
+            html += `<div class="check-dep-status ${cls}">${icon}</div>`;
+            html += `<div class="check-dep-info"><div class="check-dep-name">${dep.name}</div>`;
+            if (dep.installed_version) html += `<div class="check-dep-ver">v${dep.installed_version}</div>`;
+            if (dep.error_message) html += `<div class="check-dep-error">${dep.error_message}</div>`;
+            html += `</div></div>`;
+        }
+
+        body.innerHTML = html;
+    } catch (e) {
+        body.innerHTML = `<div class="check-loading" style="color:var(--danger)">Ошибка: ${e.message}</div>`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function closeCheckModal() {
+    document.getElementById('checkModal').style.display = 'none';
+}
+
+// Modal close handlers
+document.getElementById('depModal').addEventListener('click', (e) => {
+    if (e.target.id === 'depModal') closeDepModal();
+});
+
+document.getElementById('checkModal').addEventListener('click', (e) => {
+    if (e.target.id === 'checkModal') closeCheckModal();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeDepModal();
+        closeCheckModal();
+    }
+});
+
+// Wide container
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.querySelector('.container');
+    if (container) {
+        container.style.maxWidth = 'none';
+        container.style.width = '100%';
+        container.style.padding = '24px 5%';
+    }
+});
+</script>
+{% endblock %}
