@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+*.db
+*.sqlite
+venv
+.venv
+.env
+.idea
+*.egg-info
+dist
+build
+output

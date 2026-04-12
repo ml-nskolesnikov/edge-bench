@@ -258,6 +258,108 @@ async def compare_results(
     }
 
 
+@router.get('/{experiment_id}/compare-baseline')
+async def compare_baseline(experiment_id: str):
+    """Compare current experiment result against the baseline for the same model+backend+device.
+
+    Returns:
+      {"current": {...}, "baseline": {...}, "delta": {"mean_ms": +1.2, "fps": -3.1, "pct": "+3.2%"}}
+    """
+    # Load current experiment and result
+    async with get_db() as db:
+        cursor = await db.execute(
+            """SELECT e.*, r.metrics FROM experiments e
+               LEFT JOIN results r ON e.id = r.experiment_id
+               WHERE e.id = ?""",
+            (experiment_id,),
+        )
+        current_row = await cursor.fetchone()
+
+    if not current_row:
+        raise HTTPException(404, 'Experiment not found')
+
+    current = dict(current_row)
+    current_params = json.loads(current.get('params') or '{}')
+    current_metrics = json.loads(current.get('metrics') or '{}')
+
+    model_name = current['model_name']
+    backend = current_params.get('backend', 'cpu')
+    device_id = current['device_id']
+
+    # Find baseline: explicitly marked, or most recent completed experiment
+    # for the same model+backend+device (excluding the current one)
+    async with get_db() as db:
+        cursor = await db.execute(
+            """SELECT e.*, r.metrics FROM experiments e
+               LEFT JOIN results r ON e.id = r.experiment_id
+               WHERE e.model_name = ?
+                 AND e.device_id = ?
+                 AND e.status = 'completed'
+                 AND e.id != ?
+                 AND r.metrics IS NOT NULL
+               ORDER BY e.is_baseline DESC, e.completed_at DESC
+               LIMIT 1""",
+            (model_name, device_id, experiment_id),
+        )
+        baseline_row = await cursor.fetchone()
+
+    if not baseline_row:
+        return {
+            'current': _summarize(current_metrics, current),
+            'baseline': None,
+            'delta': None,
+            'message': 'No baseline found for this model/device combination',
+        }
+
+    baseline = dict(baseline_row)
+    baseline_params = json.loads(baseline.get('params') or '{}')
+
+    # Only compare when backend matches
+    if baseline_params.get('backend', 'cpu') != backend:
+        return {
+            'current': _summarize(current_metrics, current),
+            'baseline': None,
+            'delta': None,
+            'message': 'No baseline with the same backend found',
+        }
+
+    baseline_metrics = json.loads(baseline.get('metrics') or '{}')
+
+    cur_latency = current_metrics.get('latency', {}).get('mean_ms')
+    base_latency = baseline_metrics.get('latency', {}).get('mean_ms')
+    cur_fps = current_metrics.get('throughput', {}).get('fps')
+    base_fps = baseline_metrics.get('throughput', {}).get('fps')
+
+    delta = {}
+    if cur_latency is not None and base_latency is not None and base_latency != 0:
+        delta['mean_ms'] = round(cur_latency - base_latency, 3)
+        pct = (cur_latency - base_latency) / base_latency * 100
+        delta['pct'] = f'{pct:+.1f}%'
+    if cur_fps is not None and base_fps is not None:
+        delta['fps'] = round(cur_fps - base_fps, 2)
+
+    return {
+        'current': _summarize(current_metrics, current),
+        'baseline': _summarize(baseline_metrics, baseline),
+        'delta': delta,
+    }
+
+
+def _summarize(metrics: dict, exp: dict) -> dict:
+    """Build a compact summary of an experiment result."""
+    latency = metrics.get('latency', {})
+    throughput = metrics.get('throughput', {})
+    return {
+        'experiment_id': exp['id'],
+        'completed_at': exp.get('completed_at'),
+        'is_baseline': bool(exp.get('is_baseline', 0)),
+        'mean_ms': latency.get('mean_ms'),
+        'std_ms': latency.get('std_ms'),
+        'p95_ms': latency.get('p95_ms'),
+        'fps': throughput.get('fps'),
+    }
+
+
 @router.post('/report')
 async def report_result(request: dict):
     """Accept a result pushed directly from an agent.

@@ -16,6 +16,7 @@ from server.core.models import (
     ExperimentStatus,
 )
 from server.core.queue import task_queue
+from server.core.ws_manager import ws_manager
 from server.db.database import get_db
 
 router = APIRouter()
@@ -455,3 +456,58 @@ async def delete_experiment(experiment_id: str):
         await db.commit()
 
     return {'status': 'deleted'}
+
+
+@router.post('/{experiment_id}/set-baseline')
+async def set_baseline(experiment_id: str):
+    """Mark this experiment as the baseline for its model+backend+device combination.
+
+    Clears the baseline flag from all other experiments with the same model+device.
+    """
+    async with get_db() as db:
+        cursor = await db.execute(
+            'SELECT model_name, device_id, status FROM experiments WHERE id = ?',
+            (experiment_id,),
+        )
+        row = await cursor.fetchone()
+
+    if not row:
+        raise HTTPException(404, 'Experiment not found')
+    if row['status'] != 'completed':
+        raise HTTPException(400, 'Only completed experiments can be set as baseline')
+
+    async with get_db() as db:
+        # Clear existing baseline for same model+device
+        await db.execute(
+            """UPDATE experiments SET is_baseline = 0
+               WHERE model_name = ? AND device_id = ?""",
+            (row['model_name'], row['device_id']),
+        )
+        # Set this one
+        await db.execute(
+            'UPDATE experiments SET is_baseline = 1 WHERE id = ?',
+            (experiment_id,),
+        )
+        await db.commit()
+
+    return {'status': 'baseline_set', 'experiment_id': experiment_id}
+
+
+@router.post('/{experiment_id}/metric')
+async def stream_metric(experiment_id: str, payload: dict):
+    """Receive a live metric update from the agent and broadcast to WebSocket clients.
+
+    Called by the agent during benchmark execution.
+    Payload: {"type": "metric", "latency_ms": 12.3, "fps": 81.0, "run": 45}
+    """
+    await ws_manager.broadcast(experiment_id, payload)
+    return {'broadcasted': ws_manager.has_clients(experiment_id)}
+
+
+@router.post('/{experiment_id}/status-update')
+async def stream_status_update(experiment_id: str, payload: dict):
+    """Broadcast a status change (running/done/failed) to WebSocket clients."""
+    await ws_manager.broadcast(experiment_id, payload)
+    return {'ok': True}
+
+

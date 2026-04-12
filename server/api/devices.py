@@ -155,9 +155,15 @@ async def check_device_status(device_id: str):
         )
         await db.commit()
 
+    # Get TPU count from device info if available
+    tpu_count = 0
+    if device_info and isinstance(device_info, dict):
+        tpu_count = device_info.get('tpu_count', 1 if device_info.get('tpu_detected') else 0)
+
     return {
         'status': status,
         'device_info': device_info,
+        'tpu_count': tpu_count,
     }
 
 

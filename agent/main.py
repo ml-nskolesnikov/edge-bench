@@ -67,6 +67,9 @@ async def cache_sync_now():
 async def health():
     """Health check endpoint."""
     device_info = system_metrics.get_device_info()
+    tpu_devices = system_metrics.detect_tpu_devices()
+    device_info['tpu_count'] = len(tpu_devices)
+    device_info['tpu_devices'] = tpu_devices
     return {
         'status': 'ok',
         'version': AGENT_VERSION,
@@ -112,11 +115,14 @@ async def execute_benchmark(request: dict):
     if not os.path.exists(model_path):
         raise HTTPException(404, f'Model not found: {model_path}')
 
+    stream_callback_url = request.get('stream_callback_url')
+
     try:
         result = await executor.run_benchmark(
             experiment_id=experiment_id,
             model_path=model_path,
             params=params,
+            stream_callback_url=stream_callback_url,
         )
         return result
     except Exception as e:

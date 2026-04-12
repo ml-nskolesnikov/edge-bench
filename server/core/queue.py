@@ -10,6 +10,7 @@ import httpx
 
 from server.core.config import settings
 from server.core.models import ExperimentStatus
+from server.core.ws_manager import ws_manager
 from server.db.database import get_db
 
 # Retry settings
@@ -187,20 +188,26 @@ class TaskQueue:
         except Exception as e:
             return False, f'Device unreachable: {e}'
 
-    async def _run_on_agent(self, agent_url: str, experiment: dict) -> dict:
+    async def _run_on_agent(
+        self,
+        agent_url: str,
+        experiment: dict,
+        stream_callback_url: str | None = None,
+    ) -> dict:
         """Send task to agent and get result."""
         params = json.loads(experiment['params'])
 
+        payload: dict = {
+            'experiment_id': experiment['id'],
+            'model_path': experiment['model_path'],
+            'script': experiment['script_path'],
+            'params': params,
+        }
+        if stream_callback_url:
+            payload['stream_callback_url'] = stream_callback_url
+
         async with httpx.AsyncClient(timeout=settings.TASK_TIMEOUT_SECONDS) as client:
-            response = await client.post(
-                f'{agent_url}/execute',
-                json={
-                    'experiment_id': experiment['id'],
-                    'model_path': experiment['model_path'],
-                    'script': experiment['script_path'],
-                    'params': params,
-                },
-            )
+            response = await client.post(f'{agent_url}/execute', json=payload)
 
             if response.status_code == 503:
                 raise httpx.HTTPStatusError(
@@ -213,7 +220,7 @@ class TaskQueue:
             return response.json()
 
     async def _save_results(self, experiment_id: str, result: dict):
-        """Save experiment results to database."""
+        """Save experiment results to database and log to integrations."""
         async with get_db() as db:
             await db.execute(
                 """INSERT OR REPLACE INTO results
@@ -239,6 +246,34 @@ class TaskQueue:
                 ),
             )
             await db.commit()
+
+        # Log to MLflow if configured
+        await self._log_to_integrations(experiment_id, result)
+
+    async def _log_to_integrations(self, experiment_id: str, result: dict) -> None:
+        """Log result to enabled integrations (MLflow, W&B)."""
+        try:
+            # Load settings from DB (may be overridden via settings page)
+            async with get_db() as db:
+                cursor = await db.execute('SELECT key, value FROM settings')
+                saved = {row['key']: row['value'] for row in await cursor.fetchall()}
+
+            mlflow_uri = saved.get('mlflow_uri', settings.MLFLOW_TRACKING_URI)
+
+            if mlflow_uri:
+                from server.integrations.mlflow_logger import MLflowLogger
+
+                loop = __import__('asyncio').get_event_loop()
+                mlflow_exp = saved.get(
+                    'mlflow_experiment', settings.MLFLOW_EXPERIMENT_NAME
+                )
+                logger_obj = MLflowLogger(mlflow_uri, mlflow_exp)
+                if logger_obj.enabled:
+                    await loop.run_in_executor(
+                        None, logger_obj.log_experiment, result
+                    )
+        except Exception as e:
+            print(f'[Queue] Integration logging error: {e}')
 
     async def _execute_experiment(self, experiment_id: str) -> bool:
         """Execute a single experiment. Returns True on success."""
@@ -276,9 +311,34 @@ class TaskQueue:
             )
             await db.commit()
 
+        # Broadcast "running" status to WebSocket clients
+        await ws_manager.broadcast(
+            experiment_id, {'type': 'status', 'status': ExperimentStatus.RUNNING.value}
+        )
+
+        # Build a callback URL so the agent can stream metrics back
+        stream_callback_url = (
+            f'http://{settings.HOST}:{settings.PORT}'
+            f'/api/experiments/{experiment_id}/metric'
+        )
+        # Use 127.0.0.1 when HOST is 0.0.0.0 (loopback for agent → server)
+        if settings.HOST == '0.0.0.0':
+            stream_callback_url = (
+                f'http://127.0.0.1:{settings.PORT}'
+                f'/api/experiments/{experiment_id}/metric'
+            )
+
         try:
-            result = await self._run_on_agent(agent_url, dict(experiment))
+            result = await self._run_on_agent(
+                agent_url, dict(experiment), stream_callback_url
+            )
             await self._save_results(experiment_id, result)
+            # Broadcast "completed"
+            await ws_manager.broadcast(
+                experiment_id,
+                {'type': 'status', 'status': ExperimentStatus.COMPLETED.value},
+            )
+            await ws_manager.broadcast(experiment_id, {'type': 'done'})
             return True
 
         except httpx.HTTPStatusError:
@@ -309,6 +369,10 @@ class TaskQueue:
                 ),
             )
             await db.commit()
+        await ws_manager.broadcast(
+            experiment_id,
+            {'type': 'status', 'status': ExperimentStatus.FAILED.value, 'error': error},
+        )
         print(f'[Queue] Experiment {experiment_id} failed: {error}')
 
     def get_queue_status(self) -> dict:

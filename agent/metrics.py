@@ -67,39 +67,46 @@ class SystemMetrics:
             'tpu_detected': self.check_tpu(),
         }
 
+    def detect_tpu_devices(self) -> list[str]:
+        """Return list of available Edge TPU device paths."""
+        import glob
+
+        # PCIe Apex devices
+        devices = glob.glob('/dev/apex_*')
+        if devices:
+            return sorted(devices)
+
+        # USB devices via pycoral
+        try:
+            from pycoral.utils.edgetpu import list_edge_tpus
+
+            tpus = list_edge_tpus()
+            if tpus:
+                return [t.get('path', f'usb:{i}') for i, t in enumerate(tpus)]
+        except ImportError:
+            pass
+
+        # Fallback: check lsusb for Coral USB Accelerator
+        try:
+            result = subprocess.run(
+                ['lsusb'], capture_output=True, text=True, timeout=5
+            )
+            count = result.stdout.count('Google') + result.stdout.count('Global Unichip')
+            if count > 0:
+                return [f'usb:{i}' for i in range(count)]
+        except Exception:
+            pass
+
+        return []
+
     def check_tpu(self) -> bool:
         """Check if Edge TPU is available."""
         if self._tpu_checked:
             return self._tpu_available
 
         self._tpu_checked = True
-
-        # Check via lsusb
-        try:
-            result = subprocess.run(
-                ['lsusb'],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            # Google Coral USB Accelerator
-            if 'Google' in result.stdout or 'Global Unichip' in result.stdout:
-                self._tpu_available = True
-                return True
-        except Exception:
-            pass
-
-        # Check via pycoral
-        try:
-            from pycoral.utils.edgetpu import list_edge_tpus
-
-            tpus = list_edge_tpus()
-            self._tpu_available = len(tpus) > 0
-            return self._tpu_available
-        except ImportError:
-            pass
-
-        return False
+        self._tpu_available = len(self.detect_tpu_devices()) > 0
+        return self._tpu_available
 
     def _get_cpu_temp(self) -> float | None:
         """Get CPU temperature on Raspberry Pi."""

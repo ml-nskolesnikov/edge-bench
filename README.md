@@ -375,15 +375,157 @@ pip install pycoral
 - Agent only allows updating specific whitelisted files (`main.py`, `executor.py`, `metrics.py`, `config.py`)
 - All actions are logged
 
+## Docker
+
+Run the server with a single command — no local Python install required:
+
+```bash
+# Build and start
+docker compose up
+
+# Background
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop
+docker compose down
+```
+
+The SQLite database and models persist in `./data/` and `./models/` on the host.
+
+Environment overrides (optional `.env` file):
+```bash
+EDGEBENCH_PORT=8000
+EDGEBENCH_DATABASE_PATH=/app/data/edgebench.db
+```
+
+Build the image manually:
+```bash
+docker build -t edge-bench .
+docker run --rm -p 8000:8000 -v ./data:/app/data edge-bench
+```
+
+## Real-time Charts (WebSocket)
+
+While a benchmark is running the experiment detail page (`/experiments/{id}`) shows a live latency-over-time chart powered by Chart.js.
+
+- The browser connects to `ws://localhost:8000/ws/experiments/{id}`
+- The agent streams a metric update every ~5% of total runs
+- The status badge updates automatically (🟢 running → ✅ done / ❌ failed)
+- The page reloads automatically when the run completes
+
+## Baseline Comparison
+
+After any completed experiment, the detail page shows a **vs Baseline** table:
+
+| | Current | Baseline | Delta |
+|---|---|---|---|
+| Mean latency | 12.34 ms | 13.50 ms | ▼ 1.16 ms (−8.6%) |
+| FPS | 81.0 | 74.1 | ▲ 6.9 |
+
+To set a baseline manually click **⭐ Set as Baseline** on the experiment page.
+
+API:
+```bash
+# Compare with baseline
+GET /api/results/{experiment_id}/compare-baseline
+
+# Mark as baseline
+POST /api/experiments/{experiment_id}/set-baseline
+```
+
+## Multiple Edge TPU Support
+
+When multiple Coral Edge TPU devices are connected (`/dev/apex_0`, `/dev/apex_1`, …), the new experiment form shows a TPU index dropdown.
+
+API — device status now includes `tpu_count`:
+```bash
+GET /api/devices/{id}/status
+# → {"status":"online","device_info":{...,"tpu_count":2},"tpu_count":2}
+```
+
+Experiment `params` field:
+```json
+{"backend": "edgetpu", "tpu_index": 1}
+```
+
+## Model Conversion Pipeline
+
+Convert `.pt` / `.onnx` → TFLite INT8 → Edge TPU TFLite from the command line:
+
+```bash
+# Full pipeline (requires edgetpu_compiler or RPi SSH)
+python scripts/convert_pipeline.py \
+  --input model.pt \
+  --input-shape 1 224 224 3 \
+  --target edgetpu \
+  --output-dir converted_models
+
+# Compile on RPi via SSH
+python scripts/convert_pipeline.py \
+  --input model_int8.tflite \
+  --target edgetpu \
+  --rpi-host pi@192.168.1.100
+```
+
+Via API (async, returns `task_id`):
+```bash
+POST /api/files/{file_id}/convert
+{"target": "edgetpu", "input_shape": [1, 224, 224, 3]}
+
+GET /api/files/{file_id}/convert/status
+```
+
+## MLflow Integration
+
+Log benchmark results to a self-hosted MLflow tracking server.
+
+1. Start MLflow server: `mlflow server --host 0.0.0.0 --port 5000`
+2. Install mlflow: `pip install mlflow`
+3. Open `/settings` → **Integrations** → enter `http://localhost:5000`
+4. Click **Сохранить** — all subsequent completed experiments are logged automatically
+
+Logged metrics: `latency_mean_ms`, `latency_p95_ms`, `fps`, `cpu_percent_mean`, `cpu_temp_celsius`  
+Logged tags: `model_name`, `backend`, `device`, `tpu_detected`, `quantization`
+
+Environment variable alternative:
+```bash
+EDGEBENCH_MLFLOW_TRACKING_URI=http://mlflow.internal:5000
+EDGEBENCH_MLFLOW_EXPERIMENT_NAME=edge-bench
+```
+
+## API Reference (Extended)
+
+### Real-time Streaming
+```
+WS     /ws/experiments/{id}                WebSocket live metrics
+POST   /api/experiments/{id}/metric        Agent → server metric push
+```
+
+### Baseline
+```
+GET    /api/results/{id}/compare-baseline  Compare vs baseline
+POST   /api/experiments/{id}/set-baseline  Mark as baseline
+```
+
+### Model Conversion
+```
+POST   /api/files/{id}/convert             Start async conversion
+GET    /api/files/{id}/convert/status      Check conversion status
+```
+
+### Settings
+```
+GET    /api/settings                        All settings
+PUT    /api/settings                        Update (key-value dict)
+```
+
 ## Future Work
 
-- [ ] Multiple Edge TPU support
-- [ ] Real-time charts via WebSocket
-- [ ] Automatic baseline comparison
-- [ ] MLflow / W&B integration
 - [ ] NVIDIA Jetson support
-- [ ] Docker container for server
-- [ ] Automatic model conversion pipeline
+- [ ] Automated nightly benchmark schedules
 
 ## License
 

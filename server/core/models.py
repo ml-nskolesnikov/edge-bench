@@ -66,6 +66,7 @@ class ExperimentParams(BaseModel):
     warmup_runs: int = 10
     benchmark_runs: int = 100
     timeout_seconds: int = 600
+    tpu_index: int = 0  # Edge TPU device index for multi-TPU setups
 
 
 class ExperimentCreate(BaseModel):

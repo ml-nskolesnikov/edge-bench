@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     AGENT_TIMEOUT_SECONDS: int = 30
     AGENT_DEFAULT_PORT: int = 8001
 
+    # Integrations (empty string = disabled)
+    MLFLOW_TRACKING_URI: str = ''
+    MLFLOW_EXPERIMENT_NAME: str = 'edge-bench'
+    WANDB_API_KEY: str = ''
+
     class Config:
         env_prefix = 'EDGEBENCH_'
         env_file = '.env'

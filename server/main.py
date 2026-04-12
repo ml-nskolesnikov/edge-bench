@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -22,6 +22,7 @@ from server.api import (
 )
 from server.core.config import settings
 from server.core.queue import task_queue
+from server.core.ws_manager import ws_manager
 from server.db.database import get_db, init_db
 
 BASE_DIR = Path(__file__).parent
@@ -59,6 +60,33 @@ app.include_router(
     dependencies.router, prefix='/api/dependencies', tags=['dependencies']
 )
 app.include_router(settings_api.router, prefix='/api/settings', tags=['settings'])
+
+
+# WebSocket route for real-time experiment updates
+@app.websocket('/ws/experiments/{experiment_id}')
+async def websocket_experiment(ws: WebSocket, experiment_id: str):
+    """WebSocket endpoint for live benchmark metrics.
+
+    Messages:
+      {"type": "status", "status": "running" | "completed" | "failed"}
+      {"type": "metric", "latency_ms": 12.3, "fps": 81.0, "run": 45}
+      {"type": "done"}
+    """
+    await ws_manager.connect(experiment_id, ws)
+    try:
+        async with get_db() as db:
+            cursor = await db.execute(
+                'SELECT status FROM experiments WHERE id = ?', (experiment_id,)
+            )
+            row = await cursor.fetchone()
+        if row:
+            await ws.send_text(json.dumps({'type': 'status', 'status': row['status']}))
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        ws_manager.disconnect(experiment_id, ws)
 
 
 # Web UI routes

@@ -94,12 +94,27 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT
 );
 
+-- Conversion tasks table (async model conversion jobs)
+CREATE TABLE IF NOT EXISTS convert_tasks (
+    id TEXT PRIMARY KEY,
+    file_id TEXT NOT NULL,
+    target TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    input_shape TEXT,
+    output_file_id TEXT,
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    completed_at TEXT,
+    FOREIGN KEY (file_id) REFERENCES files(id)
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_experiments_device ON experiments(device_id);
 CREATE INDEX IF NOT EXISTS idx_experiments_status ON experiments(status);
 CREATE INDEX IF NOT EXISTS idx_results_experiment ON results(experiment_id);
 CREATE INDEX IF NOT EXISTS idx_device_deps_device ON device_dependencies(device_id);
 CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash);
+CREATE INDEX IF NOT EXISTS idx_convert_tasks_file ON convert_tasks(file_id);
 """
 
 
@@ -158,6 +173,15 @@ async def init_db():
         cols = {row[1] for row in await cursor.fetchall()}
         if 'install_command' not in cols:
             await db.execute('ALTER TABLE dependencies ADD COLUMN install_command TEXT')
+            await db.commit()
+
+        # Migration: add is_baseline column to experiments if missing
+        cursor = await db.execute('PRAGMA table_info(experiments)')
+        exp_cols = {row[1] for row in await cursor.fetchall()}
+        if 'is_baseline' not in exp_cols:
+            await db.execute(
+                'ALTER TABLE experiments ADD COLUMN is_baseline INTEGER DEFAULT 0'
+            )
             await db.commit()
 
         # Add default dependencies if not exist

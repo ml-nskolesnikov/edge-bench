@@ -15,14 +15,23 @@
                 <strong>{{ experiment.device_id }}</strong>
             </p>
         </div>
-        <span class="status status-{{ experiment.status }}">
-            {% if experiment.status == 'completed' %}завершён
-            {% elif experiment.status == 'running' %}выполняется
-            {% elif experiment.status == 'pending' %}ожидание
-            {% elif experiment.status == 'failed' %}ошибка
+        <span class="status status-{{ experiment.status }}" id="statusBadge">
+            {% if experiment.status == 'completed' %}✅ завершён
+            {% elif experiment.status == 'running' %}🟢 выполняется
+            {% elif experiment.status == 'queued' %}⏳ ожидание
+            {% elif experiment.status == 'failed' %}❌ ошибка
             {% else %}{{ experiment.status }}{% endif %}
         </span>
     </div>
+</section>
+
+<!-- Live chart: shown while running, hidden when done/failed -->
+<section class="section" id="liveSection" style="display:{% if experiment.status == 'running' or experiment.status == 'queued' %}block{% else %}none{% endif %};">
+    <h3>📡 Live benchmark</h3>
+    <div style="position:relative;height:240px;">
+        <canvas id="liveChart"></canvas>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-muted);margin-top:8px;" id="liveStatus">Ожидание метрик...</p>
 </section>
 
 {% if result and experiment.status == 'completed' %}
@@ -171,8 +180,19 @@
 </section>
 {% endif %}
 
+{% if experiment.status == 'completed' %}
+<!-- Baseline comparison block -->
+<section class="section" id="baselineSection">
+    <h3>📊 vs Baseline</h3>
+    <div id="baselineContent" style="color:var(--text-muted);font-size:0.9rem;">Загружаю сравнение...</div>
+</section>
+{% endif %}
+
 <div class="action-buttons">
     <button onclick="rerunExperiment('{{ experiment.id }}')" class="btn btn-primary" data-i18n="Rerun Experiment">Повторить эксперимент</button>
+    {% if experiment.status == 'completed' %}
+    <button onclick="setBaseline('{{ experiment.id }}')" class="btn" id="baselineBtn">⭐ Set as Baseline</button>
+    {% endif %}
     <a href="/api/results/{{ experiment.id }}" target="_blank" class="btn" data-i18n="Export JSON">Экспорт JSON</a>
     <a href="/experiments" class="btn" data-i18n="Back to List">Назад к списку</a>
 </div>
@@ -397,6 +417,7 @@
 }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 async function rerunExperiment(id) {
     const resp = await fetch(`/api/experiments/${id}/rerun`, {method: 'POST'});
@@ -405,5 +426,141 @@ async function rerunExperiment(id) {
         window.location.href = '/experiments/' + data.new_experiment_id;
     }
 }
+
+async function setBaseline(id) {
+    const btn = document.getElementById('baselineBtn');
+    btn.disabled = true;
+    const resp = await fetch(`/api/experiments/${id}/set-baseline`, {method: 'POST'});
+    if (resp.ok) {
+        btn.textContent = '✅ Baseline set';
+        loadBaseline(id);
+    } else {
+        btn.disabled = false;
+        alert('Failed to set baseline');
+    }
+}
+
+async function loadBaseline(id) {
+    const el = document.getElementById('baselineContent');
+    if (!el) return;
+    try {
+        const resp = await fetch(`/api/results/${id}/compare-baseline`);
+        const data = await resp.json();
+        if (!data.baseline) {
+            el.innerHTML = `<em>${data.message || 'No baseline available'}</em>`;
+            return;
+        }
+        const d = data.delta || {};
+        const latDelta = d.mean_ms !== undefined
+            ? `<span style="color:${d.mean_ms > 0 ? '#f85149' : '#3fb950'};">${d.mean_ms > 0 ? '▲' : '▼'} ${Math.abs(d.mean_ms).toFixed(2)} ms (${d.pct})</span>`
+            : '—';
+        const fpsDelta = d.fps !== undefined
+            ? `<span style="color:${d.fps < 0 ? '#f85149' : '#3fb950'};">${d.fps > 0 ? '▲' : '▼'} ${Math.abs(d.fps).toFixed(1)} FPS</span>`
+            : '—';
+        el.innerHTML = `
+          <table class="info-table" style="max-width:480px;">
+            <tr><td></td><td><strong>Current</strong></td><td><strong>Baseline</strong> <small style="color:var(--text-muted);">${data.baseline.experiment_id}</small></td><td><strong>Delta</strong></td></tr>
+            <tr><td>Mean latency</td><td>${data.current.mean_ms?.toFixed(2) ?? '—'} ms</td><td>${data.baseline.mean_ms?.toFixed(2) ?? '—'} ms</td><td>${latDelta}</td></tr>
+            <tr><td>FPS</td><td>${data.current.fps?.toFixed(1) ?? '—'}</td><td>${data.baseline.fps?.toFixed(1) ?? '—'}</td><td>${fpsDelta}</td></tr>
+            <tr><td>p95</td><td>${data.current.p95_ms?.toFixed(2) ?? '—'} ms</td><td>${data.baseline.p95_ms?.toFixed(2) ?? '—'} ms</td><td>—</td></tr>
+          </table>
+          <p style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">Baseline: ${data.baseline.completed_at ?? ''}</p>
+        `;
+    } catch (e) {
+        el.textContent = 'Error loading comparison';
+    }
+}
+
+// Auto-load baseline on page load for completed experiments
+{% if experiment and experiment.status == 'completed' %}
+loadBaseline('{{ experiment.id }}');
+{% endif %}
+
+// ---- Live WebSocket chart ----
+(function() {
+    const expId = '{{ experiment.id }}';
+    const initialStatus = '{{ experiment.status }}';
+    const liveSection = document.getElementById('liveSection');
+    const statusBadge = document.getElementById('statusBadge');
+    const liveStatus = document.getElementById('liveStatus');
+
+    const statusLabels = {
+        running:   '🟢 выполняется',
+        completed: '✅ завершён',
+        failed:    '❌ ошибка',
+        queued:    '⏳ ожидание',
+        cancelled: '🚫 отменён',
+    };
+
+    // Only open WebSocket for active experiments
+    if (initialStatus !== 'running' && initialStatus !== 'queued') return;
+
+    // Init Chart.js
+    const ctx = document.getElementById('liveChart').getContext('2d');
+    const latencyData = [];
+    const labels = [];
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Latency (ms)',
+                data: latencyData,
+                borderColor: '#58a6ff',
+                backgroundColor: 'rgba(88,166,255,0.08)',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 3,
+            }],
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { title: { display: true, text: 'Run #' } },
+                y: { title: { display: true, text: 'ms' }, beginAtZero: false },
+            },
+        },
+    });
+
+    const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${wsProto}://${location.host}/ws/experiments/${expId}`);
+
+    ws.onmessage = function(event) {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'metric') {
+            labels.push(msg.run);
+            latencyData.push(msg.latency_ms);
+            if (labels.length > 200) { labels.shift(); latencyData.shift(); }
+            chart.update('none');
+            liveStatus.textContent = `Run ${msg.run}: ${msg.latency_ms.toFixed(2)} ms | ${msg.fps.toFixed(1)} FPS`;
+        }
+
+        if (msg.type === 'status' && statusLabels[msg.status]) {
+            statusBadge.textContent = statusLabels[msg.status];
+            statusBadge.className = `status status-${msg.status}`;
+        }
+
+        if (msg.type === 'done') {
+            liveStatus.textContent = 'Завершено — обновляю страницу...';
+            ws.close();
+            setTimeout(() => location.reload(), 1500);
+        }
+
+        if (msg.type === 'status' && msg.status === 'failed') {
+            liveStatus.textContent = `Ошибка: ${msg.error || ''}`;
+            ws.close();
+        }
+    };
+
+    ws.onclose = function() {
+        if (liveStatus.textContent === 'Ожидание метрик...') {
+            liveStatus.textContent = 'WebSocket отключён';
+        }
+    };
+})();
 </script>
 {% endblock %}

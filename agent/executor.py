@@ -21,11 +21,26 @@ class BenchmarkExecutor:
         self.current_task: str | None = None
         self.metrics = SystemMetrics()
 
+    async def _send_metric(
+        self,
+        callback_url: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Fire-and-forget metric push to server callback URL."""
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=2) as client:
+                await client.post(callback_url, json=payload)
+        except Exception:
+            pass  # Never block benchmark on callback errors
+
     async def run_benchmark(
         self,
         experiment_id: str,
         model_path: str,
         params: dict[str, Any],
+        stream_callback_url: str | None = None,
     ) -> dict[str, Any]:
         """Run a TFLite benchmark."""
         # Always resolve ~ and relative paths
@@ -42,13 +57,14 @@ class BenchmarkExecutor:
             num_threads = params.get('num_threads', 4)
             warmup_runs = params.get('warmup_runs', 10)
             benchmark_runs = params.get('benchmark_runs', 100)
+            tpu_device_index = int(params.get('tpu_index', 0))
 
             logs.append(f'Loading model: {model_path}')
-            logs.append(f'Backend: {backend}, Threads: {num_threads}')
+            logs.append(f'Backend: {backend}, Threads: {num_threads}, TPU index: {tpu_device_index}')
 
             # Load interpreter
             interpreter, model_load_time = self._load_interpreter(
-                model_path, backend, num_threads
+                model_path, backend, num_threads, tpu_device_index
             )
             logs.append(f'Model loaded in {model_load_time:.2f}ms')
 
@@ -89,12 +105,31 @@ class BenchmarkExecutor:
                 self._collect_metrics_async(benchmark_runs * 0.015)  # Estimate duration
             )
 
-            for _ in range(benchmark_runs):
+            stream_interval = max(1, benchmark_runs // 20)  # ~20 updates total
+
+            for run_idx in range(benchmark_runs):
                 interpreter.set_tensor(input_details[0]['index'], input_data)
                 t0 = time.perf_counter()
                 interpreter.invoke()
                 t1 = time.perf_counter()
                 latencies.append((t1 - t0) * 1000)  # Convert to ms
+
+                # Stream live metric update every stream_interval runs
+                if stream_callback_url and (run_idx + 1) % stream_interval == 0:
+                    current_mean = float(np.mean(latencies))
+                    current_fps = round(1000.0 / current_mean, 2) if current_mean > 0 else 0.0
+                    asyncio.create_task(
+                        self._send_metric(
+                            stream_callback_url,
+                            {
+                                'type': 'metric',
+                                'latency_ms': round(current_mean, 3),
+                                'fps': current_fps,
+                                'run': run_idx + 1,
+                                'total_runs': benchmark_runs,
+                            },
+                        )
+                    )
 
             # Wait for metrics
             system_metrics = await metrics_task
@@ -233,17 +268,51 @@ class BenchmarkExecutor:
         model_path: str,
         backend: str,
         num_threads: int,
+        tpu_device_index: int = 0,
     ):
-        """Load TFLite interpreter."""
+        """Load TFLite interpreter with optional Edge TPU delegate."""
         t0 = time.perf_counter()
 
         # Check Edge TPU availability first
         if backend == 'edgetpu':
-            if not self.metrics.check_tpu():
+            tpu_devices = self.metrics.detect_tpu_devices()
+            if not tpu_devices:
                 raise RuntimeError(
                     'Edge TPU not detected. Check USB connection and run: '
                     'lsusb | grep -i google'
                 )
+            if tpu_device_index >= len(tpu_devices):
+                raise RuntimeError(
+                    f'TPU index {tpu_device_index} out of range '
+                    f'({len(tpu_devices)} device(s) found)'
+                )
+
+        def _build_edgetpu_delegate(load_delegate_fn):
+            """Build Edge TPU delegate with optional device path."""
+            lib_paths = [
+                'libedgetpu.so.1',
+                '/usr/lib/aarch64-linux-gnu/libedgetpu.so.1',
+                '/usr/lib/arm-linux-gnueabihf/libedgetpu.so.1',
+            ]
+            # Build device option for multi-TPU selection
+            tpu_devices = self.metrics.detect_tpu_devices()
+            options = {}
+            if tpu_devices and tpu_device_index < len(tpu_devices):
+                dev = tpu_devices[tpu_device_index]
+                if dev.startswith('/dev/apex_'):
+                    options['device'] = dev
+
+            last_error = None
+            for lib_path in lib_paths:
+                try:
+                    return load_delegate_fn(lib_path, options)
+                except (ValueError, OSError) as e:
+                    last_error = e
+            raise RuntimeError(
+                f'Cannot load Edge TPU delegate. '
+                f'Install libedgetpu: sudo apt install libedgetpu1-std. '
+                f'Last error: {last_error}'
+            )
 
         # Try tflite_runtime first (lighter)
         try:
@@ -252,30 +321,7 @@ class BenchmarkExecutor:
             if backend == 'edgetpu':
                 from tflite_runtime.interpreter import load_delegate
 
-                # Try different library paths
-                lib_paths = [
-                    'libedgetpu.so.1',
-                    '/usr/lib/aarch64-linux-gnu/libedgetpu.so.1',
-                    '/usr/lib/arm-linux-gnueabihf/libedgetpu.so.1',
-                ]
-                delegate = None
-                last_error = None
-
-                for lib_path in lib_paths:
-                    try:
-                        delegate = load_delegate(lib_path)
-                        break
-                    except (ValueError, OSError) as e:
-                        last_error = e
-                        continue
-
-                if delegate is None:
-                    raise RuntimeError(
-                        f'Cannot load Edge TPU delegate. '
-                        f'Install libedgetpu: sudo apt install libedgetpu1-std. '
-                        f'Last error: {last_error}'
-                    )
-
+                delegate = _build_edgetpu_delegate(load_delegate)
                 interpreter = Interpreter(
                     model_path=model_path,
                     experimental_delegates=[delegate],
@@ -290,14 +336,7 @@ class BenchmarkExecutor:
             import tensorflow as tf
 
             if backend == 'edgetpu':
-                # Edge TPU delegate
-                try:
-                    delegate = tf.lite.experimental.load_delegate('libedgetpu.so.1')
-                except (ValueError, OSError) as e:
-                    raise RuntimeError(
-                        f'Cannot load Edge TPU delegate: {e}. '
-                        f'Install: sudo apt install libedgetpu1-std'
-                    )
+                delegate = _build_edgetpu_delegate(tf.lite.experimental.load_delegate)
                 interpreter = tf.lite.Interpreter(
                     model_path=model_path,
                     experimental_delegates=[delegate],

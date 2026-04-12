@@ -1,0 +1,16 @@
+services:
+  edge-bench:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data      # SQLite DB persistence
+      - ./models:/app/models  # uploaded models
+    environment:
+      - EDGEBENCH_DATABASE_PATH=/app/data/edgebench.db
+      - EDGEBENCH_HOST=0.0.0.0
+      - EDGEBENCH_PORT=8000
+      - EDGEBENCH_MODELS_DIR=/app/data/models
+      - EDGEBENCH_UPLOAD_DIR=/app/data/uploads
+      - EDGEBENCH_SCRIPTS_DIR=/app/data/scripts
+    restart: unless-stopped

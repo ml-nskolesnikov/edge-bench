@@ -195,6 +195,53 @@
     </div>
 </div>
 
+<!-- MLflow / W&B Integration -->
+<div class="settings-card">
+    <div class="settings-card-header">
+        <div class="settings-card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+        </div>
+        <h2>Интеграции (MLflow / W&B)</h2>
+        <div class="save-status" id="mlflowSaveStatus" style="display:none;">✓ Сохранено</div>
+    </div>
+    <p class="settings-hint">Результаты экспериментов будут автоматически логироваться в MLflow. Оставьте поля пустыми, чтобы отключить.</p>
+    <div class="cfg-grid">
+        <div class="cfg-item">
+            <div class="cfg-label">
+                <span class="cfg-name">MLflow Tracking URI</span>
+                <span class="cfg-hint">Например: http://localhost:5000 или mlflow.example.com</span>
+            </div>
+            <div class="cfg-control">
+                <input type="text" id="cfgMlflowUri" class="cfg-input" style="min-width:280px;"
+                       placeholder="http://localhost:5000"
+                       value="{{ saved_settings.mlflow_uri or '' }}">
+            </div>
+        </div>
+        <div class="cfg-item">
+            <div class="cfg-label">
+                <span class="cfg-name">MLflow Experiment Name</span>
+                <span class="cfg-hint">Имя эксперимента в MLflow (по умолчанию: edge-bench)</span>
+            </div>
+            <div class="cfg-control">
+                <input type="text" id="cfgMlflowExp" class="cfg-input"
+                       placeholder="edge-bench"
+                       value="{{ saved_settings.mlflow_experiment or 'edge-bench' }}">
+            </div>
+        </div>
+    </div>
+    <div class="cfg-actions">
+        <button onclick="saveMlflowSettings()" class="btn-save-cfg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            </svg>
+            Сохранить
+        </button>
+    </div>
+</div>
+
 <!-- Dependencies Management -->
 <div class="settings-card">
     <div class="settings-card-header">
@@ -1441,6 +1488,29 @@ async function saveServerSettings() {
         alert('Ошибка: ' + e);
     } finally {
         btn.disabled = false;
+    }
+}
+
+// ---- MLflow integration settings ----
+async function saveMlflowSettings() {
+    const uri = document.getElementById('cfgMlflowUri').value.trim();
+    const exp = document.getElementById('cfgMlflowExp').value.trim() || 'edge-bench';
+    const statusEl = document.getElementById('mlflowSaveStatus');
+
+    try {
+        const resp = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({mlflow_uri: uri, mlflow_experiment: exp})
+        });
+        if (resp.ok) {
+            statusEl.style.display = 'flex';
+            setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+        } else {
+            alert('Ошибка сохранения настроек MLflow');
+        }
+    } catch (e) {
+        alert('Ошибка: ' + e);
     }
 }
 
