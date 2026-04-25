@@ -4,15 +4,19 @@
 
 {% block content %}
 <div class="page-header">
-    <h1 data-i18n="Schedules">Расписания</h1>
+    <div>
+        <h1 data-i18n="Schedules">Расписания</h1>
+        <p class="page-subtitle">Автоматические запуски бенчмарков по cron (UTC)</p>
+    </div>
     <button class="btn btn-primary" onclick="openNewScheduleModal()">
         + <span data-i18n="New Schedule">Новое расписание</span>
     </button>
 </div>
 
 {% if schedules %}
-<div class="table-container">
-    <table class="data-table" id="schedules-table">
+<section class="schedule-section">
+<div class="table-container schedule-table-wrap">
+    <table class="data-table schedule-table" id="schedules-table">
         <thead>
             <tr>
                 <th data-i18n="Name">Название</th>
@@ -28,8 +32,11 @@
         </thead>
         <tbody>
             {% for s in schedules %}
-            <tr id="row-{{ s.id }}">
-                <td><strong>{{ s.name }}</strong></td>
+            <tr id="row-{{ s.id }}" class="schedule-row">
+                <td>
+                    <div class="schedule-name">{{ s.name }}</div>
+                    <div class="schedule-id">{{ s.id[:12] }}...</div>
+                </td>
                 <td>{{ s.device_name or s.device_id }}</td>
                 <td><code>{{ s.model_name }}</code></td>
                 <td>
@@ -65,27 +72,30 @@
                 <td class="actions-cell">
                     <button class="btn btn-sm btn-secondary"
                             onclick="runNow('{{ s.id }}')"
-                            title="Run now">▶</button>
+                            title="Run now">Запуск</button>
                     <button class="btn btn-sm {{ 'btn-warning' if s.enabled else 'btn-success' }}"
                             onclick="toggleEnabled('{{ s.id }}', {{ 'false' if s.enabled else 'true' }})"
                             title="{{ 'Disable' if s.enabled else 'Enable' }}">
-                        {{ '⏸' if s.enabled else '▶' }}
+                        {{ 'Пауза' if s.enabled else 'Вкл' }}
                     </button>
                     <button class="btn btn-sm btn-danger"
                             onclick="deleteSchedule('{{ s.id }}', '{{ s.name }}')"
-                            title="Delete">🗑</button>
+                            title="Delete">Удалить</button>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+</section>
 {% else %}
-<div class="empty-state">
-    <p data-i18n="No schedules yet">Расписаний ещё нет.</p>
-    <p><button class="btn btn-primary" onclick="openNewScheduleModal()">
+<div class="empty-state schedule-empty">
+    <div class="empty-icon">🗓️</div>
+    <h3 data-i18n="No schedules yet">Расписаний ещё нет</h3>
+    <p>Добавьте первое расписание и запускайте эксперименты автоматически.</p>
+    <button class="btn btn-primary" onclick="openNewScheduleModal()">
         + <span data-i18n="Create first schedule">Создать первое расписание</span>
-    </button></p>
+    </button>
 </div>
 {% endif %}
 
@@ -130,13 +140,13 @@
                 <label data-i18n="Schedule">Расписание</label>
                 <div class="preset-buttons">
                     <button type="button" class="btn btn-sm btn-outline preset-btn"
-                            onclick="setPreset('0 2 * * *')">Каждую ночь в 2:00</button>
+                            onclick="setPreset('0 2 * * *', this)">Каждую ночь в 2:00</button>
                     <button type="button" class="btn btn-sm btn-outline preset-btn"
-                            onclick="setPreset('0 * * * *')">Каждый час</button>
+                            onclick="setPreset('0 * * * *', this)">Каждый час</button>
                     <button type="button" class="btn btn-sm btn-outline preset-btn"
-                            onclick="setPreset('0 */6 * * *')">Каждые 6 часов</button>
+                            onclick="setPreset('0 */6 * * *', this)">Каждые 6 часов</button>
                     <button type="button" class="btn btn-sm btn-outline preset-btn"
-                            onclick="setPreset('custom')">Custom</button>
+                            onclick="setPreset('custom', this)">Custom</button>
                 </div>
                 <input type="text" id="f-cron" name="cron" required
                        placeholder="0 2 * * *" class="form-control"
@@ -180,20 +190,67 @@
 .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+    align-items: flex-end;
+    margin-bottom: 1.25rem;
+    gap: 16px;
+}
+
+.page-header h1 {
+    margin-bottom: 6px;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    margin: 0;
+}
+
+.schedule-section {
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+
+.schedule-table-wrap {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+}
+
+.schedule-table th {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.03em;
+}
+
+.schedule-row td {
+    vertical-align: middle;
+}
+
+.schedule-name {
+    font-weight: 650;
+    color: var(--text-primary);
+}
+
+.schedule-id {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    margin-top: 2px;
 }
 .badge-tpu  { background: #7c3aed; color: #fff; }
 .badge-cpu  { background: #2563eb; color: #fff; }
 .badge-success { background: #16a34a; color: #fff; }
 .badge-muted   { background: #6b7280; color: #fff; }
-.badge { padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
+.badge { padding: 3px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; }
 
-.actions-cell { white-space: nowrap; }
+.actions-cell { white-space: nowrap; min-width: 220px; }
 .small-link { font-size: 0.75rem; margin-left: 4px; opacity: 0.6; }
+.actions-cell .btn { margin-right: 6px; }
+.actions-cell .btn:last-child { margin-right: 0; }
 
 .preset-buttons { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
-.preset-btn.active { background: var(--primary); color: #fff; }
+.preset-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 .form-row { display: flex; gap: 1rem; }
 .form-row > div { flex: 1; }
@@ -214,7 +271,41 @@
     border-radius: 8px; z-index: 9999; font-size: 0.9rem;
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
-.empty-state { text-align: center; padding: 4rem 0; color: #6b7280; }
+
+.schedule-empty {
+    border: 1px dashed var(--border-color);
+    border-radius: 14px;
+    padding: 52px 24px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.schedule-empty .empty-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    border-radius: 14px;
+    background: var(--bg-hover);
+}
+
+.schedule-empty h3 {
+    margin: 0 0 10px;
+}
+
+.schedule-empty p {
+    margin: 0 0 18px;
+}
+
+@media (max-width: 960px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
 </style>
 
 <script>
@@ -227,14 +318,14 @@ function closeModal() {
     document.getElementById('new-schedule-modal').style.display = 'none';
 }
 
-function setPreset(cron) {
+function setPreset(cron, btn) {
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
     if (cron === 'custom') {
         document.getElementById('f-cron').value = '';
         document.getElementById('f-cron').focus();
     } else {
         document.getElementById('f-cron').value = cron;
-        event.target.classList.add('active');
+        btn.classList.add('active');
     }
 }
 

@@ -8,7 +8,7 @@
     <script src="/static/js/i18n.js"></script>
     <link rel="icon" href="/static/img/favicon.ico" type="image/x-icon">
 </head>
-<body>
+<body data-theme="dark">
     <nav class="navbar">
         <div class="nav-brand">
             <a href="/">Edge-Bench</a>
@@ -29,9 +29,14 @@
                 </svg>
             </a></li>
         </ul>
-        <button class="lang-switch" onclick="toggleLang()" title="Switch language">
-            <span id="langLabel">EN</span>
-        </button>
+        <div class="toolbar-switches">
+            <button class="theme-switch" onclick="toggleTheme()" title="Переключить тему">
+                <span id="themeLabel">☀</span>
+            </button>
+            <button class="lang-switch" onclick="toggleLang()" title="Switch language">
+                <span id="langLabel">EN</span>
+            </button>
+        </div>
     </nav>
 
     <main class="container">
@@ -51,6 +56,22 @@
             location.reload();
         }
 
+        function applyTheme(theme) {
+            const normalizedTheme = theme === 'light' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', normalizedTheme);
+            const themeLabel = document.getElementById('themeLabel');
+            if (themeLabel) {
+                themeLabel.textContent = normalizedTheme === 'dark' ? '☀' : '🌙';
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = localStorage.getItem('edgebench_theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('edgebench_theme', newTheme);
+            applyTheme(newTheme);
+        }
+
         // Update language button on load
         document.addEventListener('DOMContentLoaded', function() {
             const lang = localStorage.getItem('edgebench_lang') || 'ru';
@@ -58,6 +79,8 @@
             if (label) {
                 label.textContent = lang === 'ru' ? 'EN' : 'RU';
             }
+            const theme = localStorage.getItem('edgebench_theme') || 'dark';
+            applyTheme(theme);
 
             // Update footer text based on language
             const footer = document.querySelector('.footer p');

@@ -47,3 +47,7 @@ poetry.lock
 
 # Output / generated files
 output/
+
+# CLAUDE
+.claude
+CLAUDE.md

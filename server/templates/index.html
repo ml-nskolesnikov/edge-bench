@@ -211,14 +211,14 @@
 
 /* Table wrapper for horizontal scroll */
 .table-wrapper {
-    overflow-x: auto;
+    overflow-x: hidden;
     border-radius: 12px;
     border: 1px solid var(--border-color);
 }
 
 .experiments-table {
     width: 100%;
-    min-width: 800px;
+    table-layout: fixed;
     border-collapse: collapse;
     border: none;
 }
@@ -228,10 +228,11 @@
     padding: 14px 16px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-    white-space: nowrap;
+    white-space: normal;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 250px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .experiments-table th {
@@ -255,13 +256,14 @@
 }
 
 .exp-name, .model-name {
-    max-width: 200px;
+    max-width: 100%;
 }
 
 .created-date {
     font-family: monospace;
     font-size: 13px;
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 /* Status badges */
