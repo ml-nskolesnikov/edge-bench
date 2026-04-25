@@ -3,7 +3,7 @@ Dependencies API Endpoints
 Manage and check dependencies on Edge devices
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 import uuid
 
 from fastapi import APIRouter, HTTPException
@@ -62,7 +62,7 @@ async def create_dependency(request: dict):
                 install_command,
                 1 if request.get('is_required', True) else 0,
                 request.get('description'),
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         await db.commit()
@@ -102,7 +102,7 @@ async def update_dependency(dep_id: str, request: dict):
 
         if updates:
             updates.append('updated_at = ?')
-            params.append(datetime.utcnow().isoformat())
+            params.append(datetime.now(UTC).isoformat())
             params.append(dep_id)
 
             await db.execute(
@@ -226,11 +226,11 @@ async def check_device_dependencies(device_id: str):
                     dep_dict['status'],
                     dep_dict.get('installed_version'),
                     dep_dict.get('error_message'),
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).isoformat(),
                     dep_dict['status'],
                     dep_dict.get('installed_version'),
                     dep_dict.get('error_message'),
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
             await db.commit()
@@ -316,11 +316,11 @@ async def check_single_dependency(device_id: str, dep_id: str):
                 status,
                 version,
                 error,
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
                 status,
                 version,
                 error,
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         await db.commit()

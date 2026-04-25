@@ -17,10 +17,9 @@ Usage:
 """
 
 import argparse
-import json
+from pathlib import Path
 import sys
 import time
-from pathlib import Path
 
 try:
     import httpx

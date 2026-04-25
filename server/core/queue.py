@@ -3,7 +3,7 @@ Task Queue for Experiment Execution with Retry Support
 """
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 
 import httpx
@@ -230,7 +230,7 @@ class TaskQueue:
                     f'res_{experiment_id}',
                     experiment_id,
                     json.dumps(result),
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
 
@@ -240,7 +240,7 @@ class TaskQueue:
                 WHERE id = ?""",
                 (
                     ExperimentStatus.COMPLETED.value,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).isoformat(),
                     result.get('logs', ''),
                     experiment_id,
                 ),
@@ -305,7 +305,7 @@ class TaskQueue:
                 'UPDATE experiments SET status = ?, started_at = ? WHERE id = ?',
                 (
                     ExperimentStatus.RUNNING.value,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).isoformat(),
                     experiment_id,
                 ),
             )
@@ -364,7 +364,7 @@ class TaskQueue:
                 (
                     ExperimentStatus.FAILED.value,
                     error,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).isoformat(),
                     experiment_id,
                 ),
             )

@@ -2,7 +2,7 @@
 Experiments API Endpoints
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 import uuid
@@ -61,7 +61,7 @@ async def list_experiments(
 async def create_experiment(experiment: ExperimentCreate):
     """Create a new experiment and add to queue."""
     experiment_id = (
-        f'exp_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}_{uuid.uuid4().hex[:4]}'
+        f'exp_{datetime.now(UTC).strftime("%Y%m%d_%H%M%S")}_{uuid.uuid4().hex[:4]}'
     )
 
     # Verify device exists
@@ -89,7 +89,7 @@ async def create_experiment(experiment: ExperimentCreate):
                 experiment.script_path,
                 json.dumps(experiment.params.model_dump()),
                 ExperimentStatus.QUEUED.value,
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         await db.commit()
@@ -127,7 +127,7 @@ async def create_batch_experiments(batch: ExperimentBatchCreate):
 
     for model in batch.models:
         for backend in batch.backends:
-            experiment_id = f'exp_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}_{uuid.uuid4().hex[:4]}'
+            experiment_id = f'exp_{datetime.now(UTC).strftime("%Y%m%d_%H%M%S")}_{uuid.uuid4().hex[:4]}'
             model_name = Path(model).name
 
             params = batch.params.model_dump()
@@ -147,7 +147,7 @@ async def create_batch_experiments(batch: ExperimentBatchCreate):
                         'benchmark_tflite.py',
                         json.dumps(params),
                         ExperimentStatus.QUEUED.value,
-                        datetime.utcnow().isoformat(),
+                        datetime.now(UTC).isoformat(),
                     ),
                 )
                 await db.commit()
@@ -313,7 +313,7 @@ async def rerun_experiment(experiment_id: str):
         raise HTTPException(404, 'Experiment not found')
 
     # Create new experiment with same params
-    new_id = f'exp_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}_{uuid.uuid4().hex[:4]}'
+    new_id = f'exp_{datetime.now(UTC).strftime("%Y%m%d_%H%M%S")}_{uuid.uuid4().hex[:4]}'
 
     async with get_db() as db:
         await db.execute(
@@ -329,7 +329,7 @@ async def rerun_experiment(experiment_id: str):
                 row['script_path'],
                 row['params'],
                 ExperimentStatus.QUEUED.value,
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         await db.commit()
@@ -464,9 +464,10 @@ async def set_baseline(experiment_id: str):
 
     Clears the baseline flag from all other experiments with the same model+device.
     """
+    backend = 'cpu'
     async with get_db() as db:
         cursor = await db.execute(
-            'SELECT model_name, device_id, status FROM experiments WHERE id = ?',
+            'SELECT model_name, device_id, status, params FROM experiments WHERE id = ?',
             (experiment_id,),
         )
         row = await cursor.fetchone()
@@ -475,13 +476,19 @@ async def set_baseline(experiment_id: str):
         raise HTTPException(404, 'Experiment not found')
     if row['status'] != 'completed':
         raise HTTPException(400, 'Only completed experiments can be set as baseline')
+    try:
+        params = json.loads(row['params'] or '{}')
+        backend = params.get('backend', 'cpu')
+    except (json.JSONDecodeError, TypeError):
+        backend = 'cpu'
 
     async with get_db() as db:
-        # Clear existing baseline for same model+device
+        # Clear existing baseline for the same model+device+backend only
         await db.execute(
             """UPDATE experiments SET is_baseline = 0
-               WHERE model_name = ? AND device_id = ?""",
-            (row['model_name'], row['device_id']),
+               WHERE model_name = ? AND device_id = ?
+                 AND COALESCE(json_extract(params, '$.backend'), 'cpu') = ?""",
+            (row['model_name'], row['device_id'], backend),
         )
         # Set this one
         await db.execute(

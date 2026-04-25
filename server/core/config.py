@@ -4,7 +4,7 @@ Server Configuration
 
 from pathlib import Path
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Current agent version - should match agent/config.py AGENT_VERSION
 AGENT_VERSION = '1.1.0'
@@ -39,9 +39,10 @@ class Settings(BaseSettings):
     MLFLOW_EXPERIMENT_NAME: str = 'edge-bench'
     WANDB_API_KEY: str = ''
 
-    class Config:
-        env_prefix = 'EDGEBENCH_'
-        env_file = '.env'
+    model_config = SettingsConfigDict(
+        env_prefix='EDGEBENCH_',
+        env_file='.env',
+    )
 
 
 settings = Settings()

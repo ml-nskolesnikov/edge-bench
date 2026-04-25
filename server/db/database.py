@@ -178,7 +178,7 @@ DEFAULT_DEPENDENCIES = [
 
 async def init_db():
     """Initialize database with schema and default data."""
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     settings.DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -243,7 +243,7 @@ async def init_db():
                         dep['package'],
                         dep['check_command'],
                         dep['description'],
-                        datetime.utcnow().isoformat(),
+                        datetime.now(UTC).isoformat(),
                     ),
                 )
 

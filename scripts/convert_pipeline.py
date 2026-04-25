@@ -8,10 +8,9 @@ Usage:
 """
 
 import argparse
-import os
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 
 
 def convert_pt_to_onnx(pt_path: Path, output_dir: Path, input_shape: list[int]) -> Path:
@@ -82,8 +81,6 @@ def convert_onnx_to_tflite(onnx_path: Path, output_dir: Path, input_shape: list[
 
 def convert_tflite_to_edgetpu(tflite_path: Path, output_dir: Path) -> Path:
     """Compile TFLite model for Edge TPU using edgetpu_compiler."""
-    edgetpu_path = output_dir / (tflite_path.stem + '_edgetpu.tflite')
-
     # Try local edgetpu_compiler first
     compiler = 'edgetpu_compiler'
     try:

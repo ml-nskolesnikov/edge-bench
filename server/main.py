@@ -4,7 +4,7 @@ Edge-Bench Server - Main Entry Point
 
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 
@@ -128,7 +128,7 @@ async def index(request: Request):
         s = dict(row)
         try:
             trigger = CronTrigger.from_crontab(s['cron'], timezone='UTC')
-            nf = trigger.get_next_fire_time(None, datetime.utcnow())
+            nf = trigger.get_next_fire_time(None, datetime.now(UTC))
             s['next_run'] = nf.isoformat() if nf else None
         except Exception:
             s['next_run'] = None
@@ -168,9 +168,9 @@ async def schedules_page(request: Request):
 
     def next_run(cron: str) -> str | None:
         try:
-            from datetime import datetime
+            from datetime import UTC, datetime
             trigger = CronTrigger.from_crontab(cron, timezone='UTC')
-            nf = trigger.get_next_fire_time(None, datetime.utcnow())
+            nf = trigger.get_next_fire_time(None, datetime.now(UTC))
             return nf.isoformat() if nf else None
         except Exception:
             return None

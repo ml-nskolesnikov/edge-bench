@@ -5,9 +5,9 @@ Uses APScheduler (AsyncIOScheduler) embedded in the FastAPI lifespan.
 Schedules are stored in SQLite and survive server restarts.
 """
 
-import logging
-from datetime import datetime
+from datetime import UTC, datetime
 import json
+import logging
 import uuid
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -74,7 +74,7 @@ async def run_scheduled_experiment(schedule_id: str) -> None:
 
     model_name = schedule['model_name']
     experiment_id = (
-        f'exp_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}_{uuid.uuid4().hex[:4]}'
+        f'exp_{datetime.now(UTC).strftime("%Y%m%d_%H%M%S")}_{uuid.uuid4().hex[:4]}'
     )
 
     async with get_db() as db:
@@ -91,7 +91,7 @@ async def run_scheduled_experiment(schedule_id: str) -> None:
                 'benchmark_tflite.py',
                 json.dumps(params),
                 ExperimentStatus.QUEUED.value,
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
 
@@ -100,7 +100,7 @@ async def run_scheduled_experiment(schedule_id: str) -> None:
             """UPDATE schedules
                SET last_run_at = ?, last_exp_id = ?
                WHERE id = ?""",
-            (datetime.utcnow().isoformat(), experiment_id, schedule_id),
+            (datetime.now(UTC).isoformat(), experiment_id, schedule_id),
         )
         await db.commit()
 

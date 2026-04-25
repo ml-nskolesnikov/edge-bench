@@ -3,7 +3,7 @@ Results API Endpoints
 """
 
 import csv
-from datetime import datetime
+from datetime import UTC, datetime
 import io
 import json
 
@@ -189,7 +189,7 @@ async def export_csv(
         iter([output.getvalue()]),
         media_type='text/csv',
         headers={
-            'Content-Disposition': f'attachment; filename=edgebench_results_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
+            'Content-Disposition': f'attachment; filename=edgebench_results_{datetime.now(UTC).strftime("%Y%m%d_%H%M%S")}.csv'
         },
     )
 
@@ -206,7 +206,7 @@ async def export_json(
         iter([json.dumps(results, indent=2, default=str)]),
         media_type='application/json',
         headers={
-            'Content-Disposition': f'attachment; filename=edgebench_results_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.json'
+            'Content-Disposition': f'attachment; filename=edgebench_results_{datetime.now(UTC).strftime("%Y%m%d_%H%M%S")}.json'
         },
     )
 
@@ -296,10 +296,11 @@ async def compare_baseline(experiment_id: str):
                  AND e.device_id = ?
                  AND e.status = 'completed'
                  AND e.id != ?
+                 AND COALESCE(json_extract(e.params, '$.backend'), 'cpu') = ?
                  AND r.metrics IS NOT NULL
                ORDER BY e.is_baseline DESC, e.completed_at DESC
                LIMIT 1""",
-            (model_name, device_id, experiment_id),
+            (model_name, device_id, experiment_id, backend),
         )
         baseline_row = await cursor.fetchone()
 
@@ -312,17 +313,6 @@ async def compare_baseline(experiment_id: str):
         }
 
     baseline = dict(baseline_row)
-    baseline_params = json.loads(baseline.get('params') or '{}')
-
-    # Only compare when backend matches
-    if baseline_params.get('backend', 'cpu') != backend:
-        return {
-            'current': _summarize(current_metrics, current),
-            'baseline': None,
-            'delta': None,
-            'message': 'No baseline with the same backend found',
-        }
-
     baseline_metrics = json.loads(baseline.get('metrics') or '{}')
 
     cur_latency = current_metrics.get('latency', {}).get('mean_ms')
@@ -403,7 +393,7 @@ async def report_result(request: dict):
                 f'res_{experiment_id}',
                 experiment_id,
                 json.dumps(result),
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
 
@@ -414,7 +404,7 @@ async def report_result(request: dict):
                WHERE id = ?""",
             (
                 ExperimentStatus.COMPLETED.value,
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
                 result.get('logs', ''),
                 experiment_id,
             ),

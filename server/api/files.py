@@ -2,7 +2,7 @@
 Files API Endpoints
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 import hashlib
 from pathlib import Path
 import uuid
@@ -114,7 +114,7 @@ async def upload_file(
                 str(file_path),
                 len(content),
                 file_hash,
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         await db.commit()
@@ -236,7 +236,7 @@ async def start_conversion(file_id: str, request: dict):
         await db.execute(
             """INSERT INTO convert_tasks (id, file_id, target, status, input_shape, created_at)
                VALUES (?, ?, ?, 'pending', ?, ?)""",
-            (task_id, file_id, target, str(input_shape), datetime.utcnow().isoformat()),
+            (task_id, file_id, target, str(input_shape), datetime.now(UTC).isoformat()),
         )
         await db.commit()
 
@@ -283,7 +283,7 @@ async def _run_conversion(
             await db.execute(
                 """UPDATE convert_tasks SET status = ?, error_message = ?,
                    completed_at = ? WHERE id = ?""",
-                (status, error, datetime.utcnow().isoformat(), task_id),
+                (status, error, datetime.now(UTC).isoformat(), task_id),
             )
             await db.commit()
 
@@ -327,7 +327,7 @@ async def _run_conversion(
                     str(output_path),
                     len(content),
                     file_hash,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
             await db.execute(

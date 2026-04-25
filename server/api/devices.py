@@ -2,7 +2,7 @@
 Devices API Endpoints
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 import uuid
 
@@ -72,10 +72,10 @@ async def create_device(device: DeviceCreate):
                 status.value,
                 device.description,
                 str(device_info) if device_info else None,
-                datetime.utcnow().isoformat()
+                datetime.now(UTC).isoformat()
                 if status == DeviceStatus.ONLINE
                 else None,
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         await db.commit()
@@ -146,7 +146,7 @@ async def check_device_status(device_id: str):
             WHERE id = ?""",
             (
                 status.value,
-                datetime.utcnow().isoformat()
+                datetime.now(UTC).isoformat()
                 if status == DeviceStatus.ONLINE
                 else None,
                 str(device_info) if device_info else None,
@@ -181,9 +181,9 @@ async def ping_device(device_id: str):
 
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            start = datetime.utcnow()
+            start = datetime.now(UTC)
             response = await client.get(f'{agent_url}/health')
-            latency = (datetime.utcnow() - start).total_seconds() * 1000
+            latency = (datetime.now(UTC) - start).total_seconds() * 1000
 
             if response.status_code == 200:
                 data = response.json()

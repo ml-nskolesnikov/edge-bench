@@ -2,7 +2,7 @@
 Schedules API Endpoints — nightly benchmark automation.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 import uuid
 
@@ -68,7 +68,7 @@ def _next_run(cron: str) -> str | None:
     """Return ISO timestamp of the next fire time for a cron expression."""
     try:
         trigger = CronTrigger.from_crontab(cron, timezone='UTC')
-        next_fire = trigger.get_next_fire_time(None, datetime.utcnow())
+        next_fire = trigger.get_next_fire_time(None, datetime.now(UTC))
         return next_fire.isoformat() if next_fire else None
     except Exception:
         return None
@@ -129,7 +129,7 @@ async def create_schedule(body: ScheduleCreate):
             raise HTTPException(404, 'Device not found')
 
     schedule_id = f'sched_{uuid.uuid4().hex[:12]}'
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
 
     async with get_db() as db:
         await db.execute(
@@ -308,7 +308,7 @@ async def get_history(schedule_id: str, limit: int = 20):
                  AND e.name LIKE ?
                ORDER BY e.created_at DESC
                LIMIT ?""",
-            (f'[Scheduled] %',  limit),
+            ('[Scheduled] %',  limit),
         )
         rows = await cursor.fetchall()
 
