@@ -10,7 +10,7 @@ WORKDIR /app
 RUN python -m pip install --upgrade pip \
     && pip install poetry==2.2.1 poetry-plugin-export==1.9.0
 
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 RUN poetry export -f requirements.txt --only main --without-hashes -o requirements.txt \
     && pip install --ignore-installed --prefix=/install -r requirements.txt
 
