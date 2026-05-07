@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Новый эксперимент - Edge-Bench{% endblock %}
+{% block title %}New Experiment - Edge-Bench{% endblock %}
 
 {% block content %}
 <div class="page-head">
     <div>
-        <h1>Новый эксперимент</h1>
-        <p class="page-subtitle">Создайте и запустите бенчмарк на Edge-устройстве</p>
+        <h1 data-i18n="New Experiment">New Experiment</h1>
+        <p class="page-subtitle" data-i18n="Create and run a benchmark on an Edge device">Create and run a benchmark on an Edge device</p>
     </div>
 </div>
 
@@ -19,8 +19,8 @@
             </svg>
         </div>
         <div>
-            <strong>Одиночный эксперимент</strong>
-            <span>Один тест с детальными настройками</span>
+            <strong>Single Experiment</strong>
+            <span>One test with detailed settings</span>
         </div>
     </button>
     <button class="ne-mode" onclick="switchMode('batch')" id="modeBatch">
@@ -30,8 +30,8 @@
             </svg>
         </div>
         <div>
-            <strong>Пакетный эксперимент</strong>
-            <span>Множество тестов за один раз</span>
+            <strong>Batch Experiment</strong>
+            <span>Multiple tests at once</span>
         </div>
     </button>
 </div>
@@ -41,19 +41,19 @@
     <form onsubmit="createExperiment(event)">
         <!-- Step 1 -->
         <div class="ne-step">
-            <div class="ne-step-head"><span class="ne-step-num">1</span> Основная информация</div>
+            <div class="ne-step-head"><span class="ne-step-num">1</span> Basic Information</div>
             <div class="ne-step-body">
                 <div class="form-group">
-                    <label>Название эксперимента</label>
+                    <label>Experiment name</label>
                     <input type="text" id="expName" required placeholder="mobilenet_v2_edgetpu_benchmark" class="ne-input">
-                    <p class="form-hint">Используйте понятное название для идентификации результатов</p>
+                    <p class="form-hint">Use a descriptive name to identify results</p>
                 </div>
             </div>
         </div>
 
         <!-- Step 2 -->
         <div class="ne-step">
-            <div class="ne-step-head"><span class="ne-step-num">2</span> Целевое устройство</div>
+            <div class="ne-step-head"><span class="ne-step-num">2</span> Target Device</div>
             <div class="ne-step-body">
                 {% if devices %}
                 <div class="ne-dev-grid">
@@ -79,8 +79,8 @@
                 {% else %}
                 <div class="ne-alert">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-                    <span>Нет устройств.</span>
-                    <a href="/devices" class="btn btn-primary" style="font-size:13px; padding:6px 14px;">Добавить</a>
+                    <span>No devices.</span>
+                    <a href="/devices" class="btn btn-primary" style="font-size:13px; padding:6px 14px;">Add</a>
                 </div>
                 {% endif %}
             </div>
@@ -88,38 +88,38 @@
 
         <!-- Step 3 -->
         <div class="ne-step">
-            <div class="ne-step-head"><span class="ne-step-num">3</span> Модель</div>
+            <div class="ne-step-head"><span class="ne-step-num">3</span> Model</div>
             <div class="ne-step-body">
-                <label style="font-size:13px; color:var(--text-muted); font-weight:500; margin-bottom:8px; display:block;">Источник модели</label>
+                <label style="font-size:13px; color:var(--text-muted); font-weight:500; margin-bottom:8px; display:block;">Model Source</label>
                 <div class="ne-src-tabs">
-                    <button type="button" class="ne-src-tab active" onclick="setModelSource('device', this)">На устройстве</button>
-                    <button type="button" class="ne-src-tab" onclick="setModelSource('repository', this)">Из репозитория</button>
-                    <button type="button" class="ne-src-tab" onclick="setModelSource('manual', this)">Вручную</button>
+                    <button type="button" class="ne-src-tab active" onclick="setModelSource('device', this)">On device</button>
+                    <button type="button" class="ne-src-tab" onclick="setModelSource('repository', this)">From repository</button>
+                    <button type="button" class="ne-src-tab" onclick="setModelSource('manual', this)">Manual</button>
                 </div>
                 <input type="hidden" name="modelSource" value="device">
 
                 <div class="form-group" id="deviceModelGroup" style="margin-top:14px;">
-                    <label>Выберите модель</label>
+                    <label>Select model</label>
                     <select id="expDeviceModel" class="ne-input">
-                        <option value="">Загрузка моделей...</option>
+                        <option value="">Loading models...</option>
                     </select>
                 </div>
 
                 <div class="form-group" id="repoModelGroup" style="display:none; margin-top:14px;">
-                    <label>Модель из репозитория</label>
+                    <label>Model from Repository</label>
                     <select id="expRepoModel" class="ne-input">
-                        <option value="">Выберите модель...</option>
+                        <option value="">Select model...</option>
                         {% for m in models %}
                         <option value="{{ m.id }}" data-name="{{ m.name }}">
                             {{ m.name }} ({{ "%.1f"|format(m.size_bytes / 1024 / 1024) }} MB)
                         </option>
                         {% endfor %}
                     </select>
-                    <p class="form-hint">Модель будет автоматически загружена на устройство</p>
+                    <p class="form-hint">Model will be automatically deployed to device</p>
                 </div>
 
                 <div class="form-group" id="manualModelGroup" style="display:none; margin-top:14px;">
-                    <label>Путь к модели на устройстве</label>
+                    <label>Path to model on device</label>
                     <input type="text" id="expModelPath" placeholder="/home/pi/models/model.tflite" class="ne-input">
                 </div>
             </div>
@@ -127,11 +127,11 @@
 
         <!-- Step 4 -->
         <div class="ne-step">
-            <div class="ne-step-head"><span class="ne-step-num">4</span> Параметры бенчмарка</div>
+            <div class="ne-step-head"><span class="ne-step-num">4</span> Benchmark Parameters</div>
             <div class="ne-step-body">
                 <div class="ne-params">
                     <div class="ne-param">
-                        <label>Бэкенд</label>
+                        <label>Backend</label>
                         <div class="ne-toggle">
                             <label class="ne-toggle-opt">
                                 <input type="radio" name="expBackend" value="cpu" checked>
@@ -144,17 +144,17 @@
                         </div>
                     </div>
                     <div class="ne-param">
-                        <label>Прогрев</label>
+                        <label>Warmup</label>
                         <input type="number" id="expWarmup" value="10" min="0">
-                        <small>запусков</small>
+                        <small>runs</small>
                     </div>
                     <div class="ne-param">
-                        <label>Тестов</label>
+                        <label>Tests</label>
                         <input type="number" id="expRuns" value="100" min="1">
-                        <small>запусков</small>
+                        <small>runs</small>
                     </div>
                     <div class="ne-param">
-                        <label>Потоков</label>
+                        <label>Threads</label>
                         <input type="number" id="expThreads" value="4" min="1">
                         <small>CPU</small>
                     </div>
@@ -163,10 +163,10 @@
         </div>
 
         <div class="ne-actions">
-            <a href="/experiments" class="btn">Отмена</a>
+            <a href="/experiments" class="btn">Cancel</a>
             <button type="submit" class="btn btn-primary" style="display:flex; align-items:center; gap:8px; padding:12px 24px; font-size:15px;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                Создать и запустить
+                Create & Run
             </button>
         </div>
     </form>
@@ -176,7 +176,7 @@
 <div id="batchMode" style="display:none;">
     <form onsubmit="createBatchExperiments(event)">
         <div class="ne-step">
-            <div class="ne-step-head"><span class="ne-step-num">1</span> Устройство</div>
+            <div class="ne-step-head"><span class="ne-step-num">1</span> Device</div>
             <div class="ne-step-body">
                 {% if devices %}
                 <div class="ne-dev-grid">
@@ -200,26 +200,26 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="ne-alert">Нет устройств. <a href="/devices">Добавьте</a></div>
+                <div class="ne-alert">No devices. <a href="/devices">Add</a></div>
                 {% endif %}
             </div>
         </div>
 
         <div class="ne-step">
-            <div class="ne-step-head"><span class="ne-step-num">2</span> Модели на устройстве</div>
+            <div class="ne-step-head"><span class="ne-step-num">2</span> Models on Device</div>
             <div class="ne-step-body">
                 <div class="ne-model-list" id="batchModelsList">
-                    <div class="ne-model-loading">Выберите устройство...</div>
+                    <div class="ne-model-loading">Select device first...</div>
                 </div>
                 <div class="ne-model-footer">
-                    <span id="selectedModelsCount" style="color:var(--text-muted); font-size:13px;">0 моделей выбрано</span>
-                    <button type="button" class="btn" style="font-size:12px; padding:5px 12px;" onclick="toggleAllModels()">Выбрать все</button>
+                    <span id="selectedModelsCount" style="color:var(--text-muted); font-size:13px;">0 models selected</span>
+                    <button type="button" class="btn" style="font-size:12px; padding:5px 12px;" onclick="toggleAllModels()">Select all</button>
                 </div>
             </div>
         </div>
 
         <div class="ne-step">
-            <div class="ne-step-head"><span class="ne-step-num">3</span> Бэкенды</div>
+            <div class="ne-step-head"><span class="ne-step-num">3</span> Backends</div>
             <div class="ne-step-body">
                 <div class="ne-backend-grid">
                     <label class="ne-backend-opt">
@@ -227,7 +227,7 @@
                         <div class="ne-backend-card">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15 9H9v6h6V9zm-2 4h-2v-2h2v2zm8-2V9h-2V7c0-1.1-.9-2-2-2h-2V3h-2v2h-2V3H9v2H7c-1.1 0-2 .9-2 2v2H3v2h2v2H3v2h2v2c0 1.1.9 2 2 2h2v2h2v-2h2v2h2v-2h2c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2z"/></svg>
                             <strong>CPU</strong>
-                            <span>TFLite на процессоре</span>
+                            <span>TFLite on CPU</span>
                         </div>
                     </label>
                     <label class="ne-backend-opt">
@@ -243,26 +243,26 @@
         </div>
 
         <div class="ne-step">
-            <div class="ne-step-head"><span class="ne-step-num">4</span> Общие параметры</div>
+            <div class="ne-step-head"><span class="ne-step-num">4</span> Common Parameters</div>
             <div class="ne-step-body">
                 <div class="ne-params">
                     <div class="ne-param">
-                        <label>Прогрев</label>
+                        <label>Warmup</label>
                         <input type="number" id="batchWarmup" value="10" min="0">
-                        <small>запусков</small>
+                        <small>runs</small>
                     </div>
                     <div class="ne-param">
-                        <label>Тестов</label>
+                        <label>Tests</label>
                         <input type="number" id="batchRuns" value="100" min="1">
-                        <small>запусков</small>
+                        <small>runs</small>
                     </div>
                     <div class="ne-param">
-                        <label>Потоков</label>
+                        <label>Threads</label>
                         <input type="number" id="batchThreads" value="4" min="1">
                         <small>CPU</small>
                     </div>
                     <div class="ne-param">
-                        <label>Батч</label>
+                        <label>Batch</label>
                         <input type="number" id="batchBatchSize" value="1" min="1">
                     </div>
                 </div>
@@ -273,15 +273,15 @@
         <div class="ne-summary">
             <div class="ne-summary-num" id="totalExperimentsCount">0</div>
             <div class="ne-summary-text">
-                <strong>экспериментов будет создано</strong>
-                <span id="summaryFormula">0 моделей x 0 бэкендов = 0</span>
+                <strong>experiments will be created</strong>
+                <span id="summaryFormula">0 models x 0 backends = 0</span>
             </div>
         </div>
 
         <div class="ne-actions">
-            <a href="/experiments" class="btn">Отмена</a>
+            <a href="/experiments" class="btn">Cancel</a>
             <button type="submit" class="btn btn-primary" id="batchSubmitBtn" disabled style="padding:12px 24px; font-size:15px;">
-                Создать все эксперименты
+                Create All Experiments
             </button>
         </div>
     </form>
@@ -290,7 +290,7 @@
 <!-- Progress modal -->
 <div id="progressModal" class="modal" style="display:none;">
     <div class="modal-content" style="max-width:500px; text-align:center;">
-        <h3 style="margin-bottom:20px;">Создание экспериментов...</h3>
+        <h3 style="margin-bottom:20px;">Creating experiments...</h3>
         <div class="ne-progress-bar"><div class="ne-progress-fill" id="progressFill"></div></div>
         <p id="progressText" style="margin-top:12px; color:var(--text-muted); font-size:14px;">0 / 0</p>
         <div class="ne-progress-log" id="progressLog"></div>
@@ -741,7 +741,7 @@ async function onBatchDeviceChange(deviceId) {
 
 async function loadBatchModels(deviceId) {
     const container = document.getElementById('batchModelsList');
-    container.innerHTML = '<div class="ne-model-loading">Загрузка моделей...</div>';
+    container.innerHTML = '<div class="ne-model-loading">Loading models...</div>';
     batchModels = [];
 
     try {
@@ -752,12 +752,12 @@ async function loadBatchModels(deviceId) {
                 batchModels = data.models;
                 renderBatchModels(data.models, container);
             } else {
-                container.innerHTML = '<div class="ne-model-loading">Нет моделей. <a href="/models">Загрузите</a></div>';
+                container.innerHTML = '<div class="ne-model-loading">No models. <a href="/models">Upload</a></div>';
             }
         } else {
-            container.innerHTML = '<div class="ne-model-loading">Ошибка загрузки</div>';
+            container.innerHTML = '<div class="ne-model-loading">Error loading</div>';
         }
-    } catch { container.innerHTML = '<div class="ne-model-loading">Устройство недоступно</div>'; }
+    } catch { container.innerHTML = '<div class="ne-model-loading">Device unavailable</div>'; }
     updateExperimentsCount();
 }
 
@@ -791,23 +791,23 @@ function updateExperimentsCount() {
     const mc = document.querySelectorAll('input[name="batchModel"]:checked').length;
     const bc = document.querySelectorAll('input[name="batchBackend"]:checked').length;
     const t = mc * bc;
-    document.getElementById('selectedModelsCount').textContent = `${mc} моделей выбрано`;
+    document.getElementById('selectedModelsCount').textContent = `${mc} models selected`;
     document.getElementById('totalExperimentsCount').textContent = t;
-    document.getElementById('summaryFormula').textContent = `${mc} моделей x ${bc} бэкендов = ${t}`;
+    document.getElementById('summaryFormula').textContent = `${mc} models x ${bc} backends = ${t}`;
     document.getElementById('batchSubmitBtn').disabled = t === 0;
 }
 
 async function createBatchExperiments(e) {
     e.preventDefault();
     const deviceId = document.querySelector('input[name="batchDevice"]:checked')?.value;
-    if (!deviceId) { alert('Выберите устройство'); return; }
+    if (!deviceId) { alert('Select device'); return; }
 
     const selModels = Array.from(document.querySelectorAll('input[name="batchModel"]:checked'))
         .map(cb => ({ path: cb.value, name: cb.dataset.name }));
     const selBackends = Array.from(document.querySelectorAll('input[name="batchBackend"]:checked'))
         .map(cb => cb.value);
 
-    if (!selModels.length || !selBackends.length) { alert('Выберите модели и бэкенды'); return; }
+    if (!selModels.length || !selBackends.length) { alert('Select models and backends'); return; }
 
     const params = {
         batch_size: parseInt(document.getElementById('batchBatchSize').value),
@@ -860,12 +860,12 @@ function setModelSource(source, btn) {
 async function onSingleDeviceChange(deviceId) {
     singleDeviceId = deviceId;
     const sel = document.getElementById('expDeviceModel');
-    sel.innerHTML = '<option value="">Загрузка...</option>';
+    sel.innerHTML = '<option value="">Loading...</option>';
     try {
         const r = await fetch(`/api/devices/${deviceId}/models`);
         if (r.ok) {
             const d = await r.json();
-            sel.innerHTML = '<option value="">Выберите модель...</option>';
+            sel.innerHTML = '<option value="">Select model...</option>';
             if (d.models?.length) {
                 d.models.forEach(m => {
                     const o = document.createElement('option');
@@ -875,39 +875,39 @@ async function onSingleDeviceChange(deviceId) {
                     o.textContent = `${m.name} (${sz} MB)${badge}`;
                     sel.appendChild(o);
                 });
-            } else { sel.innerHTML = '<option value="">Нет моделей</option>'; }
+            } else { sel.innerHTML = '<option value="">No models</option>'; }
         }
-    } catch { sel.innerHTML = '<option value="">Устройство недоступно</option>'; }
+    } catch { sel.innerHTML = '<option value="">Device unavailable</option>'; }
 }
 
 async function createExperiment(e) {
     e.preventDefault();
     const deviceId = document.querySelector('input[name="singleDevice"]:checked')?.value || singleDeviceId;
-    if (!deviceId) { alert('Выберите устройство'); return; }
+    if (!deviceId) { alert('Select device'); return; }
 
     let modelPath = '';
     if (currentModelSource === 'device') {
         modelPath = document.getElementById('expDeviceModel').value;
-        if (!modelPath) { alert('Выберите модель'); return; }
+        if (!modelPath) { alert('Select model'); return; }
     } else if (currentModelSource === 'repository') {
         const repoId = document.getElementById('expRepoModel').value;
-        if (!repoId) { alert('Выберите модель'); return; }
+        if (!repoId) { alert('Select model'); return; }
         try {
             const r = await fetch(`/api/devices/${deviceId}/upload-model`, {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({file_id: repoId})
             });
             if (r.ok) { modelPath = (await r.json()).path; }
-            else { alert('Ошибка развёртывания: ' + ((await r.json()).detail || '?')); return; }
-        } catch (ex) { alert('Ошибка: ' + ex); return; }
+            else { alert('Deployment error: ' + ((await r.json()).detail || '?')); return; }
+        } catch (ex) { alert('Error: ' + ex); return; }
     } else {
         modelPath = document.getElementById('expModelPath').value;
-        if (!modelPath) { alert('Укажите путь'); return; }
+        if (!modelPath) { alert('Specify path'); return; }
     }
 
     const backend = document.querySelector('input[name="expBackend"]:checked')?.value || 'cpu';
     const btn = e.target.querySelector('button[type="submit"]');
-    btn.disabled = true; btn.textContent = 'Создание...';
+    btn.disabled = true; btn.textContent = 'Creating...';
 
     try {
         const r = await fetch('/api/experiments', {
@@ -924,8 +924,8 @@ async function createExperiment(e) {
             })
         });
         if (r.ok) { window.location.href = '/experiments/' + (await r.json()).id; }
-        else { alert('Ошибка: ' + ((await r.json()).detail || '?')); btn.disabled = false; btn.textContent = 'Создать и запустить'; }
-    } catch (ex) { alert('Ошибка: ' + ex.message); btn.disabled = false; }
+        else { alert('Error: ' + ((await r.json()).detail || '?')); btn.disabled = false; btn.textContent = 'Create & Run'; }
+    } catch (ex) { alert('Error: ' + ex.message); btn.disabled = false; }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
