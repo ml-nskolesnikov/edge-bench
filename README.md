@@ -201,24 +201,35 @@ GET    /api/files/agent/{filename}       Serve agent source (used by installer)
 
 ## Configuration
 
-The server is configured via environment variables (prefix `EDGEBENCH_`):
+### Server (`server/`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EDGEBENCH_HOST` | `0.0.0.0` | Bind address |
 | `EDGEBENCH_PORT` | `8000` | Server port |
-| `EDGEBENCH_DEBUG` | `false` | Debug/reload mode |
+| `EDGEBENCH_DEBUG` | `false` | Debug/reload mode (also enables `/execute/code` on the agent) |
 | `EDGEBENCH_DATABASE_PATH` | `data/edgebench.db` | SQLite database path |
 | `EDGEBENCH_MODELS_DIR` | `data/models` | Model storage directory |
-| `EDGEBENCH_TASK_TIMEOUT_SECONDS` | `3600` | Max experiment duration |
-| `EDGEBENCH_AGENT_TIMEOUT_SECONDS` | `30` | Agent health check timeout |
+| `EDGEBENCH_TASK_TIMEOUT_SECONDS` | `3600` | Max experiment duration (seconds) |
+| `EDGEBENCH_AGENT_TIMEOUT_SECONDS` | `30` | Agent health-check timeout (seconds) |
+| `EDGEBENCH_AGENT_SECRET` | `` | Shared secret for API auth (`X-Agent-Secret` header). Leave empty to disable (dev / trusted LAN). |
+| `EDGEBENCH_PROXY_TRUST` | `127.0.0.1` | IP(s) of trusted reverse proxy for `X-Forwarded-*` headers. Set to the proxy IP when deploying behind nginx/caddy/traefik. |
 
-The agent is configured via environment variables (prefix `EDGEBENCH_`):
+### Agent (`agent/`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EDGEBENCH_AGENT_PORT` | `8001` | Agent listen port |
 | `EDGEBENCH_SERVER` | `` | Server URL for result sync (e.g. `http://192.168.1.x:8000`) |
+| `EDGEBENCH_AGENT_SECRET` | `` | Shared secret — must match server value |
+| `EDGEBENCH_DEBUG` | `false` | Enables the `/execute/code` endpoint. **Never set in production.** |
+
+### Benchmark scripts (`agent/benchmark_*.py`)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EDGEBENCH_INPUT_SEED` | `42` | RNG seed for dummy input generation. Also settable via `--seed` CLI flag. Affects which quantized kernels are exercised. |
+| `EDGEBENCH_COOLDOWN_SECONDS` | `5` | Pause between models in batch mode (seconds). Also settable via `--cooldown` CLI flag. |
 
 ## Project Structure
 
@@ -522,10 +533,30 @@ GET    /api/settings                        All settings
 PUT    /api/settings                        Update (key-value dict)
 ```
 
+## Known Limitations
+
+- **WebSocket channel is unauthenticated.** `/ws/experiments/{id}` does not require `X-Agent-Secret`. Any client on the network can subscribe to live metrics. Full WebSocket auth is deferred.
+- **Shared secret visible in browser JS.** The `agent_secret` value is injected into every HTML page as a Jinja2 global so the JS `fetch()` wrapper can include it. This is obfuscation, not cryptographic protection — anyone who can view page source can read the secret. Use a network-level control (VPN / firewall) rather than relying solely on this header.
+- **HTTPS install script depends on proxy setup.** The `/install` script uses `request.url.scheme` to detect HTTPS. This only reflects `https` if a TLS-terminating reverse proxy (nginx, caddy, traefik) sends `X-Forwarded-Proto` and `EDGEBENCH_PROXY_TRUST` is set to the proxy IP. Without that, the install script always generates `http://` URLs.
+- **Historical results show `--` for RSS memory.** The P2 rename of `memory_mb_mean/max` → `process_rss_mb_mean/max` is a breaking schema change. Results stored in the database before this change will display `--` on the Memory column in the experiment detail and comparison pages until the experiments are re-run.
+- **Batch cooldown is fixed, not adaptive.** `--cooldown` applies a flat sleep between models. An adaptive "wait until temp < threshold" option exists (`--cooldown-temp`) but is bounded at 60 s. If the device does not cool within that window, the next benchmark starts anyway.
+
+- **Power consumption not measured.** `benchmark_full.py` originally advertised "power consumption estimation" in its docstring; this feature was never implemented. It is listed as planned work below.
+- **TFLite only.** ONNX Runtime and TensorRT backends are not supported. The architecture could accommodate them but no delegate loader exists yet.
+- **Fixed run count.** Benchmark iterations are a fixed `--runs` parameter (default 100). An adaptive run-until-stable-CV scheme is a possible future enhancement.
+- **No CSV export from the server UI.** The `/api/results/export/csv` API endpoint exists (see API section) but it is not surfaced in the Web UI — there is no button on the Results page. Raw JSON export is available.
+- **FastAPI auto-docs not linked in UI.** The interactive API docs at `/docs` (Swagger) and `/redoc` (ReDoc) are generated automatically by FastAPI but are not mentioned in the Web UI navigation or in this README. Access them directly at `http://<host>:8000/docs`.
+
 ## Future Work
 
 - [ ] NVIDIA Jetson support
 - [ ] Automated nightly benchmark schedules
+- [ ] Full WebSocket authentication
+- [ ] Per-browser session auth (replace shared-secret JS injection)
+- [ ] Power consumption estimation (INA219 / USB power meter integration)
+- [ ] ONNX Runtime / TensorRT backend support
+- [ ] Adaptive run count (stop when CV stabilises)
+- [ ] CSV export button in the Results UI
 
 ## License
 

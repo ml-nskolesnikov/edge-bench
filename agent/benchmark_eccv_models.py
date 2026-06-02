@@ -18,7 +18,7 @@ Usage:
 """
 
 import argparse
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 import sys
@@ -178,7 +178,7 @@ def run_eccv_benchmark(
 
     results = {
         'experiment': 'eccv2026_t4_benchmark',
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(UTC).isoformat(),
         'config': {'runs': runs, 'warmup': warmup, 'backends': backends},
         'benchmarks': [],
     }

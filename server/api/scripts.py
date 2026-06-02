@@ -29,9 +29,9 @@ async def check_dependencies(request: dict):
         if not device:
             raise HTTPException(404, 'Device not found')
 
-        # Get enabled dependencies from database
+        # Fetch required dependencies (correct column: is_required; no sort_order column)
         cursor = await db.execute(
-            'SELECT * FROM dependencies WHERE enabled = 1 ORDER BY sort_order, id'
+            'SELECT * FROM dependencies WHERE is_required = 1 ORDER BY id'
         )
         deps_rows = await cursor.fetchall()
 
@@ -41,58 +41,39 @@ async def check_dependencies(request: dict):
     results = []
 
     for dep in deps:
+        # Correct column name: check_command (not check_cmd)
+        check_command = dep.get('check_command') or ''
+        if not check_command:
+            results.append({'name': dep['name'], 'status': 'unknown', 'error': 'No check command', 'is_required': bool(dep['is_required'])})
+            continue
+
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 response = await client.post(
-                    f'{agent_url}/execute/code',
-                    json={
-                        'code': f"""
-import subprocess
-import sys
-
-try:
-    result = subprocess.run(
-        {repr(dep['check_cmd'])},
-        shell=True,
-        capture_output=True,
-        text=True,
-        timeout=5
-    )
-    if result.returncode == 0:
-        print("OK:" + result.stdout.strip())
-    else:
-        print("ERROR:" + (result.stderr.strip() or "not found"))
-except Exception as e:
-    print("ERROR:" + str(e))
-""",
-                        'timeout': 10,
-                    },
+                    f'{agent_url}/check/dependency',
+                    json={'command': check_command, 'timeout': 10},
                 )
 
                 if response.status_code == 200:
                     data = response.json()
-                    output = data.get('output', '').strip()
-
-                    if output.startswith('OK:'):
-                        version = output[3:].strip()
+                    if data.get('exit_code') == 0:
+                        version = data.get('stdout', '').strip()
                         results.append(
                             {
                                 'name': dep['name'],
                                 'status': 'ok',
-                                'version': version
-                                if version and version != 'ok'
-                                else 'установлен',
-                                'critical': dep['critical'],
+                                'version': version or 'installed',
+                                'is_required': bool(dep['is_required']),
                             }
                         )
                     else:
-                        error = output[6:] if output.startswith('ERROR:') else output
+                        error = data.get('stderr', '').strip() or 'not found'
                         results.append(
                             {
                                 'name': dep['name'],
                                 'status': 'missing',
-                                'error': error or 'не найден',
-                                'critical': dep['critical'],
+                                'error': error,
+                                'is_required': bool(dep['is_required']),
                             }
                         )
                 else:
@@ -100,8 +81,8 @@ except Exception as e:
                         {
                             'name': dep['name'],
                             'status': 'error',
-                            'error': 'Ошибка агента',
-                            'critical': dep['critical'],
+                            'error': f'Agent HTTP {response.status_code}',
+                            'is_required': bool(dep['is_required']),
                         }
                     )
         except Exception as e:
@@ -110,7 +91,7 @@ except Exception as e:
                     'name': dep['name'],
                     'status': 'error',
                     'error': str(e),
-                    'critical': dep['critical'],
+                    'is_required': bool(dep['is_required']),
                 }
             )
 

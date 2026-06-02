@@ -5,31 +5,25 @@ Edge-Bench Agent - Lightweight benchmark executor for Raspberry Pi
 
 import asyncio
 import base64
-from datetime import datetime
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 import hashlib
+import hmac
 import os
 import subprocess
 
 from config import AGENT_VERSION, settings
 from executor import BenchmarkExecutor
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from metrics import SystemMetrics
 from result_cache import background_sync_loop, result_cache
 import uvicorn
 
-app = FastAPI(
-    title='Edge-Bench Agent',
-    description='Benchmark executor for Raspberry Pi + Edge TPU',
-    version=AGENT_VERSION,
-)
 
-executor = BenchmarkExecutor()
-system_metrics = SystemMetrics()
-
-
-@app.on_event('startup')
-async def startup_event():
-    """Start background cache sync on agent startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: start background cache sync."""
     server_url = settings.SERVER_URL
     if server_url:
         asyncio.create_task(background_sync_loop(server_url))
@@ -40,6 +34,34 @@ async def startup_event():
     unsynced = result_cache.count_unsynced()
     if unsynced > 0:
         print(f'[Agent] {unsynced} cached results awaiting sync')
+
+    yield
+
+
+app = FastAPI(
+    title='Edge-Bench Agent',
+    description='Benchmark executor for Raspberry Pi + Edge TPU',
+    version=AGENT_VERSION,
+    lifespan=lifespan,
+)
+
+
+@app.middleware('http')
+async def auth_middleware(request: Request, call_next):
+    """Enforce shared-secret auth when EDGEBENCH_AGENT_SECRET is set."""
+    if settings.AGENT_SECRET:
+        token = request.headers.get('X-Agent-Secret', '')
+        # constant-time compare prevents timing attacks
+        if not hmac.compare_digest(
+            token.encode('utf-8'), settings.AGENT_SECRET.encode('utf-8')
+        ):
+            return JSONResponse({'detail': 'Unauthorized'}, status_code=403)
+    return await call_next(request)
+
+
+executor = BenchmarkExecutor()
+system_metrics = SystemMetrics()
+
 
 
 @app.get('/cache/status')
@@ -73,7 +95,7 @@ async def health():
     return {
         'status': 'ok',
         'version': AGENT_VERSION,
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(UTC).isoformat(),
         'device_info': device_info,
     }
 
@@ -150,19 +172,76 @@ async def execute_script(request: dict):
         raise HTTPException(500, str(e))
 
 
+@app.post('/check/dependency')
+async def check_dependency(request: dict):
+    """Run a single dependency-check command (shlex.split, shell=False).
+
+    Narrow endpoint for dependency verification — not gated behind DEBUG.
+    Only executes the provided command string; no shell expansion.
+    """
+    import shlex
+
+    command = request.get('command')
+    timeout = request.get('timeout', 10)
+
+    if not command:
+        raise HTTPException(400, 'command required')
+
+    try:
+        cmd = shlex.split(command)
+    except ValueError as e:
+        raise HTTPException(400, f'Invalid command: {e}')
+
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return {
+            'exit_code': result.returncode,
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+        }
+    except subprocess.TimeoutExpired:
+        return {'exit_code': -1, 'stdout': '', 'stderr': f'Timed out after {timeout}s'}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
 @app.post('/execute/code')
 async def execute_code(request: dict):
-    """Execute arbitrary shell code (for dependency checks)."""
+    """Execute a shell command (dependency checks).
+
+    Disabled in production. Enable with EDGEBENCH_DEBUG=true.
+    Command is passed as a list to subprocess — no shell expansion.
+    """
+    if not settings.DEBUG:
+        raise HTTPException(
+            403,
+            'This endpoint is disabled in production. '
+            'Set EDGEBENCH_DEBUG=true to enable (dev/trusted LAN only).',
+        )
+
     code = request.get('code')
     timeout = request.get('timeout', 30)
 
     if not code:
         raise HTTPException(400, 'code required')
 
+    import shlex
+
+    try:
+        cmd = shlex.split(code)
+    except ValueError as e:
+        raise HTTPException(400, f'Invalid command: {e}')
+
     try:
         result = subprocess.run(
-            code,
-            shell=True,
+            cmd,
+            shell=False,
             capture_output=True,
             text=True,
             timeout=timeout,

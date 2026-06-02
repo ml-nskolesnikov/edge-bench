@@ -238,6 +238,18 @@ def _parse_args():
         action='store_true',
         help='Skip models that already have results',
     )
+    parser.add_argument(
+        '--cooldown',
+        type=float,
+        default=float(os.environ.get('EDGEBENCH_COOLDOWN_SECONDS', '5')),
+        help='Seconds to wait between models (default: 5, env: EDGEBENCH_COOLDOWN_SECONDS)',
+    )
+    parser.add_argument(
+        '--cooldown-temp',
+        type=float,
+        default=None,
+        help='Also wait until CPU temp drops below this °C (optional; up to 60 s extra)',
+    )
     return parser.parse_args()
 
 
@@ -264,6 +276,36 @@ def _print_header(args, models_dir, output_dir, device_info, edgetpu_info):
         if 'edgetpu' in args.backends:
             print('Warning: EdgeTPU requested but not available')
     print()
+
+
+def _wait_for_cooldown(cooldown_s: float, temp_threshold: float | None) -> None:
+    """Pause between benchmarks to let the device cool down.
+
+    cooldown_s: fixed sleep duration (always applied).
+    temp_threshold: if set, also poll CPU temp until it drops below this
+                    value (max 60 s extra wait, then proceed anyway).
+    Adaptive cooldown is a possible future extension — current implementation
+    uses a fixed pause which is sufficient for most use-cases.
+    """
+    if cooldown_s > 0:
+        print(f'Cooling down for {cooldown_s:.0f}s...')
+        time.sleep(cooldown_s)
+
+    if temp_threshold is None:
+        return
+
+    # Optional: wait until temp drops below threshold (max 60 s)
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        try:
+            with open('/sys/class/thermal/thermal_zone0/temp') as f:
+                temp = int(f.read().strip()) / 1000.0
+            if temp < temp_threshold:
+                break
+            print(f'  Temp {temp:.1f}°C > {temp_threshold:.0f}°C, waiting 5s...')
+            time.sleep(5)
+        except Exception:
+            break  # thermal file unavailable — proceed
 
 
 def _run_single_benchmark(model, backend, args, output_dir, current, total):
@@ -298,7 +340,6 @@ def _run_single_benchmark(model, backend, args, output_dir, current, total):
     with open(result_file, 'w') as f:
         json.dump(result_compact, f, indent=2, default=str)
 
-    time.sleep(1)
     return result
 
 
@@ -307,6 +348,10 @@ def _run_all_benchmarks(models, args, output_dir, edgetpu_info):
     all_results = []
     total = sum(len(set(m['backends']) & set(args.backends)) for m in models)
     current = 0
+    cooldown_s: float = float(
+        getattr(args, 'cooldown', None) or os.environ.get('EDGEBENCH_COOLDOWN_SECONDS', '5')
+    )
+    cooldown_temp: float | None = getattr(args, 'cooldown_temp', None)
 
     for model in models:
         model_backends = set(model['backends']) & set(args.backends)
@@ -319,6 +364,10 @@ def _run_all_benchmarks(models, args, output_dir, edgetpu_info):
                     f'[{current}/{total}] Skipping {model["name"]} ({backend}) - TPU not available'
                 )
                 continue
+
+            # Cooldown after every benchmark except the first
+            if current > 1:
+                _wait_for_cooldown(cooldown_s, cooldown_temp)
 
             result = _run_single_benchmark(
                 model, backend, args, output_dir, current, total

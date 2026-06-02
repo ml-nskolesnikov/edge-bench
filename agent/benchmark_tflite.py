@@ -10,7 +10,8 @@ Usage:
 """
 
 import argparse
-from datetime import datetime
+from datetime import UTC, datetime
+import gc
 import hashlib
 import json
 import os
@@ -76,7 +77,7 @@ def run_benchmark(args):
     results = {
         'model_path': args.model,
         'backend': args.backend,
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(UTC).isoformat(),
         'status': 'running',
     }
 
@@ -92,6 +93,10 @@ def run_benchmark(args):
         input_shape = input_details[0]['shape']
         input_dtype = input_details[0]['dtype']
 
+        # Seed before input generation for reproducibility across runs.
+        input_seed = int(getattr(args, 'seed', None) or os.environ.get('EDGEBENCH_INPUT_SEED', '42'))
+        np.random.seed(input_seed)
+
         # Generate input
         if input_dtype == np.float32:
             input_data = np.random.rand(*input_shape).astype(np.float32)
@@ -104,18 +109,28 @@ def run_benchmark(args):
         first_inference = None
         for i in range(args.warmup):
             interpreter.set_tensor(input_details[0]['index'], input_data)
+            _gc_was = gc.isenabled()
+            gc.disable()
             t0 = time.perf_counter()
             interpreter.invoke()
+            t1 = time.perf_counter()
+            if _gc_was:
+                gc.enable()
             if i == 0:
-                first_inference = (time.perf_counter() - t0) * 1000
+                first_inference = (t1 - t0) * 1000
 
         # Benchmark
         latencies = []
         for _ in range(args.runs):
             interpreter.set_tensor(input_details[0]['index'], input_data)
+            _gc_was = gc.isenabled()
+            gc.disable()
             t0 = time.perf_counter()
             interpreter.invoke()
-            latencies.append((time.perf_counter() - t0) * 1000)
+            t1 = time.perf_counter()
+            if _gc_was:
+                gc.enable()
+            latencies.append((t1 - t0) * 1000)
 
         latencies = np.array(latencies)
 
@@ -132,6 +147,7 @@ def run_benchmark(args):
             'num_threads': args.threads,
             'warmup_runs': args.warmup,
             'benchmark_runs': args.runs,
+            'input_seed': input_seed,
         }
 
         results['latency'] = {
@@ -187,6 +203,12 @@ def main():
         '--runs', '-r', type=int, default=100, help='Benchmark iterations'
     )
     parser.add_argument('--output', '-o', help='Output JSON file (default: stdout)')
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=int(os.environ.get('EDGEBENCH_INPUT_SEED', '42')),
+        help='RNG seed for dummy input generation (default: 42, env: EDGEBENCH_INPUT_SEED)',
+    )
 
     args = parser.parse_args()
 

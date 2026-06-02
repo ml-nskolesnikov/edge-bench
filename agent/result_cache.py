@@ -6,7 +6,7 @@ A background sync task periodically pushes cached results to the server.
 """
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 import time
@@ -33,7 +33,7 @@ class ResultCache:
         entry = {
             'experiment_id': experiment_id,
             'result': result,
-            'cached_at': datetime.utcnow().isoformat(),
+            'cached_at': datetime.now(UTC).isoformat(),
             'synced': False,
         }
 

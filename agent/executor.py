@@ -3,7 +3,8 @@ Benchmark Executor for Edge Devices
 """
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
+import gc
 import hashlib
 import os
 import time
@@ -48,7 +49,7 @@ class BenchmarkExecutor:
         model_path = os.path.abspath(model_path)
 
         self.current_task = experiment_id
-        start_time = time.time()
+        start_time = time.perf_counter()
         logs = []
 
         try:
@@ -75,6 +76,11 @@ class BenchmarkExecutor:
 
             logs.append(f'Input shape: {input_shape}, dtype: {input_dtype}')
 
+            # Seed before generating input — quantized kernels can select different
+            # paths depending on input distribution, so reproducibility matters.
+            input_seed = int(params.get('input_seed', os.environ.get('EDGEBENCH_INPUT_SEED', '42')))
+            np.random.seed(input_seed)
+
             # Generate dummy input
             if input_dtype == np.float32:
                 input_data = np.random.rand(*input_shape).astype(np.float32)
@@ -83,15 +89,33 @@ class BenchmarkExecutor:
             else:
                 input_data = np.random.rand(*input_shape).astype(input_dtype)
 
+            # Capture baseline CPU frequency + governor for throttle detection
+            try:
+                import psutil as _psutil
+                _freq = _psutil.cpu_freq()
+                initial_cpu_freq_mhz: float | None = round(_freq.current, 0) if _freq else None
+            except Exception:
+                initial_cpu_freq_mhz = None
+
+            try:
+                with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor') as _gf:
+                    _cpu_governor: str | None = _gf.read().strip()
+            except Exception:
+                _cpu_governor = None
+
             # Warmup
             logs.append(f'Running {warmup_runs} warmup iterations...')
             first_inference_time = None
 
             for i in range(warmup_runs):
                 interpreter.set_tensor(input_details[0]['index'], input_data)
+                _gc_was = gc.isenabled()
+                gc.disable()
                 t0 = time.perf_counter()
                 interpreter.invoke()
                 t1 = time.perf_counter()
+                if _gc_was:
+                    gc.enable()
 
                 if i == 0:
                     first_inference_time = (t1 - t0) * 1000
@@ -109,9 +133,15 @@ class BenchmarkExecutor:
 
             for run_idx in range(benchmark_runs):
                 interpreter.set_tensor(input_details[0]['index'], input_data)
+                # GC disabled only for the timed invoke(); restored before the rest
+                # of the loop body so memory metrics are not distorted.
+                _gc_was = gc.isenabled()
+                gc.disable()
                 t0 = time.perf_counter()
                 interpreter.invoke()
                 t1 = time.perf_counter()
+                if _gc_was:
+                    gc.enable()
                 latencies.append((t1 - t0) * 1000)  # Convert to ms
 
                 # Stream live metric update every stream_interval runs
@@ -134,6 +164,45 @@ class BenchmarkExecutor:
             # Wait for metrics
             system_metrics = await metrics_task
 
+            # Thermal throttle warnings — do not abort; flag in results
+            _THROTTLE_TEMP_C = 80.0
+            _FREQ_DROP_THRESHOLD = 0.15  # 15 % drop triggers warning
+            warnings: list[str] = []
+
+            cpu_temp_max = system_metrics.get('cpu_temp_max')
+            if cpu_temp_max is not None and cpu_temp_max >= _THROTTLE_TEMP_C:
+                warnings.append(
+                    f'Thermal throttle risk: CPU peaked at {cpu_temp_max:.1f}°C '
+                    f'(threshold {_THROTTLE_TEMP_C:.0f}°C) — results may be degraded'
+                )
+
+            freq_min = system_metrics.get('cpu_freq_mhz_min')
+            if freq_min is not None and initial_cpu_freq_mhz is not None:
+                drop = (initial_cpu_freq_mhz - freq_min) / initial_cpu_freq_mhz
+                if drop >= _FREQ_DROP_THRESHOLD:
+                    # Under 'performance' governor the CPU stays at max, so any
+                    # drop is almost certainly thermal throttling.  Under
+                    # 'ondemand' / 'powersave' the kernel can scale down
+                    # between invocations — that is normal idle scaling, not
+                    # throttling.  We reflect this in the warning text to
+                    # reduce false positives.
+                    if _cpu_governor == 'performance':
+                        freq_cause = 'thermal throttling confirmed (governor=performance, drop is hardware-enforced)'
+                    elif _cpu_governor in ('ondemand', 'powersave', 'schedutil', 'conservative'):
+                        freq_cause = (
+                            f'possible idle frequency scaling (governor={_cpu_governor}); '
+                            'may NOT be thermal throttling — consider governor=performance for benchmarks'
+                        )
+                    else:
+                        freq_cause = f'possible thermal throttling (governor={_cpu_governor or "unknown"})'
+                    warnings.append(
+                        f'CPU frequency drop: {initial_cpu_freq_mhz:.0f} → {freq_min:.0f} MHz '
+                        f'({drop * 100:.0f}% drop) — {freq_cause}'
+                    )
+
+            for w in warnings:
+                logs.append(f'WARNING: {w}')
+
             # Calculate statistics
             latencies = np.array(latencies)
 
@@ -148,9 +217,19 @@ class BenchmarkExecutor:
                 'p99_ms': round(float(np.percentile(latencies, 99)), 3),
             }
 
+            params['input_seed'] = input_seed  # record used seed in result
+            _fps_from_mean = round(1000.0 / latency_stats['mean_ms'], 2)
+            _fps_from_median = (
+                round(1000.0 / latency_stats['p50_ms'], 2)
+                if latency_stats['p50_ms'] > 0
+                else 0.0
+            )
             throughput = {
-                'fps': round(1000.0 / latency_stats['mean_ms'], 2),
-                'images_per_second': round(1000.0 / latency_stats['mean_ms'], 2),
+                'fps_from_mean': _fps_from_mean,
+                'fps_from_median': _fps_from_median,
+                # Backward-compatible aliases (templates and API consumers use these)
+                'fps': _fps_from_mean,
+                'images_per_second': _fps_from_mean,
             }
 
             cold_start = {
@@ -168,7 +247,7 @@ class BenchmarkExecutor:
                 'quantization': self._detect_quantization(model_path),
             }
 
-            duration = time.time() - start_time
+            duration = time.perf_counter() - start_time
             logs.append(f'Benchmark completed in {duration:.1f}s')
             logs.append(
                 f'Mean latency: {latency_stats["mean_ms"]:.2f}ms, FPS: {throughput["fps"]:.1f}'
@@ -184,9 +263,12 @@ class BenchmarkExecutor:
                 'cold_start': cold_start,
                 'system': system_metrics,
                 'device_info': self.metrics.get_device_info(),
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(UTC).isoformat(),
                 'duration_seconds': round(duration, 2),
                 'status': 'completed',
+                # Non-empty when thermal throttle or frequency drop detected.
+                # Results are still valid but should be treated with caution.
+                'warnings': warnings,
                 'logs': '\n'.join(logs),
             }
 
@@ -207,7 +289,7 @@ class BenchmarkExecutor:
                 'status': 'failed',
                 'error': str(e),
                 'logs': '\n'.join(logs),
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(UTC).isoformat(),
             }
         finally:
             self.current_task = None
@@ -220,7 +302,7 @@ class BenchmarkExecutor:
     ) -> dict[str, Any]:
         """Run a custom Python script."""
         self.current_task = f'script:{script_path}'
-        start_time = time.time()
+        start_time = time.perf_counter()
 
         try:
             cmd = ['python3', script_path] + args
@@ -236,7 +318,7 @@ class BenchmarkExecutor:
                 timeout=timeout,
             )
 
-            duration = time.time() - start_time
+            duration = time.perf_counter() - start_time
 
             return {
                 'script': script_path,

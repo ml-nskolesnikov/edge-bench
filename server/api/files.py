@@ -71,7 +71,7 @@ async def upload_file(
         # Check for same name (different content)
         cursor = await db.execute(
             'SELECT id FROM files WHERE name = ? AND type = ?',
-            (file.filename, file_type.value),
+            (Path(file.filename).name if file.filename else '', file_type.value),
         )
         same_name = await cursor.fetchone()
 
@@ -85,9 +85,23 @@ async def upload_file(
 
     dest_dir.mkdir(parents=True, exist_ok=True)
 
+    # Reject filenames with traversal components before any stripping
+    raw_name = file.filename or ''
+    if '..' in Path(raw_name).parts:
+        raise HTTPException(400, 'Invalid filename: path traversal detected')
+
+    # Sanitize filename: strip all directory components, reject hidden/empty names
+    safe_name = Path(raw_name).name if raw_name else ''
+    if not safe_name or safe_name.startswith('.'):
+        raise HTTPException(400, 'Invalid filename: must not be empty or start with "."')
+
     # Generate unique filename
     file_id = f'file_{uuid.uuid4().hex[:8]}'
-    file_path = dest_dir / file.filename
+    file_path = dest_dir / safe_name
+
+    # Confirm the resolved path stays inside dest_dir (defence-in-depth)
+    if not file_path.resolve().is_relative_to(dest_dir.resolve()):
+        raise HTTPException(400, 'Invalid filename: path traversal detected')
 
     # If same name exists with different content, add suffix
     if same_name:

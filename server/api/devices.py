@@ -427,9 +427,9 @@ async def check_deploy_status(device_id: str, request: dict):
         if server_hash in device_models:
             dm = device_models[server_hash]
             if dm['name'] == server_name:
-                detail = 'Идентичная модель уже на устройстве'
+                detail = 'Identical model already on device'
             else:
-                detail = f'Та же модель на устройстве как "{dm["name"]}"'
+                detail = f'Same model on device as "{dm["name"]}"'
             results.append(
                 {
                     'file_id': fid,
@@ -449,7 +449,7 @@ async def check_deploy_status(device_id: str, request: dict):
                     'file_id': fid,
                     'name': server_name,
                     'status': 'update',
-                    'detail': 'Имя совпадает, но модель отличается -- будет перезаписана',
+                    'detail': 'Same filename but different content — will be overwritten',
                     'device_hash': dm.get('hash', '')[:12],
                     'server_hash': server_hash[:12],
                 }
@@ -462,7 +462,7 @@ async def check_deploy_status(device_id: str, request: dict):
                 'file_id': fid,
                 'name': server_name,
                 'status': 'new',
-                'detail': 'Модель отсутствует на устройстве',
+                'detail': 'Model not present on device',
             }
         )
 
@@ -498,8 +498,8 @@ async def upload_model_to_device(device_id: str, request: dict):
                 'filename': dm['name'],
                 'skipped': True,
                 'reason': 'hash_match',
-                'detail': 'Модель уже на устройстве'
-                + (f' как "{dm["name"]}"' if dm['name'] != file_record['name'] else ''),
+                'detail': 'Model already on device'
+                + (f' as "{dm["name"]}"' if dm['name'] != file_record['name'] else ''),
             }
 
     # Upload

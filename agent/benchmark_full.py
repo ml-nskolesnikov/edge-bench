@@ -5,9 +5,10 @@ Full Benchmark Script for Edge Devices
 Extended benchmark with:
 - CPU/Memory monitoring during inference
 - Detailed latency distribution
-- Power consumption estimation (if available)
 - Multiple runs with statistics
 - JSON output with all metrics
+
+Note: power consumption estimation is not yet implemented (planned).
 
 Usage:
     python3 benchmark_full.py --model model.tflite --backend cpu --runs 100
@@ -16,7 +17,7 @@ Usage:
 
 import argparse
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 import hashlib
 import json
 import os
@@ -272,9 +273,10 @@ def compute_latency_stats(latencies: np.ndarray) -> dict:
 
 def run_benchmark(args) -> dict:
     """Run the full benchmark and return detailed results."""
+    _start = time.perf_counter()
     results = {
-        'benchmark_id': f'bench_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}',
-        'timestamp': datetime.utcnow().isoformat(),
+        'benchmark_id': f'bench_{datetime.now(UTC).strftime("%Y%m%d_%H%M%S")}',
+        'timestamp': datetime.now(UTC).isoformat(),
         'status': 'running',
     }
 
@@ -316,6 +318,8 @@ def run_benchmark(args) -> dict:
         }
 
         # Parameters
+        input_seed = int(getattr(args, 'seed', None) or os.environ.get('EDGEBENCH_INPUT_SEED', '42'))
+        np.random.seed(input_seed)
         results['params'] = {
             'requested_backend': args.backend,
             'actual_backend': actual_backend,
@@ -324,6 +328,7 @@ def run_benchmark(args) -> dict:
             'warmup_runs': args.warmup,
             'benchmark_runs': args.runs,
             'batch_size': int(input_shape[0]) if len(input_shape) > 0 else 1,
+            'input_seed': input_seed,
         }
 
         # Generate input data
@@ -410,9 +415,7 @@ def run_benchmark(args) -> dict:
         }
 
         results['status'] = 'completed'
-        results['duration_seconds'] = round(
-            time.time() - datetime.fromisoformat(results['timestamp']).timestamp(), 2
-        )
+        results['duration_seconds'] = round(time.perf_counter() - _start, 2)
 
         print('\nResults:', file=sys.stderr)
         print(
@@ -462,6 +465,12 @@ def main():
         '--compact',
         action='store_true',
         help='Compact JSON output (no latency values array)',
+    )
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=int(os.environ.get('EDGEBENCH_INPUT_SEED', '42')),
+        help='RNG seed for dummy input generation (default: 42, env: EDGEBENCH_INPUT_SEED)',
     )
 
     args = parser.parse_args()

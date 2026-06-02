@@ -190,8 +190,8 @@ async def check_device_dependencies(device_id: str):
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
-                    f'{agent_url}/execute/code',
-                    json={'code': check_cmd, 'timeout': 10},
+                    f'{agent_url}/check/dependency',
+                    json={'command': check_cmd, 'timeout': 10},
                 )
 
                 if resp.status_code == 200:

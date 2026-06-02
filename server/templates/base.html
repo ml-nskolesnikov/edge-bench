@@ -48,6 +48,24 @@
     </footer>
 
     <script>
+        // Inject X-Agent-Secret into every fetch() when the server has auth configured.
+        // NOTE: secret is visible in page source — this is obfuscation, not real protection.
+        // Real browser auth (session/cookie) is a separate backlog item.
+        (function () {
+            const _sec = {{ agent_secret | tojson }};
+            if (_sec) {
+                const _orig = window.fetch.bind(window);
+                window.fetch = function (url, opts) {
+                    opts = Object.assign({}, opts || {});
+                    opts.headers = Object.assign(
+                        { 'X-Agent-Secret': _sec },
+                        opts.headers || {}
+                    );
+                    return _orig(url, opts);
+                };
+            }
+        })();
+
         // Language toggle
         function toggleLang() {
             const currentLang = localStorage.getItem('edgebench_lang') || 'ru';

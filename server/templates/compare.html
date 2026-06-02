@@ -629,7 +629,7 @@ function renderTable(data, bestLat, bestFps) {
             <td>${lat.p95_ms?.toFixed(2) || '--'} ms</td>
             <td class="${isBestFps ? 'best-val' : ''}">${thr.fps?.toFixed(1) || '--'}</td>
             <td>${sys.cpu_percent_mean?.toFixed(0) || '--'}%</td>
-            <td>${sys.memory_mb_mean?.toFixed(0) || '--'} MB</td>
+            <td>${sys.process_rss_mb_mean?.toFixed(0) || '--'} MB RSS</td>
         `;
         tbody.appendChild(tr);
     });

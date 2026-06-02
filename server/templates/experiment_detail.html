@@ -124,10 +124,10 @@
             </div>
             <div class="system-item">
                 <div class="system-bar">
-                    <div class="system-bar-fill" style="width: {{ (metrics.system.memory_mb_mean / metrics.device_info.memory_total_mb * 100)|int }}%"></div>
+                    <div class="system-bar-fill" style="width: {{ (metrics.system.process_rss_mb_mean / metrics.device_info.memory_total_mb * 100)|int }}%"></div>
                 </div>
                 <span class="system-label" data-i18n="Memory">Память</span>
-                <span class="system-value">{{ "%.0f"|format(metrics.system.memory_mb_mean) }} MB / {{ "%.0f"|format(metrics.device_info.memory_total_mb) }} MB</span>
+                <span class="system-value">{{ "%.0f"|format(metrics.system.process_rss_mb_mean) }} MB RSS / {{ "%.0f"|format(metrics.device_info.memory_total_mb) }} MB total</span>
             </div>
         </div>
     </div>

@@ -35,7 +35,7 @@ async def _seed_queue_fixture(experiment_id: str):
         await db.commit()
 
 
-def test_task_queue_execute_experiment_success(monkeypatch):
+def test_task_queue_execute_experiment_success(isolated_storage, monkeypatch):
     experiment_id = 'exp_queue_success'
     asyncio.run(_seed_queue_fixture(experiment_id))
 
@@ -106,7 +106,7 @@ async def _seed_scheduler_fixture(schedule_id: str):
         await db.commit()
 
 
-def test_scheduler_run_creates_experiment_and_queues(monkeypatch):
+def test_scheduler_run_creates_experiment_and_queues(isolated_storage, monkeypatch):
     schedule_id = 'sched_it_1'
     asyncio.run(_seed_scheduler_fixture(schedule_id))
 

@@ -17,6 +17,7 @@ from server.api import (
     files,
     results,
     schedules,
+    scripts,
     settings as settings_api,
 )
 from server.core.config import settings
@@ -24,15 +25,27 @@ from server.db.database import init_db
 
 
 @pytest.fixture
-def isolated_storage(tmp_path: Path):
-    settings.DATABASE_PATH = tmp_path / 'edgebench_test.db'
-    settings.UPLOAD_DIR = tmp_path / 'uploads'
-    settings.MODELS_DIR = tmp_path / 'models'
-    settings.SCRIPTS_DIR = tmp_path / 'scripts'
+def isolated_storage(tmp_path: Path, monkeypatch):
+    """Isolate all settings paths to a per-test tmp directory.
 
-    settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    settings.MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    settings.SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+    Uses monkeypatch.setattr so values are automatically restored after each
+    test.  This prevents the module-level settings singleton from leaking
+    state between tests and makes the suite safe for parallel execution
+    (pytest-xdist / pytest -n auto).
+    """
+    db_path = tmp_path / 'edgebench_test.db'
+    upload_dir = tmp_path / 'uploads'
+    models_dir = tmp_path / 'models'
+    scripts_dir = tmp_path / 'scripts'
+
+    monkeypatch.setattr(settings, 'DATABASE_PATH', db_path)
+    monkeypatch.setattr(settings, 'UPLOAD_DIR', upload_dir)
+    monkeypatch.setattr(settings, 'MODELS_DIR', models_dir)
+    monkeypatch.setattr(settings, 'SCRIPTS_DIR', scripts_dir)
+
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    models_dir.mkdir(parents=True, exist_ok=True)
+    scripts_dir.mkdir(parents=True, exist_ok=True)
 
     asyncio.run(init_db())
     return tmp_path
@@ -48,6 +61,7 @@ def api_app(isolated_storage: Path):
     app.include_router(dependencies.router, prefix='/api/dependencies')
     app.include_router(settings_api.router, prefix='/api/settings')
     app.include_router(schedules.router, prefix='/api/schedules')
+    app.include_router(scripts.router, prefix='/api/scripts')
     return app
 
 

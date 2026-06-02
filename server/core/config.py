@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     AGENT_TIMEOUT_SECONDS: int = 30
     AGENT_DEFAULT_PORT: int = 8001
 
+    # Auth: shared secret for API endpoints (X-Agent-Secret header).
+    # Leave empty to disable (development / trusted LAN only).
+    AGENT_SECRET: str = ''
+
     # Integrations (empty string = disabled)
     MLFLOW_TRACKING_URI: str = ''
     MLFLOW_EXPERIMENT_NAME: str = 'edge-bench'

@@ -42,12 +42,10 @@ data/uploads/
 *.swo
 .DS_Store
 
-# Poetry
-poetry.lock
-
 # Output / generated files
 output/
 
 # CLAUDE
 .claude
 CLAUDE.md
+.gitnexus
