@@ -5,6 +5,7 @@ def test_check_deps_endpoint_correct_columns(client, monkeypatch):
     """
     import asyncio
     from datetime import UTC, datetime
+
     from server.db.database import get_db
 
     async def _insert_device():

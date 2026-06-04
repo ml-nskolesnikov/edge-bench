@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Lint (ruff)
+        run: poetry run ruff check .
+
+      - name: Import smoke (catches container boot failures without Docker)
+        # Runs `import server.main` in the full poetry env.
+        # starlette 1.0.0 removed proxy_headers — this catches wrong import paths
+        # that only surface at container start, not in unit tests.
+        run: poetry run python -c "import server.main; print('server.main import OK')"
+
+      - name: Run tests
+        run: poetry run pytest tests/ -v --tb=short
+
+      - name: Security audit (pip-audit)
+        run: |
+          poetry run pip install pip-audit
+          poetry run pip-audit --requirement <(poetry export --without-hashes --without dev -f requirements.txt) || true
+        # '|| true' keeps the build green while advisories are reviewed.
+        # Remove it to make unpatched CVEs block merges.

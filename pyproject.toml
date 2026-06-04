@@ -94,8 +94,8 @@ line-ending = "lf"
 # -------------------------------------------------------------
 # Per-file ignores
 # -------------------------------------------------------------
-# [tool.ruff.lint.per-file-ignores]
-# "*/migrations/*.py" = ["E501", "I001"]
-# "config/settings.py" = ["F401"]
+[tool.ruff.lint.per-file-ignores]
+# conftest.py must insert to sys.path before importing server package
+"tests/conftest.py" = ["E402"]
 [tool.poetry]
 package-mode = false
