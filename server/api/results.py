@@ -32,7 +32,7 @@ async def list_results(
         LEFT JOIN devices d ON e.device_id = d.id
         WHERE 1=1
     """
-    params = []
+    params: list[str | int] = []
 
     if model:
         query += ' AND e.model_name LIKE ?'

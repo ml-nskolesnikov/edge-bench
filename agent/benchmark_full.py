@@ -36,19 +36,13 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
+from tflite_backend import TFLiteBackendError, resolve_backend
+
 try:
-    from tflite_runtime.interpreter import Interpreter
-
-    TFLITE_SOURCE = 'tflite_runtime'
-except ImportError:
-    try:
-        import tensorflow as tf
-
-        Interpreter = tf.lite.Interpreter
-        TFLITE_SOURCE = 'tensorflow'
-    except ImportError:
-        print('Error: No TFLite runtime found', file=sys.stderr)
-        sys.exit(1)
+    Interpreter, _LOAD_DELEGATE, TFLITE_SOURCE = resolve_backend()
+except TFLiteBackendError as exc:
+    print(f'Error: {exc}', file=sys.stderr)
+    sys.exit(1)
 
 
 @dataclass
@@ -155,14 +149,9 @@ def load_interpreter(model_path: str, backend: str, num_threads: int):
 
     if backend == 'edgetpu':
         try:
-            if TFLITE_SOURCE == 'tflite_runtime':
-                from tflite_runtime.interpreter import load_delegate
-
-                delegates = [load_delegate('libedgetpu.so.1')]
-            else:
-                import tensorflow as tf
-
-                delegates = [tf.lite.experimental.load_delegate('libedgetpu.so.1')]
+            if _LOAD_DELEGATE is None:
+                raise RuntimeError(f'{TFLITE_SOURCE} exposes no load_delegate')
+            delegates = [_LOAD_DELEGATE('libedgetpu.so.1')]
             tpu_detected = True
         except Exception as e:
             print(f'Warning: Could not load Edge TPU: {e}', file=sys.stderr)
@@ -318,7 +307,9 @@ def run_benchmark(args) -> dict:
         }
 
         # Parameters
-        input_seed = int(getattr(args, 'seed', None) or os.environ.get('EDGEBENCH_INPUT_SEED', '42'))
+        input_seed = int(
+            getattr(args, 'seed', None) or os.environ.get('EDGEBENCH_INPUT_SEED', '42')
+        )
         np.random.seed(input_seed)
         results['params'] = {
             'requested_backend': args.backend,

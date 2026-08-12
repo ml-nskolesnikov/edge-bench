@@ -1,7 +1,4 @@
-# Edge-Bench Agent Requirements (Raspberry Pi)
-fastapi>=0.109.0
-uvicorn>=0.27.0
-psutil>=5.9.0
-numpy>=1.24.0
-# tflite-runtime устанавливается отдельно для ARM
-# pycoral устанавливается отдельно для Edge TPU
+# Deprecated: kept so existing `pip install -r requirements/agent.txt` keeps
+# working. agent/requirements.txt is the canonical list — it is the file the
+# /install endpoint downloads onto the Raspberry Pi.
+-r ../agent/requirements.txt

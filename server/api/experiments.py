@@ -31,7 +31,7 @@ async def list_experiments(
 ):
     """Get all experiments with optional filtering."""
     query = 'SELECT * FROM experiments WHERE 1=1'
-    params = []
+    params: list[str | int] = []
 
     if status:
         query += ' AND status = ?'
@@ -516,5 +516,3 @@ async def stream_status_update(experiment_id: str, payload: dict):
     """Broadcast a status change (running/done/failed) to WebSocket clients."""
     await ws_manager.broadcast(experiment_id, payload)
     return {'ok': True}
-
-

@@ -21,10 +21,10 @@ AGENT_DIR = Path(__file__).parent.parent.parent / 'agent'
 
 
 @router.get('', response_model=list[FileResponseModel])
-async def list_files(file_type: FileType = None):
+async def list_files(file_type: FileType | None = None):
     """List all uploaded files."""
     query = 'SELECT * FROM files'
-    params = []
+    params: list[str] = []
 
     if file_type:
         query += ' WHERE type = ?'
@@ -93,7 +93,9 @@ async def upload_file(
     # Sanitize filename: strip all directory components, reject hidden/empty names
     safe_name = Path(raw_name).name if raw_name else ''
     if not safe_name or safe_name.startswith('.'):
-        raise HTTPException(400, 'Invalid filename: must not be empty or start with "."')
+        raise HTTPException(
+            400, 'Invalid filename: must not be empty or start with "."'
+        )
 
     # Generate unique filename
     file_id = f'file_{uuid.uuid4().hex[:8]}'
@@ -367,6 +369,7 @@ async def get_agent_file(filename: str):
         'metrics.py',
         'config.py',
         'result_cache.py',
+        'tflite_backend.py',
         'requirements.txt',
         'install.sh',
         'benchmark_full.py',

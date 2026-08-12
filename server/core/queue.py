@@ -211,7 +211,7 @@ class TaskQueue:
 
             if response.status_code == 503:
                 raise httpx.HTTPStatusError(
-                    'Agent busy', request=None, response=response
+                    'Agent busy', request=response.request, response=response
                 )
 
             if response.status_code != 200:
@@ -269,9 +269,7 @@ class TaskQueue:
                 )
                 logger_obj = MLflowLogger(mlflow_uri, mlflow_exp)
                 if logger_obj.enabled:
-                    await loop.run_in_executor(
-                        None, logger_obj.log_experiment, result
-                    )
+                    await loop.run_in_executor(None, logger_obj.log_experiment, result)
         except Exception as e:
             print(f'[Queue] Integration logging error: {e}')
 

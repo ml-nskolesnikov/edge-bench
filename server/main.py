@@ -19,11 +19,12 @@ from server.api import (
     experiments,
     files,
     results,
+    scripts,
     settings as settings_api,
 )
 from server.api.schedules import router as schedules_router
 from server.core.auth import require_api_secret
-from server.core.config import settings
+from server.core.config import AGENT_VERSION, settings
 from server.core.queue import task_queue
 from server.core.scheduler import restore_schedules, scheduler
 from server.core.ws_manager import ws_manager
@@ -65,18 +66,72 @@ app.mount('/static', StaticFiles(directory=BASE_DIR / 'static'), name='static')
 
 # API routers — all protected by shared-secret when EDGEBENCH_AGENT_SECRET is set
 _auth = [Depends(require_api_secret)]
-app.include_router(devices.router, prefix='/api/devices', tags=['devices'], dependencies=_auth)
-app.include_router(experiments.router, prefix='/api/experiments', tags=['experiments'], dependencies=_auth)
-app.include_router(results.router, prefix='/api/results', tags=['results'], dependencies=_auth)
-app.include_router(files.router, prefix='/api/files', tags=['files'], dependencies=_auth)
 app.include_router(
-    dependencies.router, prefix='/api/dependencies', tags=['dependencies'], dependencies=_auth
+    devices.router, prefix='/api/devices', tags=['devices'], dependencies=_auth
 )
-app.include_router(settings_api.router, prefix='/api/settings', tags=['settings'], dependencies=_auth)
-app.include_router(schedules_router, prefix='/api/schedules', tags=['schedules'], dependencies=_auth)
+app.include_router(
+    experiments.router,
+    prefix='/api/experiments',
+    tags=['experiments'],
+    dependencies=_auth,
+)
+app.include_router(
+    results.router, prefix='/api/results', tags=['results'], dependencies=_auth
+)
+app.include_router(
+    files.router, prefix='/api/files', tags=['files'], dependencies=_auth
+)
+app.include_router(
+    dependencies.router,
+    prefix='/api/dependencies',
+    tags=['dependencies'],
+    dependencies=_auth,
+)
+app.include_router(
+    settings_api.router, prefix='/api/settings', tags=['settings'], dependencies=_auth
+)
+app.include_router(
+    schedules_router, prefix='/api/schedules', tags=['schedules'], dependencies=_auth
+)
+# Remote script/dependency execution. The agent refuses /execute/code unless
+# EDGEBENCH_DEBUG=true, so this relay is inert against a production agent.
+app.include_router(
+    scripts.router, prefix='/api/scripts', tags=['scripts'], dependencies=_auth
+)
 
 # Web UI routes (HTML pages — no auth; served via APIRouter in server/routes/ui.py)
 app.include_router(ui_router)
+
+
+@app.get('/api/health', tags=['health'])
+async def health():
+    """Liveness/readiness probe.
+
+    Deliberately unauthenticated and dependency-free so Docker, compose and
+    orchestrators can call it without the shared secret. Reports whether the
+    database is reachable and whether the task queue worker is alive.
+    """
+    db_ok = True
+    try:
+        async with get_db() as db:
+            await db.execute('SELECT 1')
+    except Exception:
+        db_ok = False
+
+    queue_status = task_queue.get_queue_status()
+    healthy = db_ok and queue_status['running']
+
+    return {
+        'status': 'ok' if healthy else 'degraded',
+        'version': app.version,
+        'agent_version': AGENT_VERSION,
+        'database': 'ok' if db_ok else 'error',
+        'queue': {
+            'running': queue_status['running'],
+            'size': queue_status['queue_size'],
+            'current_task': queue_status['current_task'],
+        },
+    }
 
 
 # WebSocket route for real-time experiment updates
@@ -152,6 +207,7 @@ curl -sSL "$SERVER_URL/api/files/agent/executor.py" -o executor.py
 curl -sSL "$SERVER_URL/api/files/agent/metrics.py" -o metrics.py
 curl -sSL "$SERVER_URL/api/files/agent/config.py" -o config.py
 curl -sSL "$SERVER_URL/api/files/agent/result_cache.py" -o result_cache.py
+curl -sSL "$SERVER_URL/api/files/agent/tflite_backend.py" -o tflite_backend.py
 curl -sSL "$SERVER_URL/api/files/agent/requirements.txt" -o requirements.txt
 
 echo "[3/6] Creating virtual environment and installing dependencies..."
@@ -297,6 +353,6 @@ if __name__ == '__main__':
         host=settings.HOST,
         port=settings.PORT,
         reload=settings.DEBUG,
-        proxy_headers=True,       # honour X-Forwarded-Proto from upstream TLS proxy
+        proxy_headers=True,  # honour X-Forwarded-Proto from upstream TLS proxy
         forwarded_allow_ips='*',  # restrict to proxy IP in internet-facing deploys
     )

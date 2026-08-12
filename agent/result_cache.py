@@ -12,7 +12,10 @@ from pathlib import Path
 import time
 
 from config import settings
-import httpx
+
+# httpx is imported lazily inside sync_to_server(): running a benchmark and
+# caching its result to disk must not require an HTTP client to be installed.
+# Only pushing cached results back to the server does.
 
 CACHE_DIR = Path(settings.INSTALL_DIR) / 'cache'
 SYNC_INTERVAL = 30  # seconds between sync attempts
@@ -85,6 +88,8 @@ class ResultCache:
         """
         if self._syncing:
             return {'synced': 0, 'failed': 0, 'total': 0, 'status': 'already_syncing'}
+
+        import httpx
 
         self._syncing = True
         unsynced = self.get_unsynced()

@@ -10,7 +10,9 @@ from typing import Any
 
 import psutil
 
-_TPU_CACHE_TTL = 30.0  # seconds — USB TPU connected after agent start is visible within this window
+_TPU_CACHE_TTL = (
+    30.0  # seconds — USB TPU connected after agent start is visible within this window
+)
 
 
 class SystemMetrics:
@@ -115,7 +117,9 @@ class SystemMetrics:
             result = subprocess.run(
                 ['lsusb'], capture_output=True, text=True, timeout=5
             )
-            count = result.stdout.count('Google') + result.stdout.count('Global Unichip')
+            count = result.stdout.count('Google') + result.stdout.count(
+                'Global Unichip'
+            )
             if count > 0:
                 return [f'usb:{i}' for i in range(count)]
         except Exception:
@@ -176,7 +180,9 @@ class SystemMetrics:
         try:
             result = subprocess.run(
                 ['dpkg-query', '-W', '-f=${Version}', 'libedgetpu1-std'],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             v = result.stdout.strip()
             return v if v else None
@@ -184,19 +190,11 @@ class SystemMetrics:
             return None
 
     def _get_tflite_version(self) -> str | None:
-        """Get TFLite runtime version."""
-        try:
-            import tflite_runtime.interpreter as tflite
-
-            return getattr(tflite, '__version__', 'unknown')
-        except ImportError:
-            pass
+        """Get the version of whichever TFLite runtime is installed."""
+        from tflite_backend import TFLiteBackendError, backend_version, resolve_backend
 
         try:
-            import tensorflow as tf
-
-            return tf.__version__
-        except ImportError:
-            pass
-
-        return None
+            _, _, source = resolve_backend()
+        except TFLiteBackendError:
+            return None
+        return backend_version(source)

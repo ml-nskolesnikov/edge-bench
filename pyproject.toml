@@ -37,8 +37,13 @@ dev = [
     "pre-commit (>=4.5.1,<5.0.0)",
     "pytest",
     "pytest-cov",
+    "mypy (>=1.14,<2.0)",
     "numpy (>=1.24)"
 ]
+# The TFLite runtime is intentionally NOT a locked dependency: the correct
+# package differs per platform (tflite-runtime on ARM, ai-edge-litert on
+# x86_64, tensorflow as a fallback) and CI never needs any of them.
+# `make install-hardware` installs the right one for the current host.
 
 # =============================================================
 # Ruff — single source of truth
@@ -97,5 +102,53 @@ line-ending = "lf"
 [tool.ruff.lint.per-file-ignores]
 # conftest.py must insert to sys.path before importing server package
 "tests/conftest.py" = ["E402"]
+
+# =============================================================
+# pytest
+# =============================================================
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Default run is CPU-only and hardware-free: `pytest` must stay green on any
+# CI runner. Hardware tests opt in with `pytest -m hardware`.
+addopts = "-m 'not hardware'"
+markers = [
+    "hardware: requires a real TFLite runtime and a model file on disk (not run in CI)",
+]
+
+[tool.coverage.run]
+source = ["server", "agent"]
+omit = ["*/__pycache__/*", "*/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+# =============================================================
+# mypy
+# =============================================================
+
+[tool.mypy]
+python_version = "3.12"
+files = ["server"]
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_redundant_casts = true
+no_implicit_optional = true
+# The server is untyped-by-default legacy FastAPI code; this configuration
+# checks what is annotated without demanding a full typing retrofit.
+check_untyped_defs = false
+disallow_untyped_defs = false
+
+# Note: `agent/` is intentionally outside `files`. It is deployed flat on the
+# Raspberry Pi and uses top-level imports (`from metrics import ...`), which
+# mypy cannot resolve from the repo root.
+
 [tool.poetry]
 package-mode = false

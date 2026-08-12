@@ -20,28 +20,18 @@ import sys
 import time
 
 import numpy as np
+from tflite_backend import resolve_backend
 
-try:
-    from tflite_runtime.interpreter import Interpreter
-
-    TFLITE_SOURCE = 'tflite_runtime'
-except ImportError:
-    import tensorflow as tf
-
-    Interpreter = tf.lite.Interpreter
-    TFLITE_SOURCE = 'tensorflow'
+Interpreter, _LOAD_DELEGATE, TFLITE_SOURCE = resolve_backend()
 
 
 def load_interpreter(model_path: str, backend: str, num_threads: int):
     """Load TFLite interpreter with specified backend."""
     if backend == 'edgetpu':
         try:
-            if TFLITE_SOURCE == 'tflite_runtime':
-                from tflite_runtime.interpreter import load_delegate
-
-                delegates = [load_delegate('libedgetpu.so.1')]
-            else:
-                delegates = [tf.lite.experimental.load_delegate('libedgetpu.so.1')]
+            if _LOAD_DELEGATE is None:
+                raise RuntimeError(f'{TFLITE_SOURCE} exposes no load_delegate')
+            delegates = [_LOAD_DELEGATE('libedgetpu.so.1')]
 
             return Interpreter(
                 model_path=model_path,
@@ -94,7 +84,9 @@ def run_benchmark(args):
         input_dtype = input_details[0]['dtype']
 
         # Seed before input generation for reproducibility across runs.
-        input_seed = int(getattr(args, 'seed', None) or os.environ.get('EDGEBENCH_INPUT_SEED', '42'))
+        input_seed = int(
+            getattr(args, 'seed', None) or os.environ.get('EDGEBENCH_INPUT_SEED', '42')
+        )
         np.random.seed(input_seed)
 
         # Generate input

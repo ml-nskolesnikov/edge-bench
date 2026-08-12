@@ -30,6 +30,44 @@ def _parse_json_column(value: str | None, *, default=None):
         return default
 
 
+def _summarize_results(rows) -> dict:
+    """Aggregate headline benchmark numbers for the dashboard cards.
+
+    Returns zeroed/None fields when there are no results yet so the template
+    can render an honest empty state instead of a broken placeholder.
+    """
+    latencies: list[float] = []
+    best: dict | None = None
+
+    for row in rows:
+        metrics = _parse_json_column(row['metrics'], default={}) or {}
+        latency = metrics.get('latency') or {}
+        mean_ms = latency.get('mean_ms')
+        if not isinstance(mean_ms, int | float) or mean_ms <= 0:
+            continue
+        latencies.append(float(mean_ms))
+
+        throughput = metrics.get('throughput') or {}
+        params = _parse_json_column(row['params'], default={}) or {}
+        candidate = {
+            'model_name': row['model_name'],
+            'latency_ms': float(mean_ms),
+            'fps': throughput.get('fps_from_mean') or throughput.get('fps'),
+            'backend': params.get('backend') or 'cpu',
+        }
+        if best is None or candidate['latency_ms'] < best['latency_ms']:
+            best = candidate
+
+    if not latencies:
+        return {'count': 0, 'avg_latency_ms': None, 'best': None}
+
+    return {
+        'count': len(latencies),
+        'avg_latency_ms': round(sum(latencies) / len(latencies), 2),
+        'best': best,
+    }
+
+
 @router.get('/', response_class=HTMLResponse)
 async def index(request: Request):
     """Main dashboard."""
@@ -53,6 +91,16 @@ async def index(request: Request):
         )
         sched_rows = await cursor.fetchall()
 
+        cursor = await db.execute(
+            """SELECT r.metrics, e.model_name, e.params
+               FROM results r
+               JOIN experiments e ON r.experiment_id = e.id
+               ORDER BY r.created_at DESC LIMIT 200"""
+        )
+        metric_rows = await cursor.fetchall()
+
+    summary = _summarize_results(metric_rows)
+
     upcoming = []
     for row in sched_rows:
         s = dict(row)
@@ -75,6 +123,7 @@ async def index(request: Request):
             'experiments_count': experiments_count,
             'recent_experiments': [dict(r) for r in recent_experiments],
             'upcoming_schedules': upcoming,
+            'summary': summary,
         },
     )
 
@@ -217,13 +266,46 @@ async def results_page(request: Request):
     result_list = []
     for row in rows:
         result_dict = dict(row)
-        result_dict['metrics'] = _parse_json_column(result_dict.get('metrics'), default={})
+        metrics = _parse_json_column(result_dict.get('metrics'), default={}) or {}
+        result_dict['metrics'] = metrics
+
+        latency = metrics.get('latency') or {}
+        throughput = metrics.get('throughput') or {}
+        params = metrics.get('params') or {}
+        system = metrics.get('system') or {}
+        model = metrics.get('model') or {}
+
+        # Flattened view so the template stays free of nested lookups.
+        result_dict['view'] = {
+            'backend': params.get('backend') or '',
+            'mean_ms': latency.get('mean_ms'),
+            'std_ms': latency.get('std_ms'),
+            'p95_ms': latency.get('p95_ms'),
+            'fps': throughput.get('fps_from_mean') or throughput.get('fps'),
+            'rss_mb': system.get('process_rss_mb_max'),
+            'size_mb': round(model['size_bytes'] / 1_048_576, 2)
+            if model.get('size_bytes')
+            else None,
+            'runs': params.get('benchmark_runs'),
+            'warnings': metrics.get('warnings') or [],
+        }
         result_list.append(result_dict)
+
+    measured = [r['view']['mean_ms'] for r in result_list if r['view']['mean_ms']]
+    fps_values = [r['view']['fps'] for r in result_list if r['view']['fps']]
+    summary = {
+        'count': len(result_list),
+        'measured': len(measured),
+        'best_ms': min(measured) if measured else None,
+        'worst_ms': max(measured) if measured else None,
+        'best_fps': max(fps_values) if fps_values else None,
+        'flagged': sum(1 for r in result_list if r['view']['warnings']),
+    }
 
     return templates.TemplateResponse(
         request,
         'results.html',
-        {'results': result_list},
+        {'results': result_list, 'summary': summary},
     )
 
 
@@ -299,6 +381,28 @@ async def benchmark_page(request: Request):
     )
 
 
+@router.get('/scripts', response_class=HTMLResponse)
+async def scripts_page(request: Request):
+    """Remote script execution and device inspection page."""
+    async with get_db() as db:
+        cursor = await db.execute('SELECT * FROM devices ORDER BY name')
+        device_list = await cursor.fetchall()
+
+        cursor = await db.execute(
+            "SELECT * FROM files WHERE type = 'script' ORDER BY created_at DESC"
+        )
+        script_list = await cursor.fetchall()
+
+    return templates.TemplateResponse(
+        request,
+        'scripts.html',
+        {
+            'devices': [dict(d) for d in device_list],
+            'scripts': [dict(s) for s in script_list],
+        },
+    )
+
+
 @router.get('/settings', response_class=HTMLResponse)
 async def settings_page(request: Request):
     """Settings page."""
@@ -321,8 +425,12 @@ async def settings_page(request: Request):
             'agent_version': AGENT_VERSION,
             'server_port': settings.PORT,
             'max_tasks': int(saved.get('max_tasks', settings.MAX_CONCURRENT_TASKS)),
-            'task_timeout': int(saved.get('task_timeout', settings.TASK_TIMEOUT_SECONDS)),
-            'agent_timeout': int(saved.get('agent_timeout', settings.AGENT_TIMEOUT_SECONDS)),
+            'task_timeout': int(
+                saved.get('task_timeout', settings.TASK_TIMEOUT_SECONDS)
+            ),
+            'agent_timeout': int(
+                saved.get('agent_timeout', settings.AGENT_TIMEOUT_SECONDS)
+            ),
             'paths': {
                 'models': str(settings.MODELS_DIR),
                 'scripts': str(settings.SCRIPTS_DIR),

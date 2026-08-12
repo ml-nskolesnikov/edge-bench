@@ -7,12 +7,14 @@ from datetime import UTC, datetime
 import gc
 import hashlib
 import os
+import platform
 import time
 from typing import Any
 
 from metrics import SystemMetrics
 import numpy as np
 from result_cache import result_cache
+from tflite_backend import backend_version, resolve_backend
 
 
 class BenchmarkExecutor:
@@ -21,6 +23,8 @@ class BenchmarkExecutor:
     def __init__(self):
         self.current_task: str | None = None
         self.metrics = SystemMetrics()
+        # Set by _load_interpreter; recorded in the result for reproducibility.
+        self.tflite_source: str | None = None
 
     async def _send_metric(
         self,
@@ -61,7 +65,9 @@ class BenchmarkExecutor:
             tpu_device_index = int(params.get('tpu_index', 0))
 
             logs.append(f'Loading model: {model_path}')
-            logs.append(f'Backend: {backend}, Threads: {num_threads}, TPU index: {tpu_device_index}')
+            logs.append(
+                f'Backend: {backend}, Threads: {num_threads}, TPU index: {tpu_device_index}'
+            )
 
             # Load interpreter
             interpreter, model_load_time = self._load_interpreter(
@@ -78,7 +84,9 @@ class BenchmarkExecutor:
 
             # Seed before generating input — quantized kernels can select different
             # paths depending on input distribution, so reproducibility matters.
-            input_seed = int(params.get('input_seed', os.environ.get('EDGEBENCH_INPUT_SEED', '42')))
+            input_seed = int(
+                params.get('input_seed', os.environ.get('EDGEBENCH_INPUT_SEED', '42'))
+            )
             np.random.seed(input_seed)
 
             # Generate dummy input
@@ -92,13 +100,18 @@ class BenchmarkExecutor:
             # Capture baseline CPU frequency + governor for throttle detection
             try:
                 import psutil as _psutil
+
                 _freq = _psutil.cpu_freq()
-                initial_cpu_freq_mhz: float | None = round(_freq.current, 0) if _freq else None
+                initial_cpu_freq_mhz: float | None = (
+                    round(_freq.current, 0) if _freq else None
+                )
             except Exception:
                 initial_cpu_freq_mhz = None
 
             try:
-                with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor') as _gf:
+                with open(
+                    '/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor'
+                ) as _gf:
                     _cpu_governor: str | None = _gf.read().strip()
             except Exception:
                 _cpu_governor = None
@@ -147,7 +160,9 @@ class BenchmarkExecutor:
                 # Stream live metric update every stream_interval runs
                 if stream_callback_url and (run_idx + 1) % stream_interval == 0:
                     current_mean = float(np.mean(latencies))
-                    current_fps = round(1000.0 / current_mean, 2) if current_mean > 0 else 0.0
+                    current_fps = (
+                        round(1000.0 / current_mean, 2) if current_mean > 0 else 0.0
+                    )
                     asyncio.create_task(
                         self._send_metric(
                             stream_callback_url,
@@ -188,7 +203,12 @@ class BenchmarkExecutor:
                     # reduce false positives.
                     if _cpu_governor == 'performance':
                         freq_cause = 'thermal throttling confirmed (governor=performance, drop is hardware-enforced)'
-                    elif _cpu_governor in ('ondemand', 'powersave', 'schedutil', 'conservative'):
+                    elif _cpu_governor in (
+                        'ondemand',
+                        'powersave',
+                        'schedutil',
+                        'conservative',
+                    ):
                         freq_cause = (
                             f'possible idle frequency scaling (governor={_cpu_governor}); '
                             'may NOT be thermal throttling — consider governor=performance for benchmarks'
@@ -245,6 +265,20 @@ class BenchmarkExecutor:
                 'hash': self._file_hash(model_path),
                 'size_bytes': os.path.getsize(model_path),
                 'quantization': self._detect_quantization(model_path),
+                'input_shape': [int(d) for d in input_shape],
+                'input_dtype': np.dtype(input_dtype).name,
+            }
+
+            # Runtime provenance: which inference stack actually produced these
+            # numbers. Additive — existing consumers are unaffected.
+            runtime_info = {
+                'tflite_source': self.tflite_source,
+                'tflite_version': backend_version(self.tflite_source)
+                if self.tflite_source
+                else None,
+                'numpy_version': np.__version__,
+                'python_version': platform.python_version(),
+                'cpu_governor': _cpu_governor,
             }
 
             duration = time.perf_counter() - start_time
@@ -263,6 +297,7 @@ class BenchmarkExecutor:
                 'cold_start': cold_start,
                 'system': system_metrics,
                 'device_info': self.metrics.get_device_info(),
+                'runtime': runtime_info,
                 'timestamp': datetime.now(UTC).isoformat(),
                 'duration_seconds': round(duration, 2),
                 'status': 'completed',
@@ -396,38 +431,25 @@ class BenchmarkExecutor:
                 f'Last error: {last_error}'
             )
 
-        # Try tflite_runtime first (lighter)
-        try:
-            from tflite_runtime.interpreter import Interpreter
+        # Resolve whichever TFLite runtime is installed (see tflite_backend).
+        interpreter_cls, load_delegate, self.tflite_source = resolve_backend()
 
-            if backend == 'edgetpu':
-                from tflite_runtime.interpreter import load_delegate
-
-                delegate = _build_edgetpu_delegate(load_delegate)
-                interpreter = Interpreter(
-                    model_path=model_path,
-                    experimental_delegates=[delegate],
+        if backend == 'edgetpu':
+            if load_delegate is None:
+                raise RuntimeError(
+                    f'TFLite runtime "{self.tflite_source}" exposes no load_delegate; '
+                    'Edge TPU is unavailable with this runtime.'
                 )
-            else:
-                interpreter = Interpreter(
-                    model_path=model_path,
-                    num_threads=num_threads,
-                )
-        except ImportError:
-            # Fall back to full TensorFlow
-            import tensorflow as tf
-
-            if backend == 'edgetpu':
-                delegate = _build_edgetpu_delegate(tf.lite.experimental.load_delegate)
-                interpreter = tf.lite.Interpreter(
-                    model_path=model_path,
-                    experimental_delegates=[delegate],
-                )
-            else:
-                interpreter = tf.lite.Interpreter(
-                    model_path=model_path,
-                    num_threads=num_threads,
-                )
+            delegate = _build_edgetpu_delegate(load_delegate)
+            interpreter = interpreter_cls(
+                model_path=model_path,
+                experimental_delegates=[delegate],
+            )
+        else:
+            interpreter = interpreter_cls(
+                model_path=model_path,
+                num_threads=num_threads,
+            )
 
         interpreter.allocate_tensors()
         load_time = (time.perf_counter() - t0) * 1000

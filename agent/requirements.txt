@@ -5,5 +5,10 @@ psutil>=5.9.0
 httpx>=0.27.0
 # IMPORTANT: tflite_runtime requires NumPy 1.x
 numpy>=1.24.0,<2.0
-# tflite-runtime устанавливается отдельно для ARM
-# pycoral устанавливается отдельно для Edge TPU
+
+# The TFLite runtime is installed separately because the right package depends
+# on the host (see agent/tflite_backend.py for the resolution order):
+#   Raspberry Pi / ARM : pip install tflite-runtime
+#   x86_64 workstation : pip install ai-edge-litert
+#   fallback           : pip install tensorflow
+# Edge TPU additionally needs libedgetpu1-std (apt) and pycoral.
