@@ -1,0 +1,103 @@
+{
+  "benchmark_id": "bench_20260606_133338",
+  "timestamp": "2026-06-06T13:33:38.842901",
+  "status": "completed",
+  "device": {
+    "hostname": "raspberrypi",
+    "platform": "Linux-6.12.87+rpt-rpi-v8-aarch64-with-glibc2.36",
+    "machine": "aarch64",
+    "python": "3.11.2",
+    "tflite_source": "tflite_runtime",
+    "cpu_count": 4,
+    "cpu_count_physical": 4,
+    "memory_total_mb": 7820.0,
+    "memory_available_mb": 7259.0,
+    "device_model": "Raspberry Pi 4 Model B Rev 1.5",
+    "cpu_freq_mhz": 1800
+  },
+  "edgetpu": {
+    "available": true,
+    "device": "Coral USB Accelerator (GUC)",
+    "runtime": null
+  },
+  "model": {
+    "path": "/home/fgeeha/models/c6_mobilenet_v2_int8.tflite",
+    "name": "c6_mobilenet_v2_int8.tflite",
+    "hash": "1ffd174380c64787",
+    "size_bytes": 2290200,
+    "size_mb": 2.184,
+    "input_shape": [
+      1,
+      224,
+      224,
+      3
+    ],
+    "input_dtype": "<class 'numpy.int8'>",
+    "output_shape": [
+      1,
+      1280
+    ],
+    "output_dtype": "<class 'numpy.int8'>"
+  },
+  "params": {
+    "requested_backend": "cpu",
+    "actual_backend": "cpu",
+    "tpu_detected": false,
+    "num_threads": 4,
+    "warmup_runs": 10,
+    "benchmark_runs": 100,
+    "batch_size": 1
+  },
+  "latency": {
+    "mean_ms": 122.115,
+    "std_ms": 4.248,
+    "min_ms": 114.267,
+    "max_ms": 142.289,
+    "median_ms": 121.69,
+    "p50_ms": 121.69,
+    "p75_ms": 124.701,
+    "p90_ms": 126.763,
+    "p95_ms": 128.418,
+    "p99_ms": 132.98,
+    "variance_ms2": 18.0469,
+    "iqr_ms": 5.374
+  },
+  "warmup": {
+    "mean_ms": 123.658,
+    "first_inference_ms": 130.411
+  },
+  "throughput": {
+    "fps": 8.19,
+    "fps_p95": 7.79,
+    "inferences_per_second": 8.19
+  },
+  "cold_start": {
+    "model_load_ms": 3.75,
+    "first_inference_ms": 130.41,
+    "total_cold_start_ms": 134.16
+  },
+  "system": {
+    "cpu_percent": {
+      "mean": 87.28,
+      "max": 95.1,
+      "min": 50.0,
+      "samples": 120
+    },
+    "memory_mb": {
+      "mean": 52.9,
+      "max": 52.93,
+      "min": 52.87
+    },
+    "cpu_temp_celsius": {
+      "mean": 44.84,
+      "max": 47.22,
+      "start": 40.89,
+      "end": 46.25
+    }
+  },
+  "stability": {
+    "cv_percent": 3.48,
+    "outliers_count": 1
+  },
+  "duration_seconds": 10813.59
+}

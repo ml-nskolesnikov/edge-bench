@@ -1,145 +1,305 @@
-# Edge-Bench: Remote ML Benchmarking for Raspberry Pi + Coral Edge TPU
+# Edge-Bench
 
-A remote benchmarking system for running ML inference experiments on Raspberry Pi with Google Coral Edge TPU from a host machine.
+Remote ML benchmarking for Raspberry Pi and the Google Coral Edge TPU.
+
+You run a server on a workstation; lightweight agents run on the edge devices.
+The server queues experiments, dispatches them to a device, collects latency,
+throughput, memory and thermal metrics, and stores everything in SQLite with a
+web dashboard on top.
+
+---
+
+## Table of contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Project structure](#project-structure)
+- [Requirements](#requirements)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Running benchmarks](#running-benchmarks)
+- [Web interface](#web-interface)
+- [Results](#results)
+- [Tests](#tests)
+- [Docker](#docker)
+- [CI and quality checks](#ci-and-quality-checks)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Known limitations](#known-limitations)
+- [Future work](#future-work)
+- [License](#license)
+
+---
+
+## Overview
+
+Benchmarking edge inference by hand does not scale: you SSH into a Pi, copy a
+model, run a script, copy the JSON back, and lose track of which numbers came
+from which model on which device with which thread count.
+
+Edge-Bench turns that into a queue plus a dashboard. Every result carries the
+provenance needed to reproduce it — model hash, input seed, iteration counts,
+runtime versions, CPU governor, and thermal warnings when the device throttled
+mid-run.
+
+## Features
+
+- **Remote execution** — register devices, queue experiments, run them one at a
+  time with automatic retry and backoff.
+- **Zero-touch agent install** — `curl -sSL http://<server>:8000/install | bash`
+  on the Pi sets up a venv, a systemd unit and registers the device.
+- **CPU and Edge TPU backends** — TFLite via `tflite-runtime`,
+  `ai-edge-litert` or full TensorFlow, with an Edge TPU delegate when a Coral
+  is attached.
+- **Reproducible measurements** — seeded synthetic input, GC disabled around
+  the timed `invoke()`, warmup separated from measurement, full latency
+  percentiles.
+- **Throttle detection** — flags thermal events and CPU frequency drops, and
+  distinguishes real throttling from ordinary `powersave` idle scaling.
+- **Live metrics** — WebSocket streaming of latency while a run is in flight.
+- **Scheduling** — cron-style nightly benchmark schedules.
+- **Web dashboard** — metric cards, comparison charts, CSV/JSON export.
+- **Result cache** — the agent persists results locally and syncs them when the
+  server comes back.
+- **MLflow integration** — optional, off by default.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      HOST MACHINE (Server)                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │  FastAPI    │  │  SQLite DB  │  │  Web UI (Jinja2)        │ │
-│  │  Backend    │──│  Results    │──│  - Experiments list     │ │
-│  │             │  │  Queue      │  │  - Metrics dashboard    │ │
-│  └──────┬──────┘  └─────────────┘  └─────────────────────────┘ │
-└─────────┼───────────────────────────────────────────────────────┘
-          │ HTTP
-          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    RASPBERRY PI (Agent)                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │  Lightweight│  │  Metrics    │  │  Script Executor        │ │
-│  │  HTTP Agent │──│  Collector  │──│  - TFLite inference     │ │
-│  │  (uvicorn)  │  │  (psutil)   │  │  - Benchmark scripts    │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │  Google Coral Edge TPU (USB, optional)                      ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                     HOST MACHINE (Server)                        │
+│  ┌────────────┐  ┌────────────┐  ┌───────────────────────────┐   │
+│  │  FastAPI   │  │ SQLite DB  │  │  Web UI (Jinja2)          │   │
+│  │  + queue   │──│  results   │──│  dashboard / compare      │   │
+│  │  + cron    │  │  schedules │  │  results / devices        │   │
+│  └─────┬──────┘  └────────────┘  └───────────────────────────┘   │
+└────────┼─────────────────────────────────────────────────────────┘
+         │ HTTP  (X-Agent-Secret)      ▲ WebSocket (live metrics)
+         ▼                             │
+┌──────────────────────────────────────────────────────────────────┐
+│                    RASPBERRY PI (Agent)                          │
+│  ┌────────────┐  ┌────────────┐  ┌───────────────────────────┐   │
+│  │ HTTP agent │  │  metrics   │  │  BenchmarkExecutor        │   │
+│  │ (uvicorn)  │──│  (psutil)  │──│  TFLite inference + timing│   │
+│  └────────────┘  └────────────┘  └───────────────────────────┘   │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  Google Coral Edge TPU (USB, optional)                     │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
+The server never runs inference itself. It orchestrates; the agent measures.
 
-### 1. On the HOST machine
+## Project structure
 
-**Option A: Poetry (recommended)**
+```
+edge-bench/
+├── server/                  # FastAPI application (the host side)
+│   ├── main.py              # app wiring, /api/health, /install, WebSocket
+│   ├── api/                 # REST endpoints, one module per resource
+│   ├── core/                # config, auth, task queue, scheduler, models
+│   ├── db/                  # SQLite schema and connection helper
+│   ├── routes/ui.py         # HTML page routes
+│   ├── integrations/        # MLflow logger
+│   ├── templates/           # Jinja2 pages
+│   └── static/              # CSS design system, i18n, vendored Chart.js
+├── agent/                   # Deployed flat onto the Raspberry Pi
+│   ├── main.py              # agent HTTP API
+│   ├── executor.py          # BenchmarkExecutor — the measurement path
+│   ├── metrics.py           # CPU / RAM / temperature / TPU detection
+│   ├── tflite_backend.py    # runtime resolution (tflite_runtime → litert → TF)
+│   ├── result_cache.py      # offline result persistence + sync
+│   └── benchmark_*.py       # standalone benchmark scripts (canonical copies)
+├── scripts/                 # Host-side utilities
+│   ├── benchmark_smoke.py   # short end-to-end pipeline validation
+│   └── convert_*.py         # model conversion / Edge TPU compilation
+├── tests/                   # pytest suite (hardware tests marked separately)
+├── docs/CI_READINESS.md     # how to wire this into CI
+├── results/                 # benchmark output — see results/README.md
+└── data/                    # runtime storage (DB, models, uploads) — gitignored
+```
+
+> `agent/benchmark_*.py` are the canonical benchmark implementations. Do not
+> copy them elsewhere — divergent copies are how two "identical" runs end up
+> producing different numbers.
+
+## Requirements
+
+**Server (workstation):**
+
+- Python 3.11–3.13
+- [Poetry](https://python-poetry.org/) 2.x
+- or just Docker
+
+**Agent (Raspberry Pi):**
+
+- Raspberry Pi 4 or newer, Raspberry Pi OS 64-bit
+- Python 3.9+
+- A TFLite runtime (the installer handles this)
+- Optional: Coral USB Accelerator + `libedgetpu1-std`
+
+Nothing in the default test suite or CI needs a Pi, a Coral, a GPU, a dataset
+or model weights.
+
+## Quick start
+
 ```bash
+git clone <repository-url>
 cd edge-bench
-poetry install
-python -m server.main
+
+make install          # poetry install --with dev + create data dirs
+make run              # http://localhost:8000
 ```
 
-**Option B: pip**
-```bash
-cd edge-bench
-pip install -r requirements/server.txt
-python -m server.main
-```
+Then open <http://localhost:8000>.
 
-The server starts at `http://localhost:8000`
+`make help` lists every target.
 
-### 2. On Raspberry Pi (one command)
+### Install an agent on a Raspberry Pi
+
+One command on the Pi:
 
 ```bash
-# Install agent
-curl -sSL http://<HOST_IP>:8000/install | bash
-
-# Uninstall agent
-curl -sSL http://<HOST_IP>:8000/uninstall | bash
+curl -sSL http://<SERVER_IP>:8000/install | bash
 ```
 
-Or manually:
+This downloads the agent, creates a venv, installs a systemd unit, starts it
+and registers the device with the server. To remove it:
+
 ```bash
-# Copy agent directory to RPi
-scp -r agent/ pi@raspberrypi:~/edge-bench-agent/
-
-# On RPi
-cd ~/edge-bench-agent
-chmod +x install.sh
-./install.sh
+curl -sSL http://<SERVER_IP>:8000/uninstall | bash
 ```
 
-### 3. Register the device
+Manual alternative, from a checkout:
 
-After the agent is running on the RPi, register it on the server via Web UI or API:
+```bash
+make agent-deploy RPI_HOST=pi@192.168.1.100
+```
+
+### Register a device manually
+
 ```bash
 curl -X POST http://localhost:8000/api/devices \
   -H "Content-Type: application/json" \
-  -d '{"name": "rpi-coral-1", "ip": "192.168.x.x", "port": 8001}'
+  -d '{"name": "rpi4-lab", "ip": "192.168.1.100", "port": 8001}'
 ```
 
-## Web UI
+## Configuration
 
-Open `http://localhost:8000` in your browser:
+All settings are environment variables prefixed with `EDGEBENCH_`, with working
+defaults — the app starts with no configuration at all.
 
-- **/** — Dashboard (device count, recent experiments)
-- **/devices** — Device management
-- **/experiments** — Experiment list
-- **/new-experiment** — Create new experiment
-- **/results** — View and compare results
-- **/models** — Model repository
-- **/benchmark** — Direct benchmark tools
-- **/compare** — Side-by-side model comparison
-- **/settings** — Server settings and dependencies
-
-## API Endpoints
-
-### Devices
-```
-GET    /api/devices                      List all devices
-POST   /api/devices                      Register a device
-GET    /api/devices/{id}                 Get device by ID
-DELETE /api/devices/{id}                 Remove a device
-GET    /api/devices/{id}/status          Check live status
-POST   /api/devices/{id}/ping            Ping device
-GET    /api/devices/{id}/version         Get agent version
-POST   /api/devices/{id}/update          Push agent update
-GET    /api/devices/{id}/models          List models on device
-POST   /api/devices/{id}/upload-model    Upload model to device
-POST   /api/devices/{id}/check-deploy    Check deploy status (hash-based)
-POST   /api/devices/{id}/benchmark/full  Proxy single-model benchmark
-POST   /api/devices/{id}/benchmark/batch Proxy batch benchmark
+```bash
+cp .env.example .env      # then edit
 ```
 
-### Experiments
-```
-GET    /api/experiments                  List experiments (filterable)
-POST   /api/experiments                  Create experiment
-GET    /api/experiments/{id}             Get experiment details
-GET    /api/experiments/{id}/logs        Get experiment logs
-POST   /api/experiments/{id}/rerun       Re-queue experiment
-DELETE /api/experiments/{id}             Delete experiment
-POST   /api/experiments/batch            Create batch experiments
+See [`.env.example`](.env.example) for the annotated list. The ones that matter
+most:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `EDGEBENCH_HOST` / `EDGEBENCH_PORT` | `0.0.0.0` / `8000` | Bind address |
+| `EDGEBENCH_DATABASE_PATH` | `data/edgebench.db` | SQLite file |
+| `EDGEBENCH_MODELS_DIR` | `data/models` | Uploaded models |
+| `EDGEBENCH_AGENT_SECRET` | *(empty)* | Shared secret for `/api/*`; empty disables auth |
+| `EDGEBENCH_PROXY_TRUST` | `127.0.0.1` | Which host may set `X-Forwarded-*` |
+| `EDGEBENCH_INPUT_SEED` | `42` | Seed for synthetic benchmark input |
+| `EDGEBENCH_DEBUG` | `false` | Enables the agent's `/execute/code` endpoint — never in production |
+
+Relative paths resolve against the working directory: the repo root locally,
+`/app` inside the container. Directories are created on startup.
+
+Set the same `EDGEBENCH_AGENT_SECRET` on the server and on every agent, or on
+neither.
+
+## Running benchmarks
+
+### From the web UI
+
+**Devices** → register a Pi → **Models** → upload a `.tflite` →
+**+ New** → pick model, device, backend, thread count and iteration counts →
+watch it run on **Experiments** → read **Results**.
+
+### From the API
+
+```bash
+curl -X POST http://localhost:8000/api/experiments \
+  -H "Content-Type: application/json" \
+  -d '{
+        "name": "mobilenet-v2 int8 on TPU",
+        "device_id": "dev_abc123",
+        "model_path": "/home/pi/models/mobilenetv2_int8_edgetpu.tflite",
+        "params": {"backend": "edgetpu", "num_threads": 4,
+                   "warmup_runs": 10, "benchmark_runs": 100}
+      }'
 ```
 
-### Results
-```
-GET    /api/results                      All results
-GET    /api/results/{experiment_id}      Results for experiment
-GET    /api/results/export/csv           Export to CSV
-GET    /api/results/export/json          Export to JSON
+### Directly on a device
+
+```bash
+python3 agent/benchmark_full.py \
+    --model ~/models/mobilenetv2_int8_edgetpu.tflite \
+    --backend edgetpu --runs 100 --seed 42
 ```
 
-### Files
-```
-POST   /api/files/upload                 Upload model or script
-GET    /api/files                        List uploaded files
-GET    /api/files/{id}                   Download file
-DELETE /api/files/{id}                   Delete file
-GET    /api/files/agent/{filename}       Serve agent source (used by installer)
+### Pipeline smoke run
+
+Proves the whole measurement path works on the current host — model loading,
+device detection, inference, timing, memory, serialization — in a few seconds:
+
+```bash
+make install-hardware        # installs the right TFLite runtime for this host
+make benchmark-smoke         # auto-selects the smallest model in data/models
+make benchmark-smoke BENCH_MODEL=data/models/foo.tflite BENCH_RUNS=100
 ```
 
-## Metrics Format
+Smoke output lands in `results/smoke/` and is **validation evidence, not a
+measurement** — the iteration count is far too low to cite.
+
+### Methodology notes
+
+- Warmup iterations are excluded from statistics.
+- Garbage collection is disabled around the timed `invoke()` only, then
+  restored, so it cannot distort either latency or memory figures.
+- Input is generated from a fixed seed, because quantized kernels can take
+  different code paths depending on input distribution.
+- `fps_from_mean` and `fps_from_median` are both reported; `fps` aliases the
+  mean for backward compatibility.
+- For publishable numbers, put the CPU governor in `performance` mode first.
+  Under `powersave`, idle frequency scaling is indistinguishable from thermal
+  throttling and the run gets flagged.
+
+## Web interface
+
+| Page | What it is for |
+|---|---|
+| `/` | Dashboard: device/experiment counts, average and best latency |
+| `/devices` | Register devices, check status, deploy agents |
+| `/models` | Upload models, inspect quantization, convert for Edge TPU |
+| `/experiments` | Queue, live status, retry, reassign |
+| `/experiments/{id}` | Single run: percentiles, charts, logs, warnings |
+| `/results` | All measured runs, comparative bars, CSV/JSON export |
+| `/compare` | Side-by-side charts for several runs |
+| `/benchmark` | Batch benchmark tools |
+| `/scripts` | Remote script execution and device inspection |
+| `/schedules` | Cron-style recurring benchmarks |
+| `/settings` | Paths, timeouts, dependencies, integrations |
+| `/docs`, `/redoc` | Auto-generated OpenAPI documentation |
+
+The UI is server-rendered Jinja2 with a plain-CSS design system — no frontend
+build step, no framework. Chart.js is vendored under
+`server/static/js/vendor/`, so the dashboard works on an isolated lab network
+with no internet access. It has light and dark themes and a Russian/English
+toggle.
+
+## Results
+
+Results live in `results/`. Read [`results/README.md`](results/README.md) before
+touching anything there — measured runs are research artifacts and are tracked
+in git; `results/smoke/` is throwaway and is not.
+
+Every result records what is needed to reproduce it:
 
 ```json
 {
@@ -149,414 +309,265 @@ GET    /api/files/agent/{filename}       Serve agent source (used by installer)
     "name": "mobilenetv2_int8_edgetpu.tflite",
     "hash": "sha256:abc123def456",
     "size_bytes": 3456789,
-    "quantization": "int8_edgetpu"
+    "quantization": "int8_edgetpu",
+    "input_shape": [1, 224, 224, 3],
+    "input_dtype": "uint8"
   },
   "params": {
-    "backend": "edgetpu",
-    "batch_size": 1,
-    "num_threads": 4,
-    "warmup_runs": 10,
-    "benchmark_runs": 100
+    "backend": "edgetpu", "num_threads": 4,
+    "warmup_runs": 10, "benchmark_runs": 100, "input_seed": 42
   },
   "latency": {
-    "mean_ms": 12.34,
-    "std_ms": 1.23,
-    "min_ms": 10.12,
-    "max_ms": 18.45,
-    "p50_ms": 12.01,
-    "p90_ms": 14.56,
-    "p95_ms": 15.23,
-    "p99_ms": 17.89
+    "mean_ms": 12.34, "std_ms": 1.23, "min_ms": 10.12, "max_ms": 18.45,
+    "p50_ms": 12.01, "p90_ms": 14.56, "p95_ms": 15.23, "p99_ms": 17.89
   },
   "throughput": {
-    "fps": 81.03,
-    "images_per_second": 81.03
+    "fps_from_mean": 81.03, "fps_from_median": 83.26,
+    "fps": 81.03, "images_per_second": 81.03
   },
-  "cold_start": {
-    "model_load_ms": 234.5,
-    "first_inference_ms": 45.6
-  },
+  "cold_start": { "model_load_ms": 234.5, "first_inference_ms": 45.6 },
   "system": {
-    "cpu_percent_mean": 45.2,
-    "cpu_percent_max": 78.9,
-    "memory_mb_mean": 123.4,
-    "memory_mb_max": 156.7,
-    "cpu_temp_celsius": 52.3,
-    "tpu_detected": true
+    "cpu_percent": {"mean": 45.2, "max": 78.9},
+    "process_rss_mb_mean": 123.4, "process_rss_mb_max": 156.7,
+    "cpu_temp_celsius": 52.3, "cpu_temp_max": 61.0,
+    "cpu_freq_mhz_min": 1500
   },
   "device_info": {
-    "hostname": "raspberrypi",
-    "platform": "Linux-6.12.75-aarch64",
-    "python_version": "3.11.2",
-    "cpu_count": 4,
-    "memory_total_mb": 7819.8,
-    "tpu_detected": true,
-    "tflite_version": "2.14.0"
+    "hostname": "raspberrypi", "platform": "Linux-6.12.75-aarch64",
+    "kernel_version": "6.12.75", "python_version": "3.11.2",
+    "cpu_count": 4, "memory_total_mb": 7819.8,
+    "tpu_detected": true, "tflite_version": "2.14.0",
+    "libedgetpu_version": "16.0", "cpu_governor": "performance"
   },
-  "timestamp": "2026-02-04T14:30:22.123456",
+  "runtime": {
+    "tflite_source": "tflite_runtime", "tflite_version": "2.14.0",
+    "numpy_version": "1.26.4", "python_version": "3.11.2",
+    "cpu_governor": "performance"
+  },
+  "warnings": [],
+  "timestamp": "2026-02-04T14:30:22.123456+00:00",
   "duration_seconds": 45.67,
   "status": "completed"
 }
 ```
 
-## Configuration
+The `runtime` block and the extra `model` fields are additive — older results
+stay readable, and `fps` / `images_per_second` keep their original meaning.
 
-### Server (`server/`)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EDGEBENCH_HOST` | `0.0.0.0` | Bind address |
-| `EDGEBENCH_PORT` | `8000` | Server port |
-| `EDGEBENCH_DEBUG` | `false` | Debug/reload mode (also enables `/execute/code` on the agent) |
-| `EDGEBENCH_DATABASE_PATH` | `data/edgebench.db` | SQLite database path |
-| `EDGEBENCH_MODELS_DIR` | `data/models` | Model storage directory |
-| `EDGEBENCH_TASK_TIMEOUT_SECONDS` | `3600` | Max experiment duration (seconds) |
-| `EDGEBENCH_AGENT_TIMEOUT_SECONDS` | `30` | Agent health-check timeout (seconds) |
-| `EDGEBENCH_AGENT_SECRET` | `` | Shared secret for API auth (`X-Agent-Secret` header). Leave empty to disable (dev / trusted LAN). |
-| `EDGEBENCH_PROXY_TRUST` | `127.0.0.1` | IP(s) of trusted reverse proxy for `X-Forwarded-*` headers. Set to the proxy IP when deploying behind nginx/caddy/traefik. |
-
-### Agent (`agent/`)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EDGEBENCH_AGENT_PORT` | `8001` | Agent listen port |
-| `EDGEBENCH_SERVER` | `` | Server URL for result sync (e.g. `http://192.168.1.x:8000`) |
-| `EDGEBENCH_AGENT_SECRET` | `` | Shared secret — must match server value |
-| `EDGEBENCH_DEBUG` | `false` | Enables the `/execute/code` endpoint. **Never set in production.** |
-
-### Benchmark scripts (`agent/benchmark_*.py`)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EDGEBENCH_INPUT_SEED` | `42` | RNG seed for dummy input generation. Also settable via `--seed` CLI flag. Affects which quantized kernels are exercised. |
-| `EDGEBENCH_COOLDOWN_SECONDS` | `5` | Pause between models in batch mode (seconds). Also settable via `--cooldown` CLI flag. |
-
-## Project Structure
-
-```
-edge-bench/
-├── README.md
-├── pyproject.toml              # Poetry project config
-├── requirements/
-│   ├── server.txt              # Server dependencies
-│   └── agent.txt               # Agent dependencies (RPi)
-├── server/                     # Server (HOST machine)
-│   ├── main.py                 # Entry point + web UI routes
-│   ├── api/
-│   │   ├── devices.py          # Device management API
-│   │   ├── experiments.py      # Experiment API
-│   │   ├── results.py          # Results API
-│   │   ├── files.py            # File upload/serve API
-│   │   ├── dependencies.py     # RPi dependency tracker
-│   │   ├── scripts.py          # Script management API
-│   │   └── settings.py         # Server settings API
-│   ├── core/
-│   │   ├── config.py           # Settings (pydantic-settings)
-│   │   ├── models.py           # Pydantic schemas
-│   │   └── queue.py            # Async task queue with retries
-│   ├── db/
-│   │   └── database.py         # SQLite + aiosqlite
-│   ├── static/
-│   └── templates/              # Jinja2 HTML templates
-├── agent/                      # Agent (Raspberry Pi)
-│   ├── main.py                 # FastAPI agent entrypoint
-│   ├── executor.py             # TFLite benchmark executor
-│   ├── metrics.py              # System metrics (psutil)
-│   ├── config.py               # Agent settings
-│   ├── result_cache.py         # Offline result caching
-│   ├── install.sh              # Agent install script
-│   └── edgebench-agent.service # systemd unit file
-├── scripts/                    # Standalone benchmark scripts
-│   ├── benchmark_tflite.py     # TFLite CPU benchmark
-│   ├── benchmark_full.py       # Full metrics benchmark
-│   ├── benchmark_batch.py      # Batch benchmark runner
-│   └── convert_edgetpu.py      # EdgeTPU model compiler
-├── data/
-│   ├── models/                 # TFLite model files
-│   └── scripts/                # Uploaded benchmark scripts
-└── models/
-    └── .gitkeep
-```
-
-## Usage Examples
-
-### Compare models on Edge TPU
+Export:
 
 ```bash
-curl -X POST http://localhost:8000/api/experiments/batch \
-  -H "Content-Type: application/json" \
-  -d '{
-    "models": [
-      "mobilenetv2_int8_edgetpu.tflite",
-      "efficientnet_int8_edgetpu.tflite"
-    ],
-    "backends": ["edgetpu"],
-    "device": "dev_xxxxxxxx",
-    "params": {"benchmark_runs": 100}
-  }'
+curl -o results.csv  http://localhost:8000/api/results/export/csv
+curl -o results.json http://localhost:8000/api/results/export/json
 ```
 
-### CPU vs Edge TPU
+## Tests
 
 ```bash
-curl -X POST http://localhost:8000/api/experiments/batch \
-  -H "Content-Type: application/json" \
-  -d '{
-    "models": ["mobilenetv2_int8.tflite"],
-    "backends": ["cpu", "edgetpu"],
-    "device": "dev_xxxxxxxx"
-  }'
+make test        # CPU-only suite, no hardware needed
+make test-cov    # with coverage (writes coverage.xml)
 ```
 
-### Export results
+Hardware tests are excluded by default and skip cleanly when the runtime or a
+model is missing — they are never satisfied by a mocked device:
 
 ```bash
-# CSV export
-curl http://localhost:8000/api/results/export/csv > results.csv
-
-# JSON export
-curl http://localhost:8000/api/results/export/json > results.json
+make test-hardware      # pytest -m hardware
 ```
-
-## Troubleshooting
-
-### Server does not start
-
-**Problem:** `ModuleNotFoundError: No module named 'server'`  
-**Fix:** Run from inside the `edge-bench/` directory, not from the parent:
-```bash
-cd edge-bench
-python -m server.main
-```
-
-**Problem:** `ModuleNotFoundError: No module named 'pydantic_settings'`  
-**Fix:** Install server dependencies:
-```bash
-pip install -r requirements/server.txt
-# or
-poetry install
-```
-
-### Web UI returns 500 on all pages
-
-**Problem:** Starlette ≥ 1.0 changed `TemplateResponse` signature from `(name, context_dict)` to `(request, name, context_dict)`.  
-**Fix:** Already applied — all `TemplateResponse` calls in `server/main.py` use the new signature.
-
-### Device shows as offline after registration
-
-**Problem:** Agent IP in the database is stale (changed after DHCP renewal).  
-**Fix:** Delete the device and re-register with the current IP, or update via API:
-```bash
-curl -X POST http://localhost:8000/api/devices \
-  -H "Content-Type: application/json" \
-  -d '{"name": "rpi-coral-1", "ip": "<current-ip>", "port": 8001}'
-```
-
-### Agent not starting on RPi
-
-```bash
-sudo systemctl status edgebench-agent
-sudo journalctl -u edgebench-agent -n 50
-```
-
-Ensure the virtual environment is activated and requirements are installed:
-```bash
-cd ~/edge-bench-agent
-source venv/bin/activate
-pip install -r requirements.txt
-python main.py
-```
-
-### Edge TPU not detected
-
-```bash
-lsusb | grep -i "google\|coral"
-python3 -c "from pycoral.utils import edgetpu; print(edgetpu.list_edge_tpus())"
-```
-
-Install runtime if needed:
-```bash
-sudo apt install libedgetpu1-std
-pip install pycoral
-```
-
-## Security Notes
-
-- Scripts are executed in a subprocess with configurable timeout
-- Agent only allows updating specific whitelisted files (`main.py`, `executor.py`, `metrics.py`, `config.py`)
-- All actions are logged
 
 ## Docker
 
-Run the server with a single command — no local Python install required:
+```bash
+make docker-up          # build + start via compose
+make docker-logs
+make docker-down
+```
+
+Or directly:
 
 ```bash
-# Build and start
-docker compose up
-
-# Background
-docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# Stop
-docker compose down
+docker build -t edge-bench:local .
+docker run --rm -p 8000:8000 -v "$PWD/data:/app/data" edge-bench:local
 ```
 
-The SQLite database and models persist in `./data/` and `./models/` on the host.
+Details:
 
-Environment overrides (optional `.env` file):
-```bash
-EDGEBENCH_PORT=8000
-EDGEBENCH_DATABASE_PATH=/app/data/edgebench.db
-```
+- Multi-stage build; dependencies come from `poetry.lock`, so the image is
+  reproducible.
+- Runs as a non-root user. Compose builds the image with `APP_UID`/`APP_GID`
+  matching the host user so the bind-mounted `./data` stays writable.
+- `HEALTHCHECK` polls `/api/health`; compose reports the container as healthy.
+- Dev tooling (ruff, mypy, pytest) is not in the runtime image.
+- Graceful shutdown: uvicorn handles `SIGTERM` and drains connections.
+- Port is configurable: `EDGEBENCH_PORT=18200 docker compose up -d`.
 
-Build the image manually:
-```bash
-docker build -t edge-bench .
-docker run --rm -p 8000:8000 -v ./data:/app/data edge-bench
-```
-
-## Real-time Charts (WebSocket)
-
-While a benchmark is running the experiment detail page (`/experiments/{id}`) shows a live latency-over-time chart powered by Chart.js.
-
-- The browser connects to `ws://localhost:8000/ws/experiments/{id}`
-- The agent streams a metric update every ~5% of total runs
-- The status badge updates automatically (🟢 running → ✅ done / ❌ failed)
-- The page reloads automatically when the run completes
-
-## Baseline Comparison
-
-After any completed experiment, the detail page shows a **vs Baseline** table:
-
-| | Current | Baseline | Delta |
-|---|---|---|---|
-| Mean latency | 12.34 ms | 13.50 ms | ▼ 1.16 ms (−8.6%) |
-| FPS | 81.0 | 74.1 | ▲ 6.9 |
-
-To set a baseline manually click **⭐ Set as Baseline** on the experiment page.
-
-API:
-```bash
-# Compare with baseline
-GET /api/results/{experiment_id}/compare-baseline
-
-# Mark as baseline
-POST /api/experiments/{experiment_id}/set-baseline
-```
-
-## Multiple Edge TPU Support
-
-When multiple Coral Edge TPU devices are connected (`/dev/apex_0`, `/dev/apex_1`, …), the new experiment form shows a TPU index dropdown.
-
-API — device status now includes `tpu_count`:
-```bash
-GET /api/devices/{id}/status
-# → {"status":"online","device_info":{...,"tpu_count":2},"tpu_count":2}
-```
-
-Experiment `params` field:
-```json
-{"backend": "edgetpu", "tpu_index": 1}
-```
-
-## Model Conversion Pipeline
-
-Convert `.pt` / `.onnx` → TFLite INT8 → Edge TPU TFLite from the command line:
+There is also an optional benchmark image for hosts without a usable Python:
 
 ```bash
-# Full pipeline (requires edgetpu_compiler or RPi SSH)
-python scripts/convert_pipeline.py \
-  --input model.pt \
-  --input-shape 1 224 224 3 \
-  --target edgetpu \
-  --output-dir converted_models
-
-# Compile on RPi via SSH
-python scripts/convert_pipeline.py \
-  --input model_int8.tflite \
-  --target edgetpu \
-  --rpi-host pi@192.168.1.100
+docker build --target bench -t edge-bench:bench .
+docker run --rm -v "$PWD/data:/app/data:ro" -v "$PWD/results:/app/results" \
+    edge-bench:bench --runs 30
 ```
 
-Via API (async, returns `task_id`):
+Useful checks:
+
 ```bash
-POST /api/files/{file_id}/convert
-{"target": "edgetpu", "input_shape": [1, 224, 224, 3]}
-
-GET /api/files/{file_id}/convert/status
+make docker-smoke       # build, run, verify reachable, clean up
+make docker-config      # validate compose file
 ```
 
-## MLflow Integration
+## CI and quality checks
 
-Log benchmark results to a self-hosted MLflow tracking server.
+Everything CI runs is a Make target, so the pipeline is provider-agnostic and
+reproducible locally:
 
-1. Start MLflow server: `mlflow server --host 0.0.0.0 --port 5000`
-2. Install mlflow: `pip install mlflow`
-3. Open `/settings` → **Integrations** → enter `http://localhost:5000`
-4. Click **Сохранить** — all subsequent completed experiments are logged automatically
-
-Logged metrics: `latency_mean_ms`, `latency_p95_ms`, `fps`, `cpu_percent_mean`, `cpu_temp_celsius`  
-Logged tags: `model_name`, `backend`, `device`, `tpu_detected`, `quantization`
-
-Environment variable alternative:
 ```bash
-EDGEBENCH_MLFLOW_TRACKING_URI=http://mlflow.internal:5000
-EDGEBENCH_MLFLOW_EXPERIMENT_NAME=edge-bench
+make lint            # ruff check
+make format-check    # ruff format --check
+make typecheck       # mypy
+make test-cov        # pytest + coverage
+make build           # import smoke
+make ci              # all of the above
 ```
 
-## API Reference (Extended)
+`make ci` is CPU-only: no GPU, no Edge TPU, no model weights, no dataset. If it
+passes locally it passes in CI.
 
-### Real-time Streaming
-```
-WS     /ws/experiments/{id}                WebSocket live metrics
-POST   /api/experiments/{id}/metric        Agent → server metric push
-```
+Hardware validation is a separate, opt-in level (`make test-hardware`,
+`make benchmark-smoke`) intended for a self-hosted runner.
 
-### Baseline
-```
-GET    /api/results/{id}/compare-baseline  Compare vs baseline
-POST   /api/experiments/{id}/set-baseline  Mark as baseline
-```
+See [`docs/CI_READINESS.md`](docs/CI_READINESS.md) for the full breakdown, and
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) for a reference
+implementation.
 
-### Model Conversion
-```
-POST   /api/files/{id}/convert             Start async conversion
-GET    /api/files/{id}/convert/status      Check conversion status
-```
+## Development
 
-### Settings
-```
-GET    /api/settings                        All settings
-PUT    /api/settings                        Update (key-value dict)
+```bash
+make dev             # uvicorn with autoreload on 127.0.0.1:8000
+make format          # apply ruff fixes + formatting
+make check           # fast gate: lint + tests
+make clean-pyc       # drop caches
 ```
 
-## Known Limitations
+Conventions:
 
-- **WebSocket channel is unauthenticated.** `/ws/experiments/{id}` does not require `X-Agent-Secret`. Any client on the network can subscribe to live metrics. Full WebSocket auth is deferred.
-- **Shared secret visible in browser JS.** The `agent_secret` value is injected into every HTML page as a Jinja2 global so the JS `fetch()` wrapper can include it. This is obfuscation, not cryptographic protection — anyone who can view page source can read the secret. Use a network-level control (VPN / firewall) rather than relying solely on this header.
-- **HTTPS install script depends on proxy setup.** The `/install` script uses `request.url.scheme` to detect HTTPS. This only reflects `https` if a TLS-terminating reverse proxy (nginx, caddy, traefik) sends `X-Forwarded-Proto` and `EDGEBENCH_PROXY_TRUST` is set to the proxy IP. Without that, the install script always generates `http://` URLs.
-- **Historical results show `--` for RSS memory.** The P2 rename of `memory_mb_mean/max` → `process_rss_mb_mean/max` is a breaking schema change. Results stored in the database before this change will display `--` on the Memory column in the experiment detail and comparison pages until the experiments are re-run.
-- **Batch cooldown is fixed, not adaptive.** `--cooldown` applies a flat sleep between models. An adaptive "wait until temp < threshold" option exists (`--cooldown-temp`) but is bounded at 60 s. If the device does not cool within that window, the next benchmark starts anyway.
+- Ruff is the single source of truth for lint and formatting; its configuration
+  lives in `pyproject.toml`. Single quotes, 88 columns.
+- `agent/` is deployed flat onto the Pi and therefore uses top-level imports
+  (`from metrics import ...`). It is excluded from mypy for that reason.
+- New agent modules must be added to the allowlist in
+  `server/api/files.py` and to the download list in the `/install` script,
+  otherwise fresh agent installs will not receive them.
+- Adding a page means adding a route in `server/routes/ui.py`;
+  `tests/test_app_routes.py` fails on templates or API paths with no route.
 
-- **Power consumption not measured.** `benchmark_full.py` originally advertised "power consumption estimation" in its docstring; this feature was never implemented. It is listed as planned work below.
-- **TFLite only.** ONNX Runtime and TensorRT backends are not supported. The architecture could accommodate them but no delegate loader exists yet.
-- **Fixed run count.** Benchmark iterations are a fixed `--runs` parameter (default 100). An adaptive run-until-stable-CV scheme is a possible future enhancement.
-- **No CSV export from the server UI.** The `/api/results/export/csv` API endpoint exists (see API section) but it is not surfaced in the Web UI — there is no button on the Results page. Raw JSON export is available.
-- **FastAPI auto-docs not linked in UI.** The interactive API docs at `/docs` (Swagger) and `/redoc` (ReDoc) are generated automatically by FastAPI but are not mentioned in the Web UI navigation or in this README. Access them directly at `http://<host>:8000/docs`.
+## Troubleshooting
 
-## Future Work
+**Server will not start — "address already in use"**
+
+```bash
+ss -tlnp | grep 8000
+EDGEBENCH_PORT=8001 make run
+```
+
+**Web UI returns 500 on every page** — usually a stale database after a schema
+change. Back it up and let the app recreate it:
+
+```bash
+mv data/edgebench.db data/edgebench.db.bak
+make run
+```
+
+**Device shows offline right after registration**
+
+```bash
+curl http://<PI_IP>:8001/health              # agent reachable?
+ssh pi@<PI_IP> 'sudo systemctl status edgebench-agent'
+```
+
+Check that the IP registered on the server matches the Pi's current address and
+that port 8001 is not firewalled.
+
+**Agent will not start on the Pi**
+
+```bash
+ssh pi@<PI_IP> 'sudo journalctl -u edgebench-agent -n 50'
+```
+
+Most often a missing TFLite runtime. See `agent/tflite_backend.py` for the
+resolution order, then install the matching package.
+
+**Edge TPU not detected**
+
+```bash
+lsusb | grep -i "google\|global unichip"     # device present?
+dpkg -l | grep libedgetpu                    # runtime installed?
+sudo apt install libedgetpu1-std
+```
+
+Re-plug the Coral after installing the runtime, and use a USB 3.0 port. The
+model must be Edge TPU compiled (`*_edgetpu.tflite`).
+
+**"No TFLite runtime found" when running a benchmark locally**
+
+```bash
+make install-hardware
+```
+
+**Benchmark results flagged with a frequency-drop warning** — expected under the
+`powersave` governor. For real measurements:
+
+```bash
+sudo cpufreq-set -g performance      # or write to scaling_governor
+```
+
+**Charts do not render** — Chart.js is vendored; confirm
+`server/static/js/vendor/chart.umd.min.js` is present and served (it is
+excluded from no ignore file, but a partial checkout can miss it).
+
+## Known limitations
+
+- **WebSocket channel is unauthenticated.** `/ws/experiments/{id}` does not
+  require `X-Agent-Secret`; anyone on the network can subscribe to live
+  metrics.
+- **Shared secret is visible in browser JS.** `agent_secret` is injected into
+  each page so `fetch()` can send it. That is obfuscation, not protection —
+  rely on network-level controls. Real per-session auth is backlog.
+- **`/api/health` is intentionally unauthenticated**, so probes work without
+  the secret. It exposes version and queue depth only.
+- **HTTPS in the install script depends on the proxy.** The scheme comes from
+  `request.url.scheme`, which only reads `https` when a TLS proxy sets
+  `X-Forwarded-Proto` and `EDGEBENCH_PROXY_TRUST` names it.
+- **Results from before the RSS rename show `--` for memory.** The
+  `memory_mb_*` → `process_rss_mb_*` change is a breaking schema change; older
+  rows display `--` until re-run.
+- **Batch cooldown is bounded.** `--cooldown-temp` waits at most 60 s for the
+  device to cool, then proceeds anyway.
+- **Power consumption is not measured.** Never implemented; listed below.
+- **TFLite only.** No ONNX Runtime, no TensorRT, and no GPU backend — there is
+  no CUDA code anywhere in this project. Adding one means a new backend in
+  `agent/tflite_backend.py` plus new result-schema fields.
+- **Fixed run count.** `--runs` is fixed (default 100); there is no
+  run-until-CV-stabilises mode.
+- **`dependencies.html` is orphaned.** `/dependencies` redirects to `/settings`,
+  which absorbed that UI. The template is kept but unrouted.
+- **FastAPI ≥ 0.137 is not supported.** From 0.137 onwards `include_router`
+  silently registers nothing, so every API route and every HTML page
+  disappears while the process still starts and `/docs` still responds.
+  Verified by bisection: 0.136.0 works, 0.137.0 and later do not, independent
+  of the Starlette version. `pyproject.toml` pins FastAPI to `0.135.x` —
+  always install from `poetry.lock`. `tests/test_app_routes.py` catches this
+  if the pin is ever bypassed.
+
+## Future work
 
 - [ ] NVIDIA Jetson support
-- [ ] Automated nightly benchmark schedules
 - [ ] Full WebSocket authentication
 - [ ] Per-browser session auth (replace shared-secret JS injection)
-- [ ] Power consumption estimation (INA219 / USB power meter integration)
-- [ ] ONNX Runtime / TensorRT backend support
+- [ ] Power consumption estimation (INA219 / USB power meter)
+- [ ] ONNX Runtime backend
 - [ ] Adaptive run count (stop when CV stabilises)
-- [ ] CSV export button in the Results UI
+- [ ] Investigate and fix FastAPI ≥ 0.137 compatibility (`include_router` regression)
 
 ## License
 

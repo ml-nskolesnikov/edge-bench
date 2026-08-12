@@ -1,0 +1,13 @@
+{
+  "scenario": "rpi4_c6_cpu_latency",
+  "timestamp": "2026-06-06T13:34:07.502708+00:00",
+  "machine": "rpi4_b",
+  "git_sha": "734b3f95d82d",
+  "metrics": {
+    "latency_p50_ms": 121.69,
+    "latency_p95_ms": 128.418,
+    "fps": 8.19,
+    "peak_ram_mb": 52.9
+  },
+  "raw_source": "/home/nkolesnikov/aspirantura/code/edge-bench/results/2026-06-06_163338_c6_cpu/c6_cpu_latency.json"
+}
