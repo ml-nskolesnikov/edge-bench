@@ -20,7 +20,16 @@ async def _insert_device_and_experiment(experiment_id: str):
             """INSERT INTO devices
                (id, name, ip, port, status, description, last_seen, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            ('dev_result', 'result-device', '127.0.0.1', 8001, 'online', None, now, now),
+            (
+                'dev_result',
+                'result-device',
+                '127.0.0.1',
+                8001,
+                'online',
+                None,
+                now,
+                now,
+            ),
         )
         await db.execute(
             """INSERT INTO experiments

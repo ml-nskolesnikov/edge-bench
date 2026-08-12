@@ -21,12 +21,19 @@ AGENT_DIR = ROOT_DIR / 'agent'
 
 # ── 1. Path traversal ─────────────────────────────────────────────────────────
 
+
 def test_path_traversal_upload_rejected(client):
     """Filename with ../ path components must return 400 before writing any file."""
     resp = client.post(
         '/api/files/upload',
         data={'file_type': 'model'},
-        files={'file': ('../../etc/crontab', io.BytesIO(b'fake'), 'application/octet-stream')},
+        files={
+            'file': (
+                '../../etc/crontab',
+                io.BytesIO(b'fake'),
+                'application/octet-stream',
+            )
+        },
     )
     assert resp.status_code == 400, (
         f'Expected 400 for traversal attempt, got {resp.status_code}: {resp.text}'
@@ -39,13 +46,22 @@ def test_normal_filename_upload_succeeds(client):
     resp = client.post(
         '/api/files/upload',
         data={'file_type': 'model'},
-        files={'file': ('valid_model.tflite', io.BytesIO(b'fake model'), 'application/octet-stream')},
+        files={
+            'file': (
+                'valid_model.tflite',
+                io.BytesIO(b'fake model'),
+                'application/octet-stream',
+            )
+        },
     )
     # 200 = accepted (possibly a duplicate hash if run twice, still not 400/403)
-    assert resp.status_code == 200, f'Expected 200 for clean filename, got {resp.status_code}'
+    assert resp.status_code == 200, (
+        f'Expected 200 for clean filename, got {resp.status_code}'
+    )
 
 
 # ── 2 & 3. Server shared-secret auth ──────────────────────────────────────────
+
 
 @pytest.fixture()
 def auth_client(isolated_storage):
@@ -86,6 +102,7 @@ def test_correct_secret_passes_auth(auth_client):
 
 
 # ── 4. Agent /execute/code without DEBUG ──────────────────────────────────────
+
 
 def test_execute_code_without_debug_returns_403():
     """/execute/code must return 403 when EDGEBENCH_DEBUG is not set."""

@@ -21,6 +21,7 @@ if str(AGENT_DIR) not in sys.path:
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+
 def _make_mock_interpreter(shape=(1, 4), dtype=np.float32):
     """Minimal TFLite interpreter mock that satisfies BenchmarkExecutor."""
     mock = MagicMock()
@@ -63,8 +64,12 @@ def _run_benchmark(bench, params=None, system_metrics=None, freq_mock=None):
     async def _go():
         with (
             patch.object(bench, '_load_interpreter', return_value=(mock_interp, 1.0)),
-            patch.object(bench.metrics, 'collect_during_benchmark', return_value=metrics),
-            patch.object(bench.metrics, 'get_device_info', return_value={'hostname': 'test-host'}),
+            patch.object(
+                bench.metrics, 'collect_during_benchmark', return_value=metrics
+            ),
+            patch.object(
+                bench.metrics, 'get_device_info', return_value={'hostname': 'test-host'}
+            ),
             patch.object(_exe_mod.result_cache, 'save', return_value='/tmp/test.json'),
             patch('psutil.cpu_freq', return_value=freq_mock),
         ):
@@ -74,6 +79,7 @@ def _run_benchmark(bench, params=None, system_metrics=None, freq_mock=None):
 
 
 # ── Latency statistics ─────────────────────────────────────────────────────────
+
 
 def test_latency_p50_is_median():
     """p50_ms == median of the latency array."""
@@ -104,9 +110,18 @@ def test_latency_stats_present_in_result():
     from executor import BenchmarkExecutor
 
     result = _run_benchmark(BenchmarkExecutor())
-    assert result['status'] == 'completed', f"failed: {result.get('error')}"
+    assert result['status'] == 'completed', f'failed: {result.get("error")}'
     lat = result['latency']
-    for key in ('mean_ms', 'std_ms', 'min_ms', 'max_ms', 'p50_ms', 'p90_ms', 'p95_ms', 'p99_ms'):
+    for key in (
+        'mean_ms',
+        'std_ms',
+        'min_ms',
+        'max_ms',
+        'p50_ms',
+        'p90_ms',
+        'p95_ms',
+        'p99_ms',
+    ):
         assert key in lat, f'Missing latency key: {key}'
 
 
@@ -115,7 +130,7 @@ def test_fps_from_median_and_mean_both_present():
     from executor import BenchmarkExecutor
 
     result = _run_benchmark(BenchmarkExecutor())
-    assert result['status'] == 'completed', f"failed: {result.get('error')}"
+    assert result['status'] == 'completed', f'failed: {result.get("error")}'
     thr = result['throughput']
     assert 'fps_from_mean' in thr
     assert 'fps_from_median' in thr
@@ -127,6 +142,7 @@ def test_fps_from_median_and_mean_both_present():
 
 
 # ── GC restoration ────────────────────────────────────────────────────────────
+
 
 def test_gc_restored_after_benchmark_loop():
     """GC must be re-enabled after each invoke() — disabled only around the timed call."""
@@ -140,7 +156,7 @@ def test_gc_restored_after_benchmark_loop():
         params={'warmup_runs': 2, 'benchmark_runs': 6, 'backend': 'cpu'},
     )
     assert gc.isenabled(), 'GC must be enabled after benchmark loop completes'
-    assert result['status'] == 'completed', f"failed: {result.get('error')}"
+    assert result['status'] == 'completed', f'failed: {result.get("error")}'
 
 
 def test_gc_restored_when_starting_disabled():
@@ -153,13 +169,16 @@ def test_gc_restored_when_starting_disabled():
             BenchmarkExecutor(),
             params={'warmup_runs': 1, 'benchmark_runs': 3, 'backend': 'cpu'},
         )
-        assert not gc.isenabled(), 'GC must remain disabled if it was disabled before the loop'
-        assert result['status'] == 'completed', f"failed: {result.get('error')}"
+        assert not gc.isenabled(), (
+            'GC must remain disabled if it was disabled before the loop'
+        )
+        assert result['status'] == 'completed', f'failed: {result.get("error")}'
     finally:
         gc.enable()  # always restore for subsequent tests
 
 
 # ── Thermal warnings ──────────────────────────────────────────────────────────
+
 
 def test_thermal_warning_when_temp_exceeds_80():
     """Warning appended to result when cpu_temp_max >= 80°C."""
@@ -169,9 +188,11 @@ def test_thermal_warning_when_temp_exceeds_80():
         BenchmarkExecutor(),
         system_metrics=_fake_system_metrics(cpu_temp_max=85.0),
     )
-    assert result['status'] == 'completed', f"failed: {result.get('error')}"
+    assert result['status'] == 'completed', f'failed: {result.get("error")}'
     assert len(result['warnings']) >= 1
-    assert any('85' in w or 'Thermal' in w or 'thermal' in w for w in result['warnings'])
+    assert any(
+        '85' in w or 'Thermal' in w or 'thermal' in w for w in result['warnings']
+    )
 
 
 def test_no_thermal_warning_when_temp_safe():
@@ -182,7 +203,7 @@ def test_no_thermal_warning_when_temp_safe():
         BenchmarkExecutor(),
         system_metrics=_fake_system_metrics(cpu_temp_max=55.0),
     )
-    assert result['status'] == 'completed', f"failed: {result.get('error')}"
+    assert result['status'] == 'completed', f'failed: {result.get("error")}'
     assert result['warnings'] == []
 
 
@@ -200,5 +221,8 @@ def test_freq_drop_warning_when_cpu_throttled():
         system_metrics=_fake_system_metrics(cpu_freq_mhz_min=1200.0),
         freq_mock=freq_mock,
     )
-    assert result['status'] == 'completed', f"failed: {result.get('error')}"
-    assert any('1500' in w or '1200' in w or 'frequency' in w.lower() for w in result['warnings'])
+    assert result['status'] == 'completed', f'failed: {result.get("error")}'
+    assert any(
+        '1500' in w or '1200' in w or 'frequency' in w.lower()
+        for w in result['warnings']
+    )

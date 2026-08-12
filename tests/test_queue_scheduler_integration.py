@@ -42,7 +42,9 @@ def test_task_queue_execute_experiment_success(isolated_storage, monkeypatch):
     async def fake_health(agent_url: str):
         return True, ''
 
-    async def fake_run(agent_url: str, experiment: dict, stream_callback_url: str | None = None):
+    async def fake_run(
+        agent_url: str, experiment: dict, stream_callback_url: str | None = None
+    ):
         return {
             'latency': {'mean_ms': 6.1, 'p95_ms': 7.0, 'std_ms': 0.2},
             'throughput': {'fps': 160.0},
@@ -85,7 +87,16 @@ async def _seed_scheduler_fixture(schedule_id: str):
             """INSERT INTO devices
                (id, name, ip, port, status, description, last_seen, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            ('dev_sched_integration', 'sched-device', '127.0.0.1', 8001, 'online', None, now, now),
+            (
+                'dev_sched_integration',
+                'sched-device',
+                '127.0.0.1',
+                8001,
+                'online',
+                None,
+                now,
+                now,
+            ),
         )
         await db.execute(
             """INSERT INTO schedules

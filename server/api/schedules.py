@@ -149,7 +149,9 @@ async def create_schedule(body: ScheduleCreate):
         )
         await db.commit()
 
-        cursor = await db.execute('SELECT * FROM schedules WHERE id = ?', (schedule_id,))
+        cursor = await db.execute(
+            'SELECT * FROM schedules WHERE id = ?', (schedule_id,)
+        )
         row = await cursor.fetchone()
 
     # Register in APScheduler
@@ -227,7 +229,9 @@ async def update_schedule(schedule_id: str, body: ScheduleUpdate):
 
     # Refresh row
     async with get_db() as db:
-        cursor = await db.execute('SELECT * FROM schedules WHERE id = ?', (schedule_id,))
+        cursor = await db.execute(
+            'SELECT * FROM schedules WHERE id = ?', (schedule_id,)
+        )
         row = await cursor.fetchone()
 
     schedule = dict(row)
@@ -257,9 +261,7 @@ async def update_schedule(schedule_id: str, body: ScheduleUpdate):
 async def delete_schedule(schedule_id: str):
     """Delete a schedule."""
     async with get_db() as db:
-        cursor = await db.execute(
-            'DELETE FROM schedules WHERE id = ?', (schedule_id,)
-        )
+        cursor = await db.execute('DELETE FROM schedules WHERE id = ?', (schedule_id,))
         if cursor.rowcount == 0:
             raise HTTPException(404, 'Schedule not found')
         await db.commit()
@@ -308,7 +310,7 @@ async def get_history(schedule_id: str, limit: int = 20):
                  AND e.name LIKE ?
                ORDER BY e.created_at DESC
                LIMIT ?""",
-            ('[Scheduled] %',  limit),
+            ('[Scheduled] %', limit),
         )
         rows = await cursor.fetchall()
 

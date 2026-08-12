@@ -63,7 +63,6 @@ executor = BenchmarkExecutor()
 system_metrics = SystemMetrics()
 
 
-
 @app.get('/cache/status')
 async def cache_status():
     """Get local result cache status."""

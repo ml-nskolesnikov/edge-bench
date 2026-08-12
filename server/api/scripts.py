@@ -44,7 +44,14 @@ async def check_dependencies(request: dict):
         # Correct column name: check_command (not check_cmd)
         check_command = dep.get('check_command') or ''
         if not check_command:
-            results.append({'name': dep['name'], 'status': 'unknown', 'error': 'No check command', 'is_required': bool(dep['is_required'])})
+            results.append(
+                {
+                    'name': dep['name'],
+                    'status': 'unknown',
+                    'error': 'No check command',
+                    'is_required': bool(dep['is_required']),
+                }
+            )
             continue
 
         try:

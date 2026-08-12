@@ -59,7 +59,9 @@ def upload_model(base_url: str, model_path: Path) -> dict:
     with open(model_path, 'rb') as f:
         files = {'file': (model_path.name, f, 'application/octet-stream')}
         data = {'file_type': 'model'}
-        resp = httpx.post(f'{base_url}/api/files/upload', files=files, data=data, timeout=60)
+        resp = httpx.post(
+            f'{base_url}/api/files/upload', files=files, data=data, timeout=60
+        )
 
     resp.raise_for_status()
     return resp.json()
@@ -131,17 +133,22 @@ def export_t4_csv(base_url: str, output_path: Path):
 
 def main():
     parser = argparse.ArgumentParser(description='Edge-Bench Integration')
-    parser.add_argument('--server', '-s', default='http://localhost:8000',
-                        help='Edge-bench server URL')
+    parser.add_argument(
+        '--server', '-s', default='http://localhost:8000', help='Edge-bench server URL'
+    )
     parser.add_argument('--device', '-d', help='Device ID for experiments')
-    parser.add_argument('--upload-only', action='store_true',
-                        help='Only upload models, do not run experiments')
-    parser.add_argument('--status', action='store_true',
-                        help='Check server and device status')
-    parser.add_argument('--runs', '-r', type=int, default=100,
-                        help='Number of benchmark runs')
-    parser.add_argument('--export-csv', type=Path,
-                        help='Export results to CSV')
+    parser.add_argument(
+        '--upload-only',
+        action='store_true',
+        help='Only upload models, do not run experiments',
+    )
+    parser.add_argument(
+        '--status', action='store_true', help='Check server and device status'
+    )
+    parser.add_argument(
+        '--runs', '-r', type=int, default=100, help='Number of benchmark runs'
+    )
+    parser.add_argument('--export-csv', type=Path, help='Export results to CSV')
 
     args = parser.parse_args()
 
@@ -159,7 +166,7 @@ def main():
         print(f'\nRegistered devices: {len(devices)}')
         for dev in devices:
             status = dev.get('status', 'unknown')
-            print(f"  - {dev['name']} ({dev['ip']}:{dev['port']}) [{status}]")
+            print(f'  - {dev["name"]} ({dev["ip"]}:{dev["port"]}) [{status}]')
         return
 
     # Find models
@@ -212,11 +219,11 @@ def main():
             print('[ERROR] No online devices. Check RPi agent.')
             print('Registered devices:')
             for d in devices:
-                print(f"  - {d['name']}: {d.get('status', 'unknown')}")
+                print(f'  - {d["name"]}: {d.get("status", "unknown")}')
             sys.exit(1)
 
         args.device = online[0]['id']
-        print(f"[INFO] Using device: {online[0]['name']}")
+        print(f'[INFO] Using device: {online[0]["name"]}')
 
     print(f'\n[INFO] Creating experiments on device: {args.device}')
 
@@ -242,14 +249,14 @@ def main():
                     args.runs,
                 )
                 experiments.append(exp)
-                print(f"[OK] ID: {exp['id']}")
+                print(f'[OK] ID: {exp["id"]}')
             except Exception as e:
                 print(f'[FAILED] {e}')
 
     print(f'\n[INFO] Waiting for {len(experiments)} experiment(s)...')
 
     for exp in experiments:
-        print(f"  {exp['model_name']}...", end=' ')
+        print(f'  {exp["model_name"]}...', end=' ')
         result = wait_for_experiment(args.server, exp['id'])
         status = result.get('status', 'unknown')
         print(f'[{status.upper()}]')

@@ -349,7 +349,8 @@ def _run_all_benchmarks(models, args, output_dir, edgetpu_info):
     total = sum(len(set(m['backends']) & set(args.backends)) for m in models)
     current = 0
     cooldown_s: float = float(
-        getattr(args, 'cooldown', None) or os.environ.get('EDGEBENCH_COOLDOWN_SECONDS', '5')
+        getattr(args, 'cooldown', None)
+        or os.environ.get('EDGEBENCH_COOLDOWN_SECONDS', '5')
     )
     cooldown_temp: float | None = getattr(args, 'cooldown_temp', None)
 

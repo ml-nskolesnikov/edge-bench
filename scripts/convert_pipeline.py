@@ -38,7 +38,9 @@ def convert_pt_to_onnx(pt_path: Path, output_dir: Path, input_shape: list[int]) 
         raise RuntimeError('PyTorch not installed. Install: pip install torch')
 
 
-def convert_onnx_to_tflite(onnx_path: Path, output_dir: Path, input_shape: list[int]) -> Path:
+def convert_onnx_to_tflite(
+    onnx_path: Path, output_dir: Path, input_shape: list[int]
+) -> Path:
     """Convert ONNX model to TFLite INT8 via onnx-tf + TFLiteConverter."""
     tflite_path = output_dir / (onnx_path.stem + '_int8.tflite')
 
@@ -184,7 +186,9 @@ def run_pipeline(
 
     # Step 3: to Edge TPU TFLite
     if rpi_host:
-        edgetpu_path = convert_tflite_to_edgetpu_via_ssh(tflite_path, output_dir, rpi_host)
+        edgetpu_path = convert_tflite_to_edgetpu_via_ssh(
+            tflite_path, output_dir, rpi_host
+        )
     else:
         edgetpu_path = convert_tflite_to_edgetpu(tflite_path, output_dir)
 
@@ -195,7 +199,9 @@ def run_pipeline(
 
 def main():
     parser = argparse.ArgumentParser(description='Model Conversion Pipeline')
-    parser.add_argument('--input', required=True, help='Input model path (.pt, .onnx, .tflite)')
+    parser.add_argument(
+        '--input', required=True, help='Input model path (.pt, .onnx, .tflite)'
+    )
     parser.add_argument(
         '--input-shape',
         nargs='+',
