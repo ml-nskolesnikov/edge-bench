@@ -551,13 +551,12 @@ excluded from no ignore file, but a partial checkout can miss it).
   run-until-CV-stabilises mode.
 - **`dependencies.html` is orphaned.** `/dependencies` redirects to `/settings`,
   which absorbed that UI. The template is kept but unrouted.
-- **FastAPI ≥ 0.137 is not supported.** From 0.137 onwards `include_router`
-  silently registers nothing, so every API route and every HTML page
-  disappears while the process still starts and `/docs` still responds.
-  Verified by bisection: 0.136.0 works, 0.137.0 and later do not, independent
-  of the Starlette version. `pyproject.toml` pins FastAPI to `0.135.x` —
-  always install from `poetry.lock`. `tests/test_app_routes.py` catches this
-  if the pin is ever bypassed.
+- **`app.routes` no longer lists mounted routers (FastAPI ≥ 0.137).** An
+  included router now appears as one opaque `_IncludedRouter` entry instead of
+  being flattened, so code that introspects `app.routes` sees nothing for it.
+  Routing itself is unaffected. Enumerate routes via `app.openapi()['paths']`
+  instead — `tests/test_app_routes.py` does, and additionally asserts real
+  responses through `TestClient`.
 
 ## Future work
 
@@ -567,7 +566,6 @@ excluded from no ignore file, but a partial checkout can miss it).
 - [ ] Power consumption estimation (INA219 / USB power meter)
 - [ ] ONNX Runtime backend
 - [ ] Adaptive run count (stop when CV stabilises)
-- [ ] Investigate and fix FastAPI ≥ 0.137 compatibility (`include_router` regression)
 
 ## License
 

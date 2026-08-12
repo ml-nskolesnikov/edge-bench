@@ -3,10 +3,19 @@
 The API tests build their own FastAPI app in conftest, so a router that is
 missing from `server.main` still passes them. These tests import the real
 application object instead.
+
+Routes are enumerated from the OpenAPI schema rather than from `app.routes`:
+since FastAPI 0.137 an included router appears as a single opaque
+`_IncludedRouter` entry instead of being flattened into `app.routes`, so
+walking that attribute reports nothing for mounted routers even though
+requests route correctly. The schema reflects what is actually served.
 """
 
 from pathlib import Path
 import re
+
+from fastapi.testclient import TestClient
+import pytest
 
 from server.main import app
 
@@ -17,14 +26,15 @@ TEMPLATES_DIR = ROOT / 'server' / 'templates'
 API_PATH_RE = re.compile(r'/api/[a-z0-9_/-]+')
 
 
-def _registered_paths() -> set[str]:
-    return {route.path for route in app.routes if hasattr(route, 'path')}
+def _served_paths() -> set[str]:
+    """Every path the application actually serves, per its OpenAPI schema."""
+    return set(app.openapi()['paths'])
 
 
 def _path_prefixes() -> set[str]:
-    """Registered paths with their `{param}` segments stripped to a prefix."""
+    """Served paths plus their `{param}`-stripped prefixes."""
     prefixes = set()
-    for path in _registered_paths():
+    for path in _served_paths():
         prefixes.add(path)
         head = path.split('{', 1)[0].rstrip('/')
         if head:
@@ -44,11 +54,49 @@ def test_every_api_router_is_mounted():
         '/api/schedules',
         '/api/scripts',
     }
-    registered = _registered_paths()
+    served = _served_paths()
     for prefix in expected_prefixes:
-        assert any(p.startswith(prefix) for p in registered), (
+        assert any(p.startswith(prefix) for p in served), (
             f'No route registered under {prefix} in server.main.app'
         )
+
+
+def test_mounted_routes_actually_respond():
+    """A registered route must resolve — not 404 — when a request is made.
+
+    Complements the schema check above: the schema proves registration, this
+    proves routing. Together they survive FastAPI internals changing shape.
+    """
+    client = TestClient(app)
+    for path in ('/api/health', '/', '/results', '/scripts'):
+        response = client.get(path)
+        assert response.status_code != 404, f'{path} is not routed'
+
+
+@pytest.mark.parametrize(
+    'path,method',
+    [
+        ('/api/scripts/system-info', 'post'),
+        ('/api/scripts/check-deps', 'post'),
+        ('/api/scripts/run', 'post'),
+        ('/api/scripts/execute', 'post'),
+    ],
+)
+def test_scripts_endpoints_are_routed(path: str, method: str):
+    """Regression guard: the scripts router was absent from the real app.
+
+    A missing router yields 404 with detail "Not Found"; a mounted one
+    validates the body and answers 400/404 with a domain message instead.
+    """
+    client = TestClient(app)
+    response = getattr(client, method)(path, json={})
+    detail = ''
+    if response.headers.get('content-type', '').startswith('application/json'):
+        body = response.json()
+        detail = body.get('detail', '') if isinstance(body, dict) else ''
+    assert not (response.status_code == 404 and detail == 'Not Found'), (
+        f'{method.upper()} {path} is not routed'
+    )
 
 
 def test_every_ui_template_has_a_route():
@@ -82,7 +130,7 @@ def test_api_paths_used_by_templates_exist():
             path = raw.rstrip('/')
             if not path or path.endswith('/api'):
                 continue
-            # A template path matches if any registered path starts with it
+            # A template path matches if any served path starts with it
             # (covers query strings, trailing IDs and sub-resources).
             if not any(p.startswith(path) or path.startswith(p) for p in prefixes):
                 missing.add(f'{template.name}: {path}')

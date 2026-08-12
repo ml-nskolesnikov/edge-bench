@@ -116,18 +116,11 @@ logs.
 `poetry check` fails otherwise. The Docker builder copies both files and runs
 `poetry export`, so an out-of-sync lock breaks the image build too.
 
-### Never install without the lock
+### Always install from the lock
 
-FastAPI is pinned to `0.135.x`, and that pin is load-bearing. From **0.137.0**
-onwards `include_router` registers nothing: the app starts, `/docs` responds,
-and every API route and HTML page is silently absent. Verified by bisection
-(0.136.0 works, 0.137.0+ does not, independent of the Starlette version).
-
-A job that runs `pip install fastapi` instead of installing from the lock will
-produce a server that boots and answers health checks while serving 404 for
-everything real. `tests/test_app_routes.py::test_every_api_router_is_mounted`
-is the guard — it asserts against the real `server.main.app`, and it is what
-surfaced this during validation.
+Dependencies are pinned in `poetry.lock`; CI installs from it via
+`make install`. A job that runs bare `pip install fastapi` gets whatever is
+current, which is how environments silently drift out of the tested set.
 
 ---
 
