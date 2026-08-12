@@ -1,0 +1,17 @@
+{
+  "artefact": "PlantVillage source covariance for iCORAL",
+  "shape": [
+    1280,
+    1280
+  ],
+  "dtype": "float32",
+  "mb": 6.554,
+  "n_images": 5000,
+  "n_available": 54305,
+  "source": "/data/plantvillage/color",
+  "onnx": "artifacts/c6_mobilenet_v2_int8.onnx",
+  "regularisation": "cov + I",
+  "seed": 42,
+  "onnxruntime_version": "1.28.0",
+  "timestamp_utc": "2026-08-12T17:46:43.254979+00:00"
+}
