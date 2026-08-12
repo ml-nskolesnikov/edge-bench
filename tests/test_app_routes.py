@@ -61,16 +61,23 @@ def test_every_api_router_is_mounted():
         )
 
 
-def test_mounted_routes_actually_respond():
+def test_mounted_routes_actually_respond(isolated_storage):
     """A registered route must resolve — not 404 — when a request is made.
 
     Complements the schema check above: the schema proves registration, this
     proves routing. Together they survive FastAPI internals changing shape.
+
+    Depends on `isolated_storage`: these pages read the database, and a clean
+    checkout has none. Without the fixture the test only passes on a machine
+    that happens to have a populated dev database.
     """
     client = TestClient(app)
     for path in ('/api/health', '/', '/results', '/scripts'):
         response = client.get(path)
         assert response.status_code != 404, f'{path} is not routed'
+        assert response.status_code < 500, (
+            f'{path} returned {response.status_code} on an empty database'
+        )
 
 
 @pytest.mark.parametrize(

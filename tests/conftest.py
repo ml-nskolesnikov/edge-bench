@@ -24,6 +24,27 @@ from server.core.config import settings
 from server.db.database import init_db
 
 
+@pytest.fixture(autouse=True)
+def _never_touch_developer_data(tmp_path_factory, monkeypatch):
+    """Point storage at a throwaway directory for *every* test.
+
+    Without this, a test that forgets `isolated_storage` silently falls back to
+    the real `data/edgebench.db`. It then passes on a developer machine that
+    happens to have a populated database and fails in a clean checkout — which
+    is exactly how a broken route test reached CI.
+
+    Tests needing per-test isolation still request `isolated_storage`, which
+    overrides these paths again and initialises a schema.
+    """
+    sandbox = tmp_path_factory.mktemp('edgebench_sandbox')
+    monkeypatch.setattr(settings, 'DATABASE_PATH', sandbox / 'edgebench.db')
+    monkeypatch.setattr(settings, 'UPLOAD_DIR', sandbox / 'uploads')
+    monkeypatch.setattr(settings, 'MODELS_DIR', sandbox / 'models')
+    monkeypatch.setattr(settings, 'SCRIPTS_DIR', sandbox / 'scripts')
+    for sub in ('uploads', 'models', 'scripts'):
+        (sandbox / sub).mkdir(parents=True, exist_ok=True)
+
+
 @pytest.fixture
 def isolated_storage(tmp_path: Path, monkeypatch):
     """Isolate all settings paths to a per-test tmp directory.
