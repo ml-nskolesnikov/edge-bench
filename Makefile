@@ -19,27 +19,55 @@ DOCKER_BUILDER ?= edge-bench-builder
 SMOKE_PORT ?= 18000
 SMOKE_TIMEOUT ?= 30
 SMOKE_CONTAINER ?= edge-bench-smoke
+BENCH_MODEL ?=
+BENCH_RUNS ?= 30
+BENCH_WARMUP ?= 5
+BENCH_BACKEND ?= cpu
+BENCH_OUT ?= results/smoke
 
-.PHONY: help setup setup-venv install server lint test check agent-deploy clean clean-pyc \
+.PHONY: help setup setup-venv install install-hardware dev run server \
+	lint format format-check typecheck test test-cov build ci check \
+	benchmark-smoke test-hardware \
+	agent-deploy clean clean-pyc \
 	eccv-models eccv-benchmark eccv-rpi-benchmark check-rpi-host \
 	docker-login docker-build docker-build-no-cache docker-run docker-up docker-down docker-logs \
-	docker-buildx-create docker-buildx docker-buildx-push docker-smoke
+	docker-config docker-buildx-create docker-buildx docker-buildx-push docker-smoke
 
 help: ## Show available targets and usage examples
 	@printf "edge-bench Make targets\n\n"
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' "$(MAKEFILE_LIST)"
 	@printf "\nExamples:\n"
-	@printf "  make setup\n"
-	@printf "  make server\n"
+	@printf "  make install && make ci\n"
+	@printf "  make run\n"
+	@printf "  make benchmark-smoke BENCH_MODEL=data/models/c6_mobilenet_v2_int8.tflite\n"
 	@printf "  make eccv-rpi-benchmark RPI_HOST=pi@192.168.1.100\n"
-	@printf "  make docker-buildx DOCKER_PLATFORM_LOCAL=linux/amd64\n"
 	@printf "  make docker-buildx-push DOCKER_PLATFORMS=linux/amd64,linux/arm64 IMAGE_NAME=<registry>/edge-bench IMAGE_TAG=v1\n"
-	@printf "  make docker-smoke\n"
+
+# -------------------------------------------------------------------
+# Setup
+# -------------------------------------------------------------------
 
 setup: ## Install dependencies via Poetry and create runtime directories
 	$(POETRY) install --with dev
-	mkdir -p data/models data/scripts data/uploads
-	@echo "Setup complete. Run 'make server' to start."
+	mkdir -p data/models data/scripts data/uploads results
+	@echo "Setup complete. Run 'make run' to start the server."
+
+install: setup ## Alias for setup
+
+install-hardware: ## Install a TFLite runtime for benchmark-smoke / pytest -m hardware
+	@# Deliberately outside poetry.lock: the right package is platform-specific
+	@# and CI never needs any of them. See agent/tflite_backend.py.
+	@arch="$$(uname -m)"; \
+	if [ "$$arch" = "aarch64" ] || [ "$${arch#arm}" != "$$arch" ]; then \
+		echo "ARM detected ($$arch): installing tflite-runtime"; \
+		$(POETRY) run pip install tflite-runtime; \
+	else \
+		echo "x86_64 detected ($$arch): installing ai-edge-litert"; \
+		$(POETRY) run pip install ai-edge-litert; \
+	fi
+	@$(POETRY) run python -c "import sys; sys.path.insert(0, 'agent'); \
+	from tflite_backend import resolve_backend, backend_version; \
+	_, _, s = resolve_backend(); print(f'TFLite runtime ready: {s} {backend_version(s)}')"
 
 setup-venv: ## Legacy setup via local venv + requirements/server.txt
 	$(PYTHON) -m venv "$(VENV_DIR)"
@@ -47,18 +75,65 @@ setup-venv: ## Legacy setup via local venv + requirements/server.txt
 	mkdir -p data/models data/scripts data/uploads
 	@echo "Setup complete. Run '$(VENV_DIR)/bin/python -m server.main' to start."
 
-install: setup ## Alias for setup
+# -------------------------------------------------------------------
+# Run
+# -------------------------------------------------------------------
 
-server: ## Run API server (Poetry environment)
+run: ## Run API server (Poetry environment)
 	$(POETRY) run python -m server.main
 
-lint: ## Run Ruff linting
-	$(POETRY) run ruff check .
+server: run ## Alias for run
 
-test: ## Run tests
-	$(POETRY) run pytest -v
+dev: ## Run API server with autoreload on http://127.0.0.1:8000
+	EDGEBENCH_DEBUG=true $(POETRY) run uvicorn server.main:app --reload --host 127.0.0.1 --port 8000
 
-check: lint test ## Run lint + tests
+# -------------------------------------------------------------------
+# Quality gates — every target below exits non-zero on failure
+# -------------------------------------------------------------------
+
+lint: ## Run Ruff linting (no autofix)
+	$(POETRY) run ruff check --no-fix .
+
+format: ## Apply Ruff autofixes and formatting
+	$(POETRY) run ruff check --fix .
+	$(POETRY) run ruff format .
+
+format-check: ## Verify formatting without writing files
+	$(POETRY) run ruff format --check .
+
+typecheck: ## Run mypy over the server package
+	$(POETRY) run mypy
+
+test: ## Run the CPU-only test suite (hardware tests excluded)
+	$(POETRY) run pytest -q
+
+test-cov: ## Run tests with coverage report
+	$(POETRY) run pytest --cov --cov-report=term --cov-report=xml
+
+build: ## Verify the application is importable and buildable in a clean env
+	$(POETRY) run python -c "import server.main; print('server.main import OK')"
+	$(POETRY) build --no-interaction 2>/dev/null || echo "package-mode=false: nothing to build (expected)"
+
+ci: lint format-check typecheck test-cov build ## Full CPU-only quality gate (use this in CI)
+	@echo ""
+	@echo "CI quality gate passed."
+
+check: lint test ## Fast local gate (lint + tests)
+
+# -------------------------------------------------------------------
+# Hardware / benchmark validation — never part of `make ci`
+# -------------------------------------------------------------------
+
+benchmark-smoke: ## Run a short real TFLite benchmark end-to-end (needs install-hardware + a model)
+	$(POETRY) run python scripts/benchmark_smoke.py \
+		$(if $(BENCH_MODEL),--model "$(BENCH_MODEL)",) \
+		--backend "$(BENCH_BACKEND)" \
+		--warmup "$(BENCH_WARMUP)" \
+		--runs "$(BENCH_RUNS)" \
+		--output-dir "$(BENCH_OUT)"
+
+test-hardware: ## Run tests that require a real TFLite runtime (skipped when unavailable)
+	$(POETRY) run pytest -m hardware -v
 
 docker-login: ## Refresh Docker Hub auth (fixes expired token issues)
 	$(DOCKER) logout || true
@@ -79,10 +154,10 @@ docker-smoke: ## Build image, run container, and verify /docs is reachable
 	$(DOCKER) run -d --name "$(SMOKE_CONTAINER)" -p "$(SMOKE_PORT):8000" "$(DOCKER_IMAGE)" >/dev/null
 	@cleanup() { $(DOCKER) rm -f "$(SMOKE_CONTAINER)" >/dev/null 2>&1 || true; }; \
 	trap cleanup EXIT; \
-	echo "Waiting for smoke endpoint on http://127.0.0.1:$(SMOKE_PORT)/docs"; \
+	echo "Waiting for health endpoint on http://127.0.0.1:$(SMOKE_PORT)/api/health"; \
 	for _ in $$(seq 1 "$(SMOKE_TIMEOUT)"); do \
-		if curl -fsS "http://127.0.0.1:$(SMOKE_PORT)/docs" >/dev/null; then \
-			echo "Smoke test passed."; \
+		if curl -fsS "http://127.0.0.1:$(SMOKE_PORT)/api/health" >/dev/null; then \
+			echo "Smoke test passed (default build target serves the API)."; \
 			exit 0; \
 		fi; \
 		sleep 1; \
@@ -90,6 +165,9 @@ docker-smoke: ## Build image, run container, and verify /docs is reachable
 	echo "Smoke test failed. Recent container logs:"; \
 	$(DOCKER) logs --tail 120 "$(SMOKE_CONTAINER)" || true; \
 	exit 1
+
+docker-config: ## Validate and render the compose file
+	$(COMPOSE) config
 
 docker-up: ## Start stack using docker-compose
 	$(COMPOSE) up -d --build
@@ -163,8 +241,10 @@ eccv-rpi-benchmark: TARGET=eccv-rpi-benchmark
 eccv-rpi-benchmark: check-rpi-host ## Run ECCV benchmark on Raspberry Pi and fetch results
 	@echo "Deploying models to $(RPI_HOST)..."
 	scp models/*.tflite "$(RPI_HOST):~/models/"
-	scp scripts/benchmark_tflite.py "$(RPI_HOST):~/"
-	scp scripts/benchmark_eccv_models.py "$(RPI_HOST):~/"
+	# agent/ holds the canonical benchmark implementations (seeded inputs,
+	# GC-gated timing, timezone-aware timestamps). Do not ship scripts/ copies.
+	scp agent/benchmark_tflite.py "$(RPI_HOST):~/"
+	scp agent/benchmark_eccv_models.py "$(RPI_HOST):~/"
 	@echo "Running benchmark on RPi..."
 	ssh "$(RPI_HOST)" "cd ~ && python3 benchmark_eccv_models.py --local --models-dir models --output eccv_results.json --csv T4_edgetpu.csv"
 	@echo "Downloading results..."

@@ -1,16 +1,37 @@
 services:
   edge-bench:
-    build: .
+    build:
+      context: .
+      args:
+        # Match the image user to the host user so the bind-mounted ./data
+        # stays writable. Export UID/GID or set them in .env to override.
+        APP_UID: "${UID:-1000}"
+        APP_GID: "${GID:-1000}"
+    image: edge-bench:local
     ports:
-      - "8000:8000"
+      - "${EDGEBENCH_PORT:-8000}:8000"
     volumes:
-      - ./data:/app/data      # SQLite DB persistence
-      - ./models:/app/models  # uploaded models
+      # SQLite DB, uploaded models, uploaded scripts — everything the server
+      # writes lives under ./data (see EDGEBENCH_*_DIR below).
+      - ./data:/app/data
+      # Benchmark result files, so runs survive `docker compose down`.
+      - ./results:/app/results
     environment:
-      - EDGEBENCH_DATABASE_PATH=/app/data/edgebench.db
-      - EDGEBENCH_HOST=0.0.0.0
-      - EDGEBENCH_PORT=8000
-      - EDGEBENCH_MODELS_DIR=/app/data/models
-      - EDGEBENCH_UPLOAD_DIR=/app/data/uploads
-      - EDGEBENCH_SCRIPTS_DIR=/app/data/scripts
+      EDGEBENCH_HOST: "0.0.0.0"
+      EDGEBENCH_PORT: "8000"
+      EDGEBENCH_DATABASE_PATH: /app/data/edgebench.db
+      EDGEBENCH_MODELS_DIR: /app/data/models
+      EDGEBENCH_UPLOAD_DIR: /app/data/uploads
+      EDGEBENCH_SCRIPTS_DIR: /app/data/scripts
+      # Shared secret for /api/* — empty means auth disabled (trusted LAN only).
+      EDGEBENCH_AGENT_SECRET: "${EDGEBENCH_AGENT_SECRET:-}"
+      EDGEBENCH_PROXY_TRUST: "${EDGEBENCH_PROXY_TRUST:-127.0.0.1}"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    # SIGTERM reaches uvicorn, which drains connections before exiting.
+    stop_grace_period: 20s
     restart: unless-stopped

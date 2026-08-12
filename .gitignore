@@ -14,14 +14,26 @@ venv/
 .venv/
 env/
 
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
 # Database
 *.db
 *.sqlite
 *.sqlite3
 
-# Environment variables
+# Environment variables — the template is tracked, real values never are
 .env
 .env.*
+!.env.example
 
 # Logs
 *.log
@@ -45,7 +57,12 @@ data/uploads/
 # Output / generated files
 output/
 
-# CLAUDE / AI tooling (local, not project source)
+# Benchmark results
+# results/ is a research artifact and IS tracked — measured runs must stay
+# reproducible and reviewable. Only throwaway validation output is ignored.
+results/smoke/
+
+# Local tooling artifacts (not project source)
 .claude
 CLAUDE.md
 AGENTS.md
