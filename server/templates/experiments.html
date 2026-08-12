@@ -689,7 +689,7 @@
 .queue-stat-queued .queue-stat-value { color: var(--text-muted); }
 .queue-stat-running .queue-stat-value { color: var(--accent); }
 .queue-stat-failed .queue-stat-value { color: var(--danger); }
-.queue-stat-retry .queue-stat-value { color: #f59e0b; }
+.queue-stat-retry .queue-stat-value { color: var(--warning); }
 
 .queue-current {
     margin-top: 12px;
@@ -801,7 +801,7 @@
 
 .action-btn:hover { background: var(--bg-secondary); color: var(--text); }
 .action-danger:hover { color: var(--danger); }
-.action-retry { color: #f59e0b !important; }
+.action-retry { color: var(--warning) !important; }
 .action-retry:hover { background: rgba(245, 158, 11, 0.15) !important; }
 .action-reassign { color: var(--accent) !important; }
 .action-reassign:hover { background: rgba(88, 166, 255, 0.15) !important; }
@@ -851,8 +851,8 @@
 .reassign-dev-status {
     font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 500;
 }
-.reassign-dev-status.online { background: rgba(63,185,80,0.15); color: #3fb950; }
-.reassign-dev-status.offline { background: rgba(248,81,73,0.15); color: #f85149; }
+.reassign-dev-status.online { background: rgba(63,185,80,0.15); color: var(--success); }
+.reassign-dev-status.offline { background: rgba(248,81,73,0.15); color: var(--danger); }
 .reassign-dev-current-tag {
     font-size: 0.65rem; padding: 1px 6px; border-radius: 4px;
     background: rgba(139,148,158,0.15); color: var(--text-muted);
@@ -863,8 +863,8 @@
     padding: 14px 18px; border-top: 1px solid var(--border);
     background: var(--bg);
 }
-.reassign-retry-btn { background: #3fb950 !important; }
-.reassign-retry-btn:hover { background: #2ea043 !important; }
+.reassign-retry-btn { background: var(--success) !important; }
+.reassign-retry-btn:hover { background: var(--success) !important; }
 .reassign-no-devices {
     text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;
 }
@@ -958,8 +958,8 @@
 .bulk-btn-reassign:hover { background: rgba(88,166,255,0.12); }
 .bulk-btn-retry {
     display: inline-flex; align-items: center; gap: 6px;
-    background: transparent; border: 1px solid #f59e0b;
-    color: #f59e0b; white-space: nowrap;
+    background: transparent; border: 1px solid var(--warning);
+    color: var(--warning); white-space: nowrap;
 }
 .bulk-btn-retry:hover { background: rgba(245,158,11,0.12); }
 

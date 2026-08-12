@@ -3,26 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
     <title>{% block title %}Edge-Bench{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="/static/js/i18n.js"></script>
     <link rel="icon" href="/static/img/favicon.ico" type="image/x-icon">
+    <script>
+        // Applied before first paint so the page never flashes the wrong theme.
+        (function () {
+            try {
+                var t = localStorage.getItem('edgebench_theme');
+                document.documentElement.setAttribute(
+                    'data-theme', t === 'light' ? 'light' : 'dark'
+                );
+            } catch (e) { /* storage blocked — fall back to the dark default */ }
+        })();
+    </script>
 </head>
 <body data-theme="dark">
-    <nav class="navbar">
+    <nav class="navbar" id="navbar">
         <div class="nav-brand">
             <a href="/">Edge-Bench</a>
         </div>
-        <ul class="nav-links">
+        <button class="nav-toggle" id="navToggle" aria-expanded="false"
+                aria-controls="navLinks" aria-label="Menu">☰</button>
+        <ul class="nav-links" id="navLinks">
             <li><a href="/" {% if request.url.path == "/" %}class="active"{% endif %} data-i18n="Dashboard">Dashboard</a></li>
             <li><a href="/devices" {% if "/devices" in request.url.path %}class="active"{% endif %} data-i18n="Devices">Devices</a></li>
             <li><a href="/models" {% if "/models" in request.url.path %}class="active"{% endif %} data-i18n="Models">Models</a></li>
             <li><a href="/experiments" {% if "/experiments" in request.url.path %}class="active"{% endif %} data-i18n="Experiments">Experiments</a></li>
-            <li><a href="/benchmark" {% if "/benchmark" in request.url.path %}class="active"{% endif %} data-i18n="Benchmark">Benchmark</a></li>
+            <li><a href="/results" {% if "/results" in request.url.path %}class="active"{% endif %} data-i18n="Results">Results</a></li>
             <li><a href="/compare" {% if "/compare" in request.url.path %}class="active"{% endif %} data-i18n="Compare">Compare</a></li>
+            <li><a href="/benchmark" {% if "/benchmark" in request.url.path %}class="active"{% endif %} data-i18n="Benchmark">Benchmark</a></li>
+            <li><a href="/scripts" {% if "/scripts" in request.url.path %}class="active"{% endif %} data-i18n="Scripts">Scripts</a></li>
             <li><a href="/schedules" {% if "/schedules" in request.url.path %}class="active"{% endif %} data-i18n="Schedules">Schedules</a></li>
             <li><a href="/new-experiment" {% if "/new-experiment" in request.url.path %}class="active"{% endif %} data-i18n="+ New">+ New</a></li>
-            <li><a href="/settings" {% if "/settings" in request.url.path %}class="active"{% endif %} data-i18n="Settings">
+            <li><a href="/settings" {% if "/settings" in request.url.path %}class="active"{% endif %} data-i18n="Settings" title="Settings">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:2px">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -30,7 +46,7 @@
             </a></li>
         </ul>
         <div class="toolbar-switches">
-            <button class="theme-switch" onclick="toggleTheme()" title="Переключить тему">
+            <button class="theme-switch" onclick="toggleTheme()" title="Переключить тему" aria-label="Toggle theme">
                 <span id="themeLabel">☀</span>
             </button>
             <button class="lang-switch" onclick="toggleLang()" title="Switch language">
@@ -46,6 +62,8 @@
     <footer class="footer">
         <p data-i18n="footer-text">Edge-Bench v1.0 | ML Benchmarking for Edge Devices</p>
     </footer>
+
+    <div class="toast-stack" id="toastStack" role="status" aria-live="polite"></div>
 
     <script>
         // Inject X-Agent-Secret into every fetch() when the server has auth configured.
@@ -66,6 +84,93 @@
             }
         })();
 
+        /* ------------------------------------------------------------------
+           EdgeBench: shared UI helpers.
+           Pages use these so success/error/loading feedback is consistent and
+           a failed request is never silent.
+           ------------------------------------------------------------------ */
+        window.EdgeBench = (function () {
+            const stack = () => document.getElementById('toastStack');
+
+            function toast(message, kind, timeout) {
+                const host = stack();
+                if (!host) { return; }
+                const el = document.createElement('div');
+                el.className = 'toast toast-' + (kind || 'info');
+                el.textContent = message;
+                host.appendChild(el);
+                setTimeout(function () {
+                    el.classList.add('is-leaving');
+                    setTimeout(() => el.remove(), 200);
+                }, timeout || (kind === 'error' ? 7000 : 3500));
+            }
+
+            /** Toggle a button's loading state without losing its width. */
+            function setLoading(el, loading) {
+                if (!el) { return; }
+                el.classList.toggle('is-loading', !!loading);
+                if (loading) {
+                    el.setAttribute('aria-busy', 'true');
+                } else {
+                    el.removeAttribute('aria-busy');
+                }
+            }
+
+            /**
+             * fetch() wrapper that turns non-2xx and network failures into
+             * thrown Errors carrying the server's `detail` message.
+             */
+            async function api(url, options) {
+                const resp = await fetch(url, options);
+                const text = await resp.text();
+                let payload = null;
+                if (text) {
+                    try { payload = JSON.parse(text); } catch (e) { payload = text; }
+                }
+                if (!resp.ok) {
+                    const detail = (payload && payload.detail) || payload ||
+                        (resp.status + ' ' + resp.statusText);
+                    const err = new Error(
+                        typeof detail === 'string' ? detail : JSON.stringify(detail)
+                    );
+                    err.status = resp.status;
+                    err.payload = payload;
+                    throw err;
+                }
+                return payload;
+            }
+
+            /** Render an error alert into a container element. */
+            function showError(container, message) {
+                if (!container) { return; }
+                container.innerHTML =
+                    '<div class="alert alert-error"><div>' +
+                    '<div class="alert-title">Ошибка</div>' +
+                    '<div class="error-message"></div></div></div>';
+                container.querySelector('.error-message').textContent = message;
+            }
+
+            /** Render a centred spinner + label into a container element. */
+            function showLoading(container, label) {
+                if (!container) { return; }
+                container.innerHTML =
+                    '<div class="loading-state"><span class="spinner spinner-lg"></span>' +
+                    '<span class="loading-label"></span></div>';
+                container.querySelector('.loading-label').textContent =
+                    label || 'Загрузка...';
+            }
+
+            /** Format a number with fixed decimals, or a dash when absent. */
+            function fmt(value, digits) {
+                if (value === null || value === undefined || isNaN(value)) {
+                    return '—';
+                }
+                return Number(value).toFixed(digits === undefined ? 2 : digits);
+            }
+
+            return { toast, setLoading, api, showError, showLoading, fmt };
+        })();
+
         // Language toggle
         function toggleLang() {
             const currentLang = localStorage.getItem('edgebench_lang') || 'ru';
@@ -77,6 +182,7 @@
         function applyTheme(theme) {
             const normalizedTheme = theme === 'light' ? 'light' : 'dark';
             document.body.setAttribute('data-theme', normalizedTheme);
+            document.documentElement.setAttribute('data-theme', normalizedTheme);
             const themeLabel = document.getElementById('themeLabel');
             if (themeLabel) {
                 themeLabel.textContent = normalizedTheme === 'dark' ? '☀' : '🌙';
@@ -90,27 +196,35 @@
             applyTheme(newTheme);
         }
 
-        // Update language button on load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const lang = localStorage.getItem('edgebench_lang') || 'ru';
             const label = document.getElementById('langLabel');
             if (label) {
                 label.textContent = lang === 'ru' ? 'EN' : 'RU';
             }
-            const theme = localStorage.getItem('edgebench_theme') || 'dark';
-            applyTheme(theme);
+            applyTheme(localStorage.getItem('edgebench_theme') || 'dark');
 
+            // Mobile navigation
+            const toggle = document.getElementById('navToggle');
+            const navbar = document.getElementById('navbar');
+            if (toggle && navbar) {
+                toggle.addEventListener('click', function () {
+                    const open = navbar.classList.toggle('is-open');
+                    toggle.setAttribute('aria-expanded', String(open));
+                });
+            }
         });
 
-        // Auto-refresh for running experiments
+        // Auto-refresh while an experiment is running, so the list does not go stale.
         function checkRunningExperiments() {
             fetch('/api/experiments?status=running')
-                .then(r => r.json())
+                .then(r => (r.ok ? r.json() : []))
                 .then(data => {
-                    if (data.length > 0) {
+                    if (Array.isArray(data) && data.length > 0) {
                         setTimeout(() => location.reload(), 5000);
                     }
-                });
+                })
+                .catch(() => { /* offline server: stop polling silently */ });
         }
 
         if (window.location.pathname.includes('experiments') || window.location.pathname === '/') {

@@ -567,7 +567,7 @@
 }
 
 .server-info-icon.blue { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
-.server-info-icon.green { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+.server-info-icon.green { background: rgba(63, 185, 80, 0.15); color: var(--success); }
 .server-info-icon.purple { background: rgba(136, 87, 255, 0.15); color: #8857ff; }
 .server-info-icon.orange { background: rgba(255, 166, 87, 0.15); color: #ffa657; }
 
@@ -756,7 +756,7 @@
     align-items: center;
     gap: 4px;
     font-size: 0.8rem;
-    color: #3fb950;
+    color: var(--success);
     animation: fadeInOut 2s ease-in-out;
 }
 
@@ -1038,7 +1038,7 @@
 }
 
 .dep-modal-icon.check-icon {
-    background: #3fb950;
+    background: var(--success);
 }
 
 .dep-modal-header h2 {
@@ -1268,8 +1268,8 @@
     display: inline-block;
 }
 
-.dot-ok { background: #3fb950; }
-.dot-miss { background: #f85149; }
+.dot-ok { background: var(--success); }
+.dot-miss { background: var(--danger); }
 .dot-err { background: #ffa657; }
 
 .check-dep-row {
@@ -1293,14 +1293,14 @@
     flex-shrink: 0;
 }
 
-.check-dep-status.ok { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
-.check-dep-status.miss { background: rgba(248, 81, 73, 0.15); color: #f85149; }
+.check-dep-status.ok { background: rgba(63, 185, 80, 0.15); color: var(--success); }
+.check-dep-status.miss { background: rgba(248, 81, 73, 0.15); color: var(--danger); }
 .check-dep-status.err { background: rgba(255, 166, 87, 0.15); color: #ffa657; }
 
 .check-dep-info { flex: 1; }
 .check-dep-name { font-weight: 500; font-size: 0.9rem; }
 .check-dep-ver { font-size: 0.8rem; color: var(--text-muted); }
-.check-dep-error { font-size: 0.75rem; color: #f85149; margin-top: 2px; }
+.check-dep-error { font-size: 0.75rem; color: var(--danger); margin-top: 2px; }
 
 @media (max-width: 900px) {
     .server-info-grid { grid-template-columns: repeat(2, 1fr); }

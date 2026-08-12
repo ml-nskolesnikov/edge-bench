@@ -238,10 +238,10 @@
     font-size: 0.72rem;
     margin-top: 2px;
 }
-.badge-tpu  { background: #7c3aed; color: #fff; }
-.badge-cpu  { background: #2563eb; color: #fff; }
-.badge-success { background: #16a34a; color: #fff; }
-.badge-muted   { background: #6b7280; color: #fff; }
+.badge-tpu  { background: var(--info); color: #fff; }
+.badge-cpu  { background: var(--accent); color: #fff; }
+.badge-success { background: var(--success); color: #fff; }
+.badge-muted   { background: var(--text-muted); color: #fff; }
 .badge { padding: 3px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; }
 
 .actions-cell { white-space: nowrap; min-width: 220px; }
@@ -263,11 +263,11 @@
     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1.5rem; }
-.form-hint { display: block; color: #6b7280; font-size: 0.8rem; margin-top: 4px; }
+.form-hint { display: block; color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
 
 .toast {
     position: fixed; bottom: 24px; right: 24px;
-    background: #1e293b; color: #fff; padding: 12px 20px;
+    background: var(--bg-elevated); color: #fff; padding: 12px 20px;
     border-radius: 8px; z-index: 9999; font-size: 0.9rem;
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
@@ -332,7 +332,7 @@ function setPreset(cron, btn) {
 function showToast(msg, ok) {
     const t = document.getElementById('toast');
     t.textContent = msg;
-    t.style.background = ok ? '#16a34a' : '#dc2626';
+    t.style.background = ok ? 'var(--success)' : 'var(--danger)';
     t.style.display = 'block';
     setTimeout(() => t.style.display = 'none', 3500);
 }

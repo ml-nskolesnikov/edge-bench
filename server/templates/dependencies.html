@@ -226,7 +226,7 @@
 }
 
 .status-dot.checking {
-    background: #f59e0b;
+    background: var(--warning);
     animation: pulse 1s infinite;
 }
 
@@ -258,7 +258,7 @@
 }
 
 .summary-value.missing {
-    color: #f59e0b;
+    color: var(--warning);
 }
 
 .summary-value.error {
@@ -289,23 +289,23 @@
 }
 
 .status-badge.status-unknown {
-    background: #e5e7eb;
-    color: #6b7280;
+    background: var(--bg-inset);
+    color: var(--text-muted);
 }
 
 .status-badge.status-installed {
     background: #dcfce7;
-    color: #16a34a;
+    color: var(--success);
 }
 
 .status-badge.status-missing {
-    background: #fef3c7;
-    color: #d97706;
+    background: var(--warning-soft);
+    color: var(--warning);
 }
 
 .status-badge.status-error {
-    background: #fee2e2;
-    color: #dc2626;
+    background: var(--danger-soft);
+    color: var(--danger);
 }
 
 .badge {
@@ -313,13 +313,13 @@
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 11px;
-    background: #e5e7eb;
-    color: #6b7280;
+    background: var(--bg-inset);
+    color: var(--text-muted);
 }
 
 .badge-required {
-    background: #dbeafe;
-    color: #2563eb;
+    background: var(--accent-soft);
+    color: var(--accent);
 }
 
 .dep-actions {
@@ -336,7 +336,7 @@
 }
 
 .btn-danger:hover {
-    background: #dc2626;
+    background: var(--danger);
 }
 
 /* Modal */
@@ -475,7 +475,7 @@ function updateDependenciesTable(deps) {
         statusCell.innerHTML = `<span class="status-badge status-${status}">${statusLabels[status]}</span>`;
 
         if (status === 'error' && dep.error_message) {
-            statusCell.innerHTML += `<small style="display:block;color:#dc2626;font-size:11px;">${dep.error_message}</small>`;
+            statusCell.innerHTML += `<small style="display:block;color:var(--danger);font-size:11px;">${dep.error_message}</small>`;
         }
 
         versionCell.textContent = dep.installed_version || '-';
@@ -552,7 +552,7 @@ async function checkDependency(depId) {
         statusCell.innerHTML = `<span class="status-badge status-${result.status}">${statusLabels[result.status]}</span>`;
 
         if (result.status === 'error' && result.error_message) {
-            statusCell.innerHTML += `<small style="display:block;color:#dc2626;font-size:11px;">${result.error_message}</small>`;
+            statusCell.innerHTML += `<small style="display:block;color:var(--danger);font-size:11px;">${result.error_message}</small>`;
         }
 
         row.querySelector('.dep-version').textContent = result.installed_version || '-';

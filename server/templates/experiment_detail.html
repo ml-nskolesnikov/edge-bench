@@ -417,7 +417,9 @@
 }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Vendored locally so charts work on an air-gapped lab network. -->
+<script src="/static/js/vendor/chart.umd.min.js"></script>
+<script src="/static/js/charts.js"></script>
 <script>
 async function rerunExperiment(id) {
     const resp = await fetch(`/api/experiments/${id}/rerun`, {method: 'POST'});
@@ -452,10 +454,10 @@ async function loadBaseline(id) {
         }
         const d = data.delta || {};
         const latDelta = d.mean_ms !== undefined
-            ? `<span style="color:${d.mean_ms > 0 ? '#f85149' : '#3fb950'};">${d.mean_ms > 0 ? '▲' : '▼'} ${Math.abs(d.mean_ms).toFixed(2)} ms (${d.pct})</span>`
+            ? `<span style="color:${d.mean_ms > 0 ? 'var(--danger)' : 'var(--success)'};">${d.mean_ms > 0 ? '▲' : '▼'} ${Math.abs(d.mean_ms).toFixed(2)} ms (${d.pct})</span>`
             : '—';
         const fpsDelta = d.fps !== undefined
-            ? `<span style="color:${d.fps < 0 ? '#f85149' : '#3fb950'};">${d.fps > 0 ? '▲' : '▼'} ${Math.abs(d.fps).toFixed(1)} FPS</span>`
+            ? `<span style="color:${d.fps < 0 ? 'var(--danger)' : 'var(--success)'};">${d.fps > 0 ? '▲' : '▼'} ${Math.abs(d.fps).toFixed(1)} FPS</span>`
             : '—';
         el.innerHTML = `
           <table class="info-table" style="max-width:480px;">

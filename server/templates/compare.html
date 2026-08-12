@@ -497,7 +497,10 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js is vendored, not loaded from a CDN: the benchmarking rig is
+     expected to run on an isolated lab network with no outbound internet. -->
+<script src="/static/js/vendor/chart.umd.min.js"></script>
+<script src="/static/js/charts.js"></script>
 <script>
 const experiments = {{ experiments | tojson | safe }};
 let selectedIds = [];
@@ -638,92 +641,25 @@ function renderTable(data, bestLat, bestFps) {
 function renderCharts(data) {
     const labels = data.map(e => e.name.length > 28 ? e.name.substring(0, 25) + '...' : e.name);
     const latencies = data.map(e => e.metrics?.latency?.mean_ms || 0);
-    const throughputs = data.map(e => e.metrics?.throughput?.fps || 0);
-
-    const colors = [
-        'rgba(88, 166, 255, 0.8)',
-        'rgba(63, 185, 80, 0.8)',
-        'rgba(251, 146, 60, 0.8)',
-        'rgba(167, 139, 250, 0.8)',
-        'rgba(236, 72, 153, 0.8)',
-        'rgba(52, 211, 153, 0.8)',
-        'rgba(251, 191, 36, 0.8)',
-        'rgba(99, 102, 241, 0.8)',
-        'rgba(248, 81, 73, 0.8)',
-        'rgba(210, 153, 34, 0.8)',
-        'rgba(139, 148, 158, 0.8)',
-        'rgba(88, 166, 255, 0.5)',
-    ];
+    const throughputs = data.map(e =>
+        e.metrics?.throughput?.fps_from_mean ?? e.metrics?.throughput?.fps ?? 0
+    );
 
     if (latencyChart) latencyChart.destroy();
     if (throughputChart) throughputChart.destroy();
 
-    const baseOpts = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: 'rgba(22,27,34,0.95)',
-                titleColor: '#c9d1d9',
-                bodyColor: '#c9d1d9',
-                borderColor: '#30363d',
-                borderWidth: 1,
-                padding: 12,
-                cornerRadius: 8,
-            }
-        },
-        scales: {
-            x: {
-                grid: { color: 'rgba(48,54,61,0.5)', drawBorder: false },
-                ticks: { color: '#8b949e', maxRotation: 45, font: { size: 11 } }
-            },
-            y: {
-                beginAtZero: true,
-                grid: { color: 'rgba(48,54,61,0.5)', drawBorder: false },
-                ticks: { color: '#8b949e', font: { size: 11 } }
-            }
-        }
-    };
-
+    // Palette, tooltip and axis styling come from the shared theme helper
+    // (static/js/charts.js) so both charts follow the active light/dark theme.
     latencyChart = new Chart(document.getElementById('latencyChart').getContext('2d'), {
         type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                data: latencies,
-                backgroundColor: colors.slice(0, data.length),
-                borderRadius: 6,
-                borderSkipped: false,
-            }]
-        },
-        options: {
-            ...baseOpts,
-            scales: {
-                ...baseOpts.scales,
-                y: { ...baseOpts.scales.y, title: { display: true, text: 'ms', color: '#8b949e' } }
-            }
-        }
+        data: { labels, datasets: [EdgeBenchCharts.barDataset(latencies)] },
+        options: EdgeBenchCharts.baseOptions('ms')
     });
 
     throughputChart = new Chart(document.getElementById('throughputChart').getContext('2d'), {
         type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                data: throughputs,
-                backgroundColor: colors.slice(0, data.length),
-                borderRadius: 6,
-                borderSkipped: false,
-            }]
-        },
-        options: {
-            ...baseOpts,
-            scales: {
-                ...baseOpts.scales,
-                y: { ...baseOpts.scales.y, title: { display: true, text: 'FPS', color: '#8b949e' } }
-            }
-        }
+        data: { labels, datasets: [EdgeBenchCharts.barDataset(throughputs)] },
+        options: EdgeBenchCharts.baseOptions('FPS')
     });
 }
 
