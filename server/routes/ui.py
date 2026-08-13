@@ -30,6 +30,29 @@ def _parse_json_column(value: str | None, *, default=None):
         return default
 
 
+def detect_quantization(model_name: str) -> str | None:
+    """Classify a model's quantization from its filename.
+
+    Edge TPU is checked first because every Edge TPU build here is named
+    `*_int8_edgetpu.tflite`; testing `int8` first would make the branch
+    unreachable.
+
+    The agent has its own copy in `agent/executor.py` (it is deployed flat on
+    the Pi and cannot import from `server`). The two must agree —
+    `tests/test_model_platforms.py` pins that contract.
+    """
+    name = model_name.lower()
+    if 'edgetpu' in name:
+        return 'int8_edgetpu'
+    elif 'int8' in name or '_quant' in name:
+        return 'int8'
+    elif 'fp16' in name:
+        return 'fp16'
+    elif 'fp32' in name:
+        return 'fp32'
+    return None
+
+
 def _summarize_results(rows) -> dict:
     """Aggregate headline benchmark numbers for the dashboard cards.
 
@@ -324,17 +347,7 @@ async def models_page(request: Request):
     models_with_info = []
     for model in model_list:
         model_dict = dict(model)
-        name_lower = model_dict['name'].lower()
-        if 'edgetpu' in name_lower:
-            model_dict['quantization'] = 'int8_edgetpu'
-        elif 'int8' in name_lower or '_quant' in name_lower:
-            model_dict['quantization'] = 'int8'
-        elif 'fp16' in name_lower:
-            model_dict['quantization'] = 'fp16'
-        elif 'fp32' in name_lower:
-            model_dict['quantization'] = 'fp32'
-        else:
-            model_dict['quantization'] = None
+        model_dict['quantization'] = detect_quantization(model_dict['name'])
         models_with_info.append(model_dict)
 
     return templates.TemplateResponse(

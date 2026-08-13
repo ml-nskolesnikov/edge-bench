@@ -90,12 +90,7 @@ class BenchmarkExecutor:
             np.random.seed(input_seed)
 
             # Generate dummy input
-            if input_dtype == np.float32:
-                input_data = np.random.rand(*input_shape).astype(np.float32)
-            elif input_dtype == np.uint8:
-                input_data = np.random.randint(0, 255, input_shape, dtype=np.uint8)
-            else:
-                input_data = np.random.rand(*input_shape).astype(input_dtype)
+            input_data = self._generate_input(input_shape, input_dtype)
 
             # Capture baseline CPU frequency + governor for throttle detection
             try:
@@ -259,6 +254,12 @@ class BenchmarkExecutor:
                 else 0,
             }
 
+            # Output signature — captured once, after the timed loop, so it
+            # costs nothing in the measurement. Without it a benchmark can
+            # report excellent latency for a model that computes nonsense on
+            # this backend; this is what makes CPU/Edge TPU results comparable.
+            output_signature = self._output_signature(interpreter)
+
             # Model info
             model_info = {
                 'name': os.path.basename(model_path),
@@ -298,6 +299,7 @@ class BenchmarkExecutor:
                 'system': system_metrics,
                 'device_info': self.metrics.get_device_info(),
                 'runtime': runtime_info,
+                'output': output_signature,
                 'timestamp': datetime.now(UTC).isoformat(),
                 'duration_seconds': round(duration, 2),
                 'status': 'completed',
@@ -465,6 +467,80 @@ class BenchmarkExecutor:
             duration,
         )
 
+    @staticmethod
+    def _generate_input(input_shape, input_dtype) -> np.ndarray:
+        """Build a synthetic input tensor of the model's own dtype.
+
+        Integer dtypes must be filled over their real range. The previous
+        version fell through to ``np.random.rand(...).astype(dtype)`` for any
+        dtype that was not float32/uint8 — and since ``rand`` returns values in
+        [0, 1), casting to int8 truncated every element to zero. Every INT8
+        model in this project therefore benchmarked an all-zero tensor: the
+        input seed had no effect, and the all-zero input drove the quantized
+        network into a degenerate state whose output varied between
+        interpreter instances, making results irreproducible.
+        """
+        dtype = np.dtype(input_dtype)
+
+        if np.issubdtype(dtype, np.integer):
+            info = np.iinfo(dtype)
+            return np.random.randint(
+                info.min, info.max + 1, size=input_shape, dtype=dtype
+            )
+
+        if np.issubdtype(dtype, np.floating):
+            return np.random.rand(*input_shape).astype(dtype)
+
+        raise ValueError(f'Unsupported model input dtype: {dtype}')
+
+    def _output_signature(self, interpreter) -> dict[str, Any] | None:
+        """Summarise the model's output tensor for cross-platform comparison.
+
+        Two devices running the same model on the same seeded input must
+        agree on what the model computed, not merely on how fast it ran.
+        The full tensor is not stored — a compact signature is enough to
+        detect a miscompiled Edge TPU model or a broken delegate:
+
+        - ``top_k``      : indices of the largest values (classifier verdict)
+        - ``checksum``   : sha256 over the dequantised values, exact match test
+        - ``sum``/``mean``/``norm`` : tolerant comparison for float paths
+
+        Values are dequantised first, so an INT8 CPU model and its Edge TPU
+        build are compared in the same units.
+        """
+        try:
+            details = interpreter.get_output_details()
+            if not details:
+                return None
+            spec = details[0]
+            raw = interpreter.get_tensor(spec['index'])
+
+            values = np.asarray(raw).astype(np.float64).reshape(-1)
+            # Undo affine quantisation when the tensor is quantised.
+            scale, zero_point = spec.get('quantization', (0.0, 0)) or (0.0, 0)
+            if scale:
+                values = (values - float(zero_point)) * float(scale)
+
+            k = int(min(5, values.size))
+            top_k = np.argsort(values)[::-1][:k]
+
+            return {
+                'shape': [int(d) for d in np.asarray(raw).shape],
+                'dtype': np.asarray(raw).dtype.name,
+                'quantization': {'scale': float(scale), 'zero_point': int(zero_point)},
+                'top_k_indices': [int(i) for i in top_k],
+                'top_k_values': [round(float(values[i]), 6) for i in top_k],
+                'sum': round(float(values.sum()), 6),
+                'mean': round(float(values.mean()), 6),
+                'l2_norm': round(float(np.linalg.norm(values)), 6),
+                'checksum': hashlib.sha256(np.round(values, 6).tobytes()).hexdigest()[
+                    :16
+                ],
+            }
+        except Exception as exc:
+            # Never fail a benchmark because the signature could not be taken.
+            return {'error': str(exc)}
+
     def _file_hash(self, path: str) -> str:
         """Calculate SHA256 hash of file."""
         sha256 = hashlib.sha256()
@@ -474,14 +550,25 @@ class BenchmarkExecutor:
         return f'sha256:{sha256.hexdigest()[:16]}'
 
     def _detect_quantization(self, model_path: str) -> str | None:
-        """Detect model quantization type."""
+        """Detect model quantization type from the filename.
+
+        Edge TPU must be checked first: every Edge TPU build in this project
+        is named `*_int8_edgetpu.tflite`, so testing `int8` first made the
+        `edgetpu` branch unreachable and recorded plain `int8` in results
+        while the models page showed `int8_edgetpu` for the same file.
+
+        Kept byte-for-byte in step with the server-side classifier in
+        `server/routes/ui.py` — see `tests/test_model_platforms.py`.
+        """
         name = os.path.basename(model_path).lower()
 
-        if 'int8' in name or '_quant' in name:
+        if 'edgetpu' in name:
+            return 'int8_edgetpu'
+        elif 'int8' in name or '_quant' in name:
             return 'int8'
         elif 'fp16' in name:
             return 'fp16'
-        elif 'edgetpu' in name:
-            return 'int8_edgetpu'
+        elif 'fp32' in name:
+            return 'fp32'
 
         return None
