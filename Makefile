@@ -26,10 +26,12 @@ BENCH_BACKEND ?= cpu
 BENCH_OUT ?= results/smoke
 MATRIX_MODEL ?= data/models/mobilenetv1_int8_ptq_Fuzzy.tflite
 MATRIX_TARGETS ?= x86=:cpu
+DETERMINISM_MODELS ?= data/models/*.tflite
+DETERMINISM_RUNS ?= 6
 
 .PHONY: help setup setup-venv install install-hardware dev run server \
 	lint format format-check typecheck test test-cov build ci check \
-	benchmark-smoke test-hardware platform-matrix \
+	benchmark-smoke test-hardware platform-matrix check-determinism \
 	agent-deploy clean clean-pyc \
 	eccv-models eccv-benchmark eccv-rpi-benchmark check-rpi-host \
 	docker-login docker-build docker-build-no-cache docker-run docker-up docker-down docker-logs \
@@ -137,6 +139,9 @@ benchmark-smoke: ## Run a short real TFLite benchmark end-to-end (needs install-
 test-hardware: ## Run tests that require a real TFLite runtime (skipped when unavailable)
 	@# Override the model with EDGEBENCH_TEST_MODEL=/path/to/model.tflite
 	$(POETRY) run pytest -m hardware -v
+
+check-determinism: ## Verify models return the same output for the same input
+	$(POETRY) run python scripts/check_determinism.py $(DETERMINISM_MODELS) --runs "$(DETERMINISM_RUNS)"
 
 platform-matrix: ## Compare one model across devices/backends (needs SSH + models)
 	@# Targets are name=host:backend[@model]; @model is required for Edge TPU,

@@ -254,6 +254,18 @@ make benchmark-smoke         # auto-selects the smallest model in data/models
 make benchmark-smoke BENCH_MODEL=data/models/foo.tflite BENCH_RUNS=100
 ```
 
+Before trusting any comparison, check that the models are reproducible at all:
+
+```bash
+make check-determinism                                     # every model in data/models
+make check-determinism DETERMINISM_MODELS=path/to/m.tflite
+```
+
+It feeds a byte-identical seeded tensor to several freshly built interpreters
+and reports whether they agree. It also shows how many float32 tensors a model
+has: a full-integer INT8 graph has zero, so a model labelled `int8` with a
+large float count is not doing integer inference.
+
 Smoke output lands in `results/smoke/` and is **validation evidence, not a
 measurement** — the iteration count is far too low to cite.
 
@@ -560,12 +572,26 @@ excluded from no ignore file, but a partial checkout can miss it).
 
 ## Known limitations
 
-- **`c6_mobilenet_v2_int8.tflite` is not reproducible.** Given a byte-identical
-  input tensor it returns a different result on every fresh interpreter, while
-  `mobilenetv1_int8_ptq_Fuzzy.tflite` is stable across runs on the same input.
-  Numbers derived from that model cannot be reproduced and should not be
-  compared across devices until the cause is found. `make test-hardware`
-  detects this; select another model with `EDGEBENCH_TEST_MODEL`.
+- **`c6_mobilenet_v2_int8.tflite` is not reproducible, and is not an INT8
+  graph.** Given a byte-identical input it returns a different result on every
+  freshly built interpreter, while repeated invocations on one interpreter
+  agree. Reproduced on two runtimes and two architectures
+  (`ai-edge-litert` 2.1.6 on x86_64, `tflite_runtime` 2.14 on aarch64), so it
+  is a property of the file, not of the environment. Of 21 loadable models in
+  `data/models/` it is the only non-deterministic one — and the only `_int8_`
+  model containing float32 tensors (139 of 234; every other `_int8_` model has
+  zero). Its first operator is a `DEQUANTIZE`: weights are stored int8 but the
+  network computes in float32, which is weight-only/dynamic-range
+  quantization, not the full-integer quantization the rest of the corpus uses.
+  Its tensor names (`wa/…`, `_input_nhwc`, `_padded`) indicate a different
+  ONNX-based toolchain. Consequences: its results cannot be reproduced or
+  compared across devices, and its latency is **not** INT8 latency, so it is
+  not comparable with the other `_int8_` models. Run
+  `make check-determinism` to re-verify after re-exporting.
+  Excluded causes: runtime and delegate (fails identically with XNNPACK
+  disabled), tensor-arena reuse (fails with `preserve_all_tensors`), weight
+  and constant tensors (all stable), input tensor (byte-identical), NaN/Inf
+  (none present), padding buffers (borders correctly zeroed).
 - **Synthetic input is not real data.** The benchmark feeds seeded random
   tensors of the model's own dtype. That is adequate for latency and memory,
   but says nothing about accuracy, and the output signature only proves that
