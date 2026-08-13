@@ -582,10 +582,20 @@ excluded from no ignore file, but a partial checkout can miss it).
   the environment), and its features barely tracked the fp32 reference.
 
   The canonical name now holds a model re-exported by
-  `scripts/export_int8_tflite.py` from the same fp32 ONNX named in the C6
-  bundle manifest (`sha256:1e448d9e…`), with the same calibration source and
-  count. The original is kept at
+  `scripts/export_int8_tflite.py` with the same calibration source and count
+  as the C6 bundle (512 images from `/data/plantvillage/color`, seed 42). The
+  original is kept at
   `data/models/archive/c6_mobilenet_v2_int8_hybrid_broken.tflite`.
+
+  Source provenance, stated precisely: the export read
+  `plantdiag-edge/artifacts/c6_mobilenet_v2_fp32.onnx` at
+  `sha256:7dc2651008fe8bd7…`, which is **not** the hash recorded in the C6
+  manifest (`1e448d9e…`) — that file was regenerated on 2026-08-13 while this
+  work was in progress. The two were compared and are the same model: 169
+  nodes, 104 initializers, all 104 weight tensors byte-identical, and
+  byte-identical outputs for the same input. The hashes differ only in ONNX
+  serialization metadata. The manifest-matching copy survives at
+  `plantdiag-edge/artifacts_pq/c6_mobilenet_v2_fp32.onnx`.
 
   | | original | replacement |
   |---|---|---|
