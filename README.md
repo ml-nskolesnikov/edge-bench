@@ -600,6 +600,14 @@ excluded from no ignore file, but a partial checkout can miss it).
   The original is kept, unmodified, for traceability. Any number derived from
   it — latency or otherwise — should be treated as invalid.
 
+  **The defect is confined to the TFLite file.** `c6_mobilenet_v2_int8.onnx`
+  (`sha256:b1314766…`, also named in the C6 manifest) was checked separately
+  and is sound: ONNX Runtime 1.28 folds its QDQ graph into integer kernels
+  (52 `QLinearConv`, 10 `QLinearAdd`, zero float `Conv`), it is deterministic
+  across fresh sessions on both x86_64 and aarch64, and it tracks the fp32
+  reference at **0.980** mean cosine similarity. Results produced through the
+  ONNX path are unaffected.
+
 - **Synthetic input is not real data.** The benchmark feeds seeded random
   tensors of the model's own dtype. That is adequate for latency and memory,
   but says nothing about accuracy, and the output signature only proves that
