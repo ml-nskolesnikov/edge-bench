@@ -11,6 +11,7 @@ for the hardware path: the point is to prove the real one works.
 
 import asyncio
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -25,6 +26,16 @@ pytestmark = pytest.mark.hardware
 
 
 def _find_model() -> Path | None:
+    """Pick the model to exercise.
+
+    Override with EDGEBENCH_TEST_MODEL to test a specific file. Otherwise the
+    smallest available model is used, to keep the run fast.
+    """
+    override = os.environ.get('EDGEBENCH_TEST_MODEL')
+    if override:
+        candidate = Path(override).expanduser()
+        return candidate if candidate.is_file() else None
+
     for rel in ('data/models', 'models'):
         directory = ROOT / rel
         if directory.is_dir():
@@ -134,3 +145,95 @@ def test_seed_makes_input_reproducible(model_path: Path, tflite_source: str):
     assert first['model']['hash'] == second['model']['hash']
     assert first['model']['input_shape'] == second['model']['input_shape']
     assert first['params']['input_seed'] == second['params']['input_seed'] == 1234
+
+
+# ---------------------------------------------------------------------------
+# Output signature: what the model computed, not just how fast
+# ---------------------------------------------------------------------------
+
+
+def test_output_signature_is_captured(benchmark_result: dict):
+    """Every run must record what the model actually produced.
+
+    Without this a benchmark can report excellent latency for a model that
+    computes nonsense on this backend — the failure mode that cross-platform
+    comparison exists to catch.
+    """
+    signature = benchmark_result.get('output')
+    assert signature, 'no output signature in result'
+    assert 'error' not in signature, signature.get('error')
+    assert signature['shape']
+    assert signature['checksum']
+    assert len(signature['top_k_indices']) >= 1
+
+
+def test_output_is_deterministic_for_a_fixed_seed(model_path: Path, tflite_source: str):
+    """Same seed, same model, same host -> byte-identical output.
+
+    This is what makes a cross-device checksum comparison meaningful: a
+    difference between devices then means the devices differ, not the run.
+    """
+    from executor import BenchmarkExecutor
+
+    def run() -> dict:
+        return asyncio.run(
+            BenchmarkExecutor().run_benchmark(
+                experiment_id='pytest_determinism',
+                model_path=str(model_path),
+                params={
+                    'backend': 'cpu',
+                    'num_threads': 2,
+                    'warmup_runs': 1,
+                    'benchmark_runs': 3,
+                    'input_seed': 7,
+                },
+            )
+        )
+
+    first, second = run(), run()
+    assert first['status'] == 'completed'
+    assert first['output']['checksum'] == second['output']['checksum'], (
+        f'{model_path.name} produced different output for identical seeded input. '
+        'The harness feeds a byte-identical tensor both times, so this is a '
+        'property of the model, not of the benchmark: its results cannot be '
+        'reproduced and cross-device comparison of them is meaningless. '
+        'Select another model with EDGEBENCH_TEST_MODEL=/path/to/model.tflite.'
+    )
+    assert first['output']['top_k_indices'] == second['output']['top_k_indices']
+
+
+def test_different_seeds_produce_different_output(model_path: Path, tflite_source: str):
+    """Guards the determinism test above against a frozen-input false pass."""
+    from executor import BenchmarkExecutor
+
+    def run(seed: int) -> dict:
+        return asyncio.run(
+            BenchmarkExecutor().run_benchmark(
+                experiment_id=f'pytest_seed_{seed}',
+                model_path=str(model_path),
+                params={
+                    'backend': 'cpu',
+                    'num_threads': 2,
+                    'warmup_runs': 1,
+                    'benchmark_runs': 2,
+                    'input_seed': seed,
+                },
+            )
+        )
+
+    assert run(1)['output']['checksum'] != run(999)['output']['checksum']
+
+
+def test_quantized_output_is_dequantised(benchmark_result: dict):
+    """An INT8 model's signature must be in real units, not raw integers.
+
+    Comparing a raw INT8 tensor against a float one would report a bogus
+    disagreement between an Edge TPU build and its CPU reference.
+    """
+    signature = benchmark_result['output']
+    quant = signature.get('quantization', {})
+    if not quant.get('scale'):
+        pytest.skip('model output is not quantised')
+    assert abs(signature['l2_norm']) > 0
+    scale = quant['scale']
+    assert all(abs(v) <= 1.0 / scale for v in signature['top_k_values'])
