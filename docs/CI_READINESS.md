@@ -226,6 +226,7 @@ metric.
 |---|---|---|
 | Hardware unit tests | `make test-hardware` | TFLite runtime + any `.tflite` model |
 | Pipeline smoke benchmark | `make benchmark-smoke` | same |
+| Cross-platform comparison | `make platform-matrix` | SSH to each device + a model on each |
 | Edge TPU path | `make benchmark-smoke BENCH_BACKEND=edgetpu` | Coral USB device, `libedgetpu1-std`, an `_edgetpu.tflite` model |
 | Full scientific benchmark | `agent/benchmark_full.py` | Raspberry Pi 4 (+ optional Coral); **manual only** |
 
@@ -249,6 +250,23 @@ Consequently:
   `agent/tflite_backend.py` plus GPU fields in the result schema
   (`gpu`, `driver`, `cuda`, `precision`, `peak_vram_mb`) before a GPU runner
   makes any sense.
+
+### Cross-platform model checks
+
+`make platform-matrix` runs one model on several devices/backends and compares
+both speed and **output signatures** (top-k indices plus a dequantised
+checksum). It exits non-zero when a backend disagrees on top-1, so it can gate
+a release: an Edge TPU build that computes nonsense reports excellent latency
+and is otherwise invisible.
+
+Two properties it depends on, both covered by `make test-hardware`:
+
+- the harness feeds a byte-identical tensor for a given seed, so a difference
+  between devices means the devices differ;
+- the model itself is deterministic. Not all are —
+  `c6_mobilenet_v2_int8.tflite` returns a different result on every fresh
+  interpreter from identical input, which makes any cross-device comparison of
+  it meaningless. Pick the model with `EDGEBENCH_TEST_MODEL`.
 
 ### Markers
 

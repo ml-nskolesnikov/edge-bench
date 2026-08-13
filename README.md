@@ -257,6 +257,39 @@ make benchmark-smoke BENCH_MODEL=data/models/foo.tflite BENCH_RUNS=100
 Smoke output lands in `results/smoke/` and is **validation evidence, not a
 measurement** — the iteration count is far too low to cite.
 
+### Comparing devices and backends
+
+Running the same model on several platforms and checking that they agree:
+
+```bash
+make platform-matrix \
+    MATRIX_MODEL=data/models/mobilenetv1_int8_ptq_Fuzzy.tflite \
+    MATRIX_TARGETS="x86=:cpu rpi-cpu=rpi:cpu rpi-tpu=rpi:edgetpu@~/models/mobilenetv1_int8_ptq_Fuzzy_edgetpu.tflite"
+```
+
+Targets are `name=host:backend[@model]`; an empty host means this machine, and
+`@model` is required for Edge TPU because it needs its own compiled
+`*_edgetpu.tflite` build. Remote targets need SSH and a TFLite runtime; the
+agent sources are copied to a temporary directory and removed afterwards.
+
+Besides latency and throughput per platform, the run compares **output
+signatures** — top-k indices and a dequantised checksum of the output tensor.
+This is the part a timing-only benchmark cannot do: an Edge TPU build that
+computes nonsense still reports excellent latency. The script exits non-zero
+when a backend disagrees on top-1.
+
+Measured example (MobileNetV1 INT8, 50 iterations, seed 42):
+
+| target | device | runtime | backend | mean | fps | agreement |
+|---|---|---|---|---|---|---|
+| x86 | workstation | ai-edge-litert | cpu | 0.99 ms | 1011 | reference |
+| rpi-cpu | Raspberry Pi 4 | tflite_runtime | cpu | 33.52 ms | 29.8 | same top-5, ΔL2 0.17% |
+| rpi-tpu | Raspberry Pi 4 + Coral | tflite_runtime | edgetpu | 4.72 ms | 211.9 | same top-5, ΔL2 0.17% |
+
+All three agree on the ranking; the sub-percent numeric spread is the expected
+consequence of different kernels and hardware. The Edge TPU build ran 7.1×
+faster than the same network on the Pi's CPU.
+
 ### Methodology notes
 
 - Warmup iterations are excluded from statistics.
@@ -527,6 +560,16 @@ excluded from no ignore file, but a partial checkout can miss it).
 
 ## Known limitations
 
+- **`c6_mobilenet_v2_int8.tflite` is not reproducible.** Given a byte-identical
+  input tensor it returns a different result on every fresh interpreter, while
+  `mobilenetv1_int8_ptq_Fuzzy.tflite` is stable across runs on the same input.
+  Numbers derived from that model cannot be reproduced and should not be
+  compared across devices until the cause is found. `make test-hardware`
+  detects this; select another model with `EDGEBENCH_TEST_MODEL`.
+- **Synthetic input is not real data.** The benchmark feeds seeded random
+  tensors of the model's own dtype. That is adequate for latency and memory,
+  but says nothing about accuracy, and the output signature only proves that
+  two devices agree with each other — not that either is correct.
 - **WebSocket channel is unauthenticated.** `/ws/experiments/{id}` does not
   require `X-Agent-Secret`; anyone on the network can subscribe to live
   metrics.
