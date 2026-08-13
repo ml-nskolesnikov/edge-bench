@@ -77,6 +77,12 @@ def parse_args() -> argparse.Namespace:
         action='store_true',
         help='Print the result without writing a file',
     )
+    parser.add_argument(
+        '--json-stdout',
+        action='store_true',
+        help='Emit the full result JSON on stdout (diagnostics stay on stderr). '
+        'Used by scripts/platform_matrix.py to collect results over SSH.',
+    )
     return parser.parse_args()
 
 
@@ -142,6 +148,11 @@ def main() -> int:
         print(json.dumps(result, indent=2, default=str))
         print(f'\nSmoke benchmark FAILED: {result.get("error")}', file=sys.stderr)
         return 1
+
+    if args.json_stdout:
+        # Machine-readable mode: stdout carries only the result document.
+        print(json.dumps(result, default=str))
+        return 0
 
     if not args.no_write:
         out_dir = Path(args.output_dir)

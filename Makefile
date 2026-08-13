@@ -24,10 +24,12 @@ BENCH_RUNS ?= 30
 BENCH_WARMUP ?= 5
 BENCH_BACKEND ?= cpu
 BENCH_OUT ?= results/smoke
+MATRIX_MODEL ?= data/models/mobilenetv1_int8_ptq_Fuzzy.tflite
+MATRIX_TARGETS ?= x86=:cpu
 
 .PHONY: help setup setup-venv install install-hardware dev run server \
 	lint format format-check typecheck test test-cov build ci check \
-	benchmark-smoke test-hardware \
+	benchmark-smoke test-hardware platform-matrix \
 	agent-deploy clean clean-pyc \
 	eccv-models eccv-benchmark eccv-rpi-benchmark check-rpi-host \
 	docker-login docker-build docker-build-no-cache docker-run docker-up docker-down docker-logs \
@@ -133,7 +135,16 @@ benchmark-smoke: ## Run a short real TFLite benchmark end-to-end (needs install-
 		--output-dir "$(BENCH_OUT)"
 
 test-hardware: ## Run tests that require a real TFLite runtime (skipped when unavailable)
+	@# Override the model with EDGEBENCH_TEST_MODEL=/path/to/model.tflite
 	$(POETRY) run pytest -m hardware -v
+
+platform-matrix: ## Compare one model across devices/backends (needs SSH + models)
+	@# Targets are name=host:backend[@model]; @model is required for Edge TPU,
+	@# which needs its own compiled *_edgetpu.tflite build.
+	$(POETRY) run python scripts/platform_matrix.py \
+		--model "$(MATRIX_MODEL)" \
+		$(foreach t,$(MATRIX_TARGETS),--target "$(t)") \
+		--runs "$(BENCH_RUNS)" --warmup "$(BENCH_WARMUP)"
 
 docker-login: ## Refresh Docker Hub auth (fixes expired token issues)
 	$(DOCKER) logout || true
