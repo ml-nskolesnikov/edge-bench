@@ -1,0 +1,45 @@
+{
+  "artefact": "deploy bundle: resnet50 INT8 ONNX + gallery",
+  "backbone": "resnet50",
+  "feature_dim": 2048,
+  "input_size": [
+    224,
+    224
+  ],
+  "quantization": {
+    "toolchain": "onnxruntime.quantization.quantize_static",
+    "quant_format": "QDQ",
+    "activation_type": "QUInt8",
+    "weight_type": "QInt8",
+    "per_channel": true,
+    "calibration_images": 512,
+    "calibration_source": "/data/plantvillage/color",
+    "caveat": "NOT bit-identical to the PyTorch FX-graph static PTQ model that produced macro-recall = 0.1925 in results/ptq_int8_20260531_080003. Same architecture and bit-width, different quantizer. Use for latency, not for accuracy claims."
+  },
+  "files": {
+    "fp32_onnx": {
+      "path": "c4_resnet50_fp32.onnx",
+      "mb": 93.957,
+      "sha256": "b2eac61a3acc8f552358293673d63956e6c02524f8429b0109c2d8c7481b0673"
+    },
+    "int8_onnx": {
+      "path": "c4_resnet50_int8.onnx",
+      "mb": 24.035,
+      "sha256": "674dd91065b69256925814313ffda441f859131c13dbdbb9afcca1ccae544365"
+    }
+  },
+  "gallery": {
+    "dir": "gallery",
+    "entries": 272,
+    "refs_per_class": 10,
+    "classes": 28,
+    "source": "/data/plantdoc/all",
+    "mb": 2.337
+  },
+  "deploy_mb": 26.371,
+  "seed": 42,
+  "git_revision": "f0929bfbc35316d9d45f5cc775edf57ef1589071",
+  "torch_version": "2.7.1+cu128",
+  "onnxruntime_version": "1.28.0",
+  "timestamp_utc": "2026-08-13T08:06:04.053185+00:00"
+}
