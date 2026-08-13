@@ -67,3 +67,7 @@ results/smoke/
 CLAUDE.md
 AGENTS.md
 .gitnexus
+
+# Session logs of development tooling: not project artefacts.
+.claude/logs/
+.idea/

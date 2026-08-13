@@ -1,0 +1,2429 @@
+{
+  "latency_c6_rpi4_cpu_e2e_p50_ms": 103.323,
+  "latency_c6_rpi4_cpu_e2e_p95_ms": 177.583,
+  "latency_c6_rpi4_cpu_preprocess_only_ms": 62.383,
+  "latency_c6_rpi4_cpu_knn_only_ms": 16.713,
+  "latency_c6_rpi4_cpu_gradcam_only_ms": 0.001,
+  "latency_c6_rpi4_cpu_e2e_fps": 5.581,
+  "latency_c6_rpi4_cpu_model_load_ms": 440.15,
+  "latency_c6_rpi4_cpu_cold_start_ms": 11569.41,
+  "latency_c6_rpi4_cpu_peak_rss_mb": 708.09,
+  "pooled_stage_stats_ms": {
+    "inference_ms": {
+      "n": 300,
+      "mean": 67.477,
+      "std": 26.759,
+      "min": 40.524,
+      "p50": 62.383,
+      "p90": 85.262,
+      "p95": 128.424,
+      "p99": 182.047,
+      "max": 195.258
+    },
+    "domain_adapt_ms": {
+      "n": 300,
+      "mean": 98.332,
+      "std": 723.007,
+      "min": 20.906,
+      "p50": 24.855,
+      "p90": 31.397,
+      "p95": 33.829,
+      "p99": 113.548,
+      "max": 7339.155
+    },
+    "retrieval_ms": {
+      "n": 300,
+      "mean": 13.421,
+      "std": 3.936,
+      "min": 8.757,
+      "p50": 16.713,
+      "p90": 16.815,
+      "p95": 16.865,
+      "p99": 20.787,
+      "max": 24.699
+    },
+    "xai_ms": {
+      "n": 300,
+      "mean": 0.001,
+      "std": 0.0,
+      "min": 0.001,
+      "p50": 0.001,
+      "p90": 0.002,
+      "p95": 0.002,
+      "p99": 0.002,
+      "max": 0.002
+    },
+    "total_ms": {
+      "n": 300,
+      "mean": 179.231,
+      "std": 722.135,
+      "min": 71.435,
+      "p50": 103.323,
+      "p90": 130.769,
+      "p95": 177.583,
+      "p99": 305.565,
+      "max": 7413.671
+    }
+  },
+  "repeats": [
+    {
+      "repeat": 0,
+      "stages": {
+        "inference_ms": {
+          "n": 100,
+          "mean": 64.781,
+          "std": 24.968,
+          "min": 40.524,
+          "p50": 60.145,
+          "p90": 82.919,
+          "p95": 101.939,
+          "p99": 167.452,
+          "max": 171.217
+        },
+        "domain_adapt_ms": {
+          "n": 100,
+          "mean": 96.393,
+          "std": 714.369,
+          "min": 20.92,
+          "p50": 24.242,
+          "p90": 30.81,
+          "p95": 31.791,
+          "p99": 112.729,
+          "max": 7168.537
+        },
+        "retrieval_ms": {
+          "n": 100,
+          "mean": 11.838,
+          "std": 3.762,
+          "min": 8.773,
+          "p50": 8.925,
+          "p90": 16.797,
+          "p95": 16.813,
+          "p99": 16.941,
+          "max": 20.785
+        },
+        "xai_ms": {
+          "n": 100,
+          "mean": 0.001,
+          "std": 0.0,
+          "min": 0.001,
+          "p50": 0.001,
+          "p90": 0.002,
+          "p95": 0.002,
+          "p99": 0.002,
+          "max": 0.002
+        },
+        "total_ms": {
+          "n": 100,
+          "mean": 173.013,
+          "std": 712.702,
+          "min": 71.435,
+          "p50": 97.327,
+          "p90": 130.267,
+          "p95": 177.582,
+          "p99": 274.304,
+          "max": 7224.223
+        }
+      },
+      "throughput_fps": 5.778,
+      "wall_clock_s": 17.308,
+      "cpu_user_s": 66.875,
+      "cpu_sys_s": 0.1,
+      "cpu_utilisation_cores": 3.87,
+      "peak_rss_mb": 707.64,
+      "temp_c": 51.1,
+      "throttled": "0x0",
+      "mean_total_ms": 173.013,
+      "raw_runs": [
+        {
+          "inference_ms": 58.823,
+          "domain_adapt_ms": 22.716,
+          "retrieval_ms": 8.847,
+          "xai_ms": 0.001,
+          "total_ms": 90.387
+        },
+        {
+          "inference_ms": 72.738,
+          "domain_adapt_ms": 22.323,
+          "retrieval_ms": 8.853,
+          "xai_ms": 0.002,
+          "total_ms": 103.915
+        },
+        {
+          "inference_ms": 50.118,
+          "domain_adapt_ms": 24.058,
+          "retrieval_ms": 8.939,
+          "xai_ms": 0.002,
+          "total_ms": 83.117
+        },
+        {
+          "inference_ms": 56.923,
+          "domain_adapt_ms": 26.117,
+          "retrieval_ms": 8.84,
+          "xai_ms": 0.002,
+          "total_ms": 91.881
+        },
+        {
+          "inference_ms": 55.036,
+          "domain_adapt_ms": 21.251,
+          "retrieval_ms": 8.808,
+          "xai_ms": 0.001,
+          "total_ms": 85.097
+        },
+        {
+          "inference_ms": 100.06,
+          "domain_adapt_ms": 23.483,
+          "retrieval_ms": 8.773,
+          "xai_ms": 0.002,
+          "total_ms": 132.318
+        },
+        {
+          "inference_ms": 62.548,
+          "domain_adapt_ms": 21.153,
+          "retrieval_ms": 8.82,
+          "xai_ms": 0.001,
+          "total_ms": 92.522
+        },
+        {
+          "inference_ms": 167.414,
+          "domain_adapt_ms": 22.363,
+          "retrieval_ms": 8.861,
+          "xai_ms": 0.001,
+          "total_ms": 198.639
+        },
+        {
+          "inference_ms": 55.503,
+          "domain_adapt_ms": 21.3,
+          "retrieval_ms": 8.871,
+          "xai_ms": 0.001,
+          "total_ms": 85.675
+        },
+        {
+          "inference_ms": 59.246,
+          "domain_adapt_ms": 25.316,
+          "retrieval_ms": 8.831,
+          "xai_ms": 0.001,
+          "total_ms": 93.394
+        },
+        {
+          "inference_ms": 62.845,
+          "domain_adapt_ms": 25.845,
+          "retrieval_ms": 12.819,
+          "xai_ms": 0.001,
+          "total_ms": 101.511
+        },
+        {
+          "inference_ms": 60.598,
+          "domain_adapt_ms": 22.509,
+          "retrieval_ms": 16.804,
+          "xai_ms": 0.001,
+          "total_ms": 99.913
+        },
+        {
+          "inference_ms": 86.891,
+          "domain_adapt_ms": 30.111,
+          "retrieval_ms": 16.751,
+          "xai_ms": 0.002,
+          "total_ms": 133.756
+        },
+        {
+          "inference_ms": 62.237,
+          "domain_adapt_ms": 23.069,
+          "retrieval_ms": 8.874,
+          "xai_ms": 0.002,
+          "total_ms": 94.182
+        },
+        {
+          "inference_ms": 45.01,
+          "domain_adapt_ms": 25.028,
+          "retrieval_ms": 8.85,
+          "xai_ms": 0.001,
+          "total_ms": 78.89
+        },
+        {
+          "inference_ms": 58.373,
+          "domain_adapt_ms": 21.443,
+          "retrieval_ms": 8.843,
+          "xai_ms": 0.001,
+          "total_ms": 88.66
+        },
+        {
+          "inference_ms": 52.951,
+          "domain_adapt_ms": 25.219,
+          "retrieval_ms": 8.933,
+          "xai_ms": 0.001,
+          "total_ms": 87.105
+        },
+        {
+          "inference_ms": 43.537,
+          "domain_adapt_ms": 21.866,
+          "retrieval_ms": 8.901,
+          "xai_ms": 0.001,
+          "total_ms": 74.306
+        },
+        {
+          "inference_ms": 48.333,
+          "domain_adapt_ms": 25.015,
+          "retrieval_ms": 16.794,
+          "xai_ms": 0.002,
+          "total_ms": 90.143
+        },
+        {
+          "inference_ms": 63.284,
+          "domain_adapt_ms": 23.452,
+          "retrieval_ms": 16.812,
+          "xai_ms": 0.002,
+          "total_ms": 103.549
+        },
+        {
+          "inference_ms": 79.106,
+          "domain_adapt_ms": 30.764,
+          "retrieval_ms": 16.865,
+          "xai_ms": 0.001,
+          "total_ms": 126.736
+        },
+        {
+          "inference_ms": 61.976,
+          "domain_adapt_ms": 25.11,
+          "retrieval_ms": 16.804,
+          "xai_ms": 0.001,
+          "total_ms": 103.891
+        },
+        {
+          "inference_ms": 68.873,
+          "domain_adapt_ms": 23.478,
+          "retrieval_ms": 16.784,
+          "xai_ms": 0.001,
+          "total_ms": 109.137
+        },
+        {
+          "inference_ms": 64.567,
+          "domain_adapt_ms": 22.568,
+          "retrieval_ms": 16.795,
+          "xai_ms": 0.001,
+          "total_ms": 103.931
+        },
+        {
+          "inference_ms": 62.224,
+          "domain_adapt_ms": 24.908,
+          "retrieval_ms": 13.092,
+          "xai_ms": 0.002,
+          "total_ms": 100.226
+        },
+        {
+          "inference_ms": 82.389,
+          "domain_adapt_ms": 25.266,
+          "retrieval_ms": 11.871,
+          "xai_ms": 0.001,
+          "total_ms": 119.528
+        },
+        {
+          "inference_ms": 60.882,
+          "domain_adapt_ms": 20.92,
+          "retrieval_ms": 8.987,
+          "xai_ms": 0.001,
+          "total_ms": 90.79
+        },
+        {
+          "inference_ms": 63.449,
+          "domain_adapt_ms": 24.942,
+          "retrieval_ms": 16.781,
+          "xai_ms": 0.001,
+          "total_ms": 105.173
+        },
+        {
+          "inference_ms": 63.916,
+          "domain_adapt_ms": 21.287,
+          "retrieval_ms": 8.865,
+          "xai_ms": 0.001,
+          "total_ms": 94.069
+        },
+        {
+          "inference_ms": 74.451,
+          "domain_adapt_ms": 21.258,
+          "retrieval_ms": 8.867,
+          "xai_ms": 0.002,
+          "total_ms": 104.578
+        },
+        {
+          "inference_ms": 46.789,
+          "domain_adapt_ms": 24.881,
+          "retrieval_ms": 8.837,
+          "xai_ms": 0.001,
+          "total_ms": 80.509
+        },
+        {
+          "inference_ms": 54.236,
+          "domain_adapt_ms": 31.223,
+          "retrieval_ms": 16.782,
+          "xai_ms": 0.001,
+          "total_ms": 102.242
+        },
+        {
+          "inference_ms": 65.493,
+          "domain_adapt_ms": 23.612,
+          "retrieval_ms": 8.83,
+          "xai_ms": 0.001,
+          "total_ms": 97.937
+        },
+        {
+          "inference_ms": 100.527,
+          "domain_adapt_ms": 22.948,
+          "retrieval_ms": 8.81,
+          "xai_ms": 0.002,
+          "total_ms": 132.288
+        },
+        {
+          "inference_ms": 49.574,
+          "domain_adapt_ms": 24.812,
+          "retrieval_ms": 8.833,
+          "xai_ms": 0.001,
+          "total_ms": 83.22
+        },
+        {
+          "inference_ms": 153.63,
+          "domain_adapt_ms": 25.262,
+          "retrieval_ms": 9.244,
+          "xai_ms": 0.001,
+          "total_ms": 188.137
+        },
+        {
+          "inference_ms": 58.046,
+          "domain_adapt_ms": 25.281,
+          "retrieval_ms": 9.995,
+          "xai_ms": 0.001,
+          "total_ms": 93.323
+        },
+        {
+          "inference_ms": 61.463,
+          "domain_adapt_ms": 31.579,
+          "retrieval_ms": 16.709,
+          "xai_ms": 0.001,
+          "total_ms": 109.753
+        },
+        {
+          "inference_ms": 50.817,
+          "domain_adapt_ms": 28.425,
+          "retrieval_ms": 16.798,
+          "xai_ms": 0.001,
+          "total_ms": 96.042
+        },
+        {
+          "inference_ms": 54.772,
+          "domain_adapt_ms": 27.18,
+          "retrieval_ms": 16.768,
+          "xai_ms": 0.001,
+          "total_ms": 98.722
+        },
+        {
+          "inference_ms": 78.446,
+          "domain_adapt_ms": 21.158,
+          "retrieval_ms": 8.83,
+          "xai_ms": 0.001,
+          "total_ms": 108.436
+        },
+        {
+          "inference_ms": 49.288,
+          "domain_adapt_ms": 21.88,
+          "retrieval_ms": 8.904,
+          "xai_ms": 0.001,
+          "total_ms": 80.073
+        },
+        {
+          "inference_ms": 41.149,
+          "domain_adapt_ms": 22.034,
+          "retrieval_ms": 8.917,
+          "xai_ms": 0.001,
+          "total_ms": 72.101
+        },
+        {
+          "inference_ms": 46.827,
+          "domain_adapt_ms": 7168.537,
+          "retrieval_ms": 8.857,
+          "xai_ms": 0.002,
+          "total_ms": 7224.223
+        },
+        {
+          "inference_ms": 59.711,
+          "domain_adapt_ms": 21.912,
+          "retrieval_ms": 8.809,
+          "xai_ms": 0.001,
+          "total_ms": 90.433
+        },
+        {
+          "inference_ms": 65.043,
+          "domain_adapt_ms": 21.427,
+          "retrieval_ms": 10.149,
+          "xai_ms": 0.002,
+          "total_ms": 96.621
+        },
+        {
+          "inference_ms": 60.58,
+          "domain_adapt_ms": 24.046,
+          "retrieval_ms": 9.382,
+          "xai_ms": 0.001,
+          "total_ms": 94.01
+        },
+        {
+          "inference_ms": 45.636,
+          "domain_adapt_ms": 25.066,
+          "retrieval_ms": 8.847,
+          "xai_ms": 0.001,
+          "total_ms": 79.551
+        },
+        {
+          "inference_ms": 62.037,
+          "domain_adapt_ms": 25.123,
+          "retrieval_ms": 8.821,
+          "xai_ms": 0.001,
+          "total_ms": 95.983
+        },
+        {
+          "inference_ms": 48.861,
+          "domain_adapt_ms": 41.458,
+          "retrieval_ms": 16.902,
+          "xai_ms": 0.001,
+          "total_ms": 107.222
+        },
+        {
+          "inference_ms": 83.611,
+          "domain_adapt_ms": 31.42,
+          "retrieval_ms": 16.775,
+          "xai_ms": 0.002,
+          "total_ms": 131.808
+        },
+        {
+          "inference_ms": 61.825,
+          "domain_adapt_ms": 23.512,
+          "retrieval_ms": 8.821,
+          "xai_ms": 0.001,
+          "total_ms": 94.159
+        },
+        {
+          "inference_ms": 44.591,
+          "domain_adapt_ms": 24.873,
+          "retrieval_ms": 8.822,
+          "xai_ms": 0.001,
+          "total_ms": 78.288
+        },
+        {
+          "inference_ms": 71.801,
+          "domain_adapt_ms": 27.193,
+          "retrieval_ms": 8.803,
+          "xai_ms": 0.001,
+          "total_ms": 107.799
+        },
+        {
+          "inference_ms": 54.38,
+          "domain_adapt_ms": 21.322,
+          "retrieval_ms": 8.794,
+          "xai_ms": 0.002,
+          "total_ms": 84.497
+        },
+        {
+          "inference_ms": 62.45,
+          "domain_adapt_ms": 21.167,
+          "retrieval_ms": 8.827,
+          "xai_ms": 0.001,
+          "total_ms": 92.445
+        },
+        {
+          "inference_ms": 52.908,
+          "domain_adapt_ms": 40.74,
+          "retrieval_ms": 16.787,
+          "xai_ms": 0.002,
+          "total_ms": 110.437
+        },
+        {
+          "inference_ms": 76.967,
+          "domain_adapt_ms": 23.471,
+          "retrieval_ms": 16.852,
+          "xai_ms": 0.002,
+          "total_ms": 117.292
+        },
+        {
+          "inference_ms": 63.199,
+          "domain_adapt_ms": 23.777,
+          "retrieval_ms": 8.774,
+          "xai_ms": 0.001,
+          "total_ms": 95.751
+        },
+        {
+          "inference_ms": 57.616,
+          "domain_adapt_ms": 24.426,
+          "retrieval_ms": 8.861,
+          "xai_ms": 0.001,
+          "total_ms": 90.904
+        },
+        {
+          "inference_ms": 57.896,
+          "domain_adapt_ms": 23.967,
+          "retrieval_ms": 16.841,
+          "xai_ms": 0.002,
+          "total_ms": 98.705
+        },
+        {
+          "inference_ms": 128.763,
+          "domain_adapt_ms": 31.463,
+          "retrieval_ms": 16.799,
+          "xai_ms": 0.002,
+          "total_ms": 177.027
+        },
+        {
+          "inference_ms": 56.839,
+          "domain_adapt_ms": 30.291,
+          "retrieval_ms": 16.793,
+          "xai_ms": 0.001,
+          "total_ms": 103.924
+        },
+        {
+          "inference_ms": 171.217,
+          "domain_adapt_ms": 24.042,
+          "retrieval_ms": 8.843,
+          "xai_ms": 0.002,
+          "total_ms": 204.103
+        },
+        {
+          "inference_ms": 42.669,
+          "domain_adapt_ms": 24.831,
+          "retrieval_ms": 8.844,
+          "xai_ms": 0.001,
+          "total_ms": 76.345
+        },
+        {
+          "inference_ms": 50.86,
+          "domain_adapt_ms": 22.346,
+          "retrieval_ms": 8.86,
+          "xai_ms": 0.001,
+          "total_ms": 82.068
+        },
+        {
+          "inference_ms": 41.871,
+          "domain_adapt_ms": 22.117,
+          "retrieval_ms": 8.885,
+          "xai_ms": 0.001,
+          "total_ms": 72.874
+        },
+        {
+          "inference_ms": 40.964,
+          "domain_adapt_ms": 35.814,
+          "retrieval_ms": 8.941,
+          "xai_ms": 0.001,
+          "total_ms": 85.72
+        },
+        {
+          "inference_ms": 73.843,
+          "domain_adapt_ms": 21.379,
+          "retrieval_ms": 12.18,
+          "xai_ms": 0.001,
+          "total_ms": 107.403
+        },
+        {
+          "inference_ms": 68.492,
+          "domain_adapt_ms": 25.76,
+          "retrieval_ms": 16.766,
+          "xai_ms": 0.001,
+          "total_ms": 111.02
+        },
+        {
+          "inference_ms": 52.614,
+          "domain_adapt_ms": 27.035,
+          "retrieval_ms": 16.786,
+          "xai_ms": 0.002,
+          "total_ms": 96.437
+        },
+        {
+          "inference_ms": 48.089,
+          "domain_adapt_ms": 21.159,
+          "retrieval_ms": 8.794,
+          "xai_ms": 0.001,
+          "total_ms": 78.044
+        },
+        {
+          "inference_ms": 42.008,
+          "domain_adapt_ms": 21.879,
+          "retrieval_ms": 8.834,
+          "xai_ms": 0.001,
+          "total_ms": 72.722
+        },
+        {
+          "inference_ms": 52.084,
+          "domain_adapt_ms": 28.872,
+          "retrieval_ms": 16.772,
+          "xai_ms": 0.001,
+          "total_ms": 97.729
+        },
+        {
+          "inference_ms": 57.697,
+          "domain_adapt_ms": 22.436,
+          "retrieval_ms": 16.79,
+          "xai_ms": 0.001,
+          "total_ms": 96.925
+        },
+        {
+          "inference_ms": 56.634,
+          "domain_adapt_ms": 25.582,
+          "retrieval_ms": 16.735,
+          "xai_ms": 0.001,
+          "total_ms": 98.952
+        },
+        {
+          "inference_ms": 70.023,
+          "domain_adapt_ms": 21.975,
+          "retrieval_ms": 16.717,
+          "xai_ms": 0.002,
+          "total_ms": 108.717
+        },
+        {
+          "inference_ms": 66.523,
+          "domain_adapt_ms": 23.881,
+          "retrieval_ms": 16.786,
+          "xai_ms": 0.001,
+          "total_ms": 107.192
+        },
+        {
+          "inference_ms": 68.428,
+          "domain_adapt_ms": 23.51,
+          "retrieval_ms": 16.776,
+          "xai_ms": 0.001,
+          "total_ms": 108.715
+        },
+        {
+          "inference_ms": 65.283,
+          "domain_adapt_ms": 23.248,
+          "retrieval_ms": 15.539,
+          "xai_ms": 0.001,
+          "total_ms": 104.071
+        },
+        {
+          "inference_ms": 63.782,
+          "domain_adapt_ms": 26.463,
+          "retrieval_ms": 12.852,
+          "xai_ms": 0.001,
+          "total_ms": 103.098
+        },
+        {
+          "inference_ms": 82.14,
+          "domain_adapt_ms": 24.933,
+          "retrieval_ms": 12.836,
+          "xai_ms": 0.002,
+          "total_ms": 119.911
+        },
+        {
+          "inference_ms": 67.34,
+          "domain_adapt_ms": 23.769,
+          "retrieval_ms": 8.826,
+          "xai_ms": 0.002,
+          "total_ms": 99.937
+        },
+        {
+          "inference_ms": 47.98,
+          "domain_adapt_ms": 23.113,
+          "retrieval_ms": 8.855,
+          "xai_ms": 0.001,
+          "total_ms": 79.95
+        },
+        {
+          "inference_ms": 49.484,
+          "domain_adapt_ms": 24.766,
+          "retrieval_ms": 8.845,
+          "xai_ms": 0.001,
+          "total_ms": 83.096
+        },
+        {
+          "inference_ms": 70.209,
+          "domain_adapt_ms": 24.617,
+          "retrieval_ms": 8.962,
+          "xai_ms": 0.001,
+          "total_ms": 103.789
+        },
+        {
+          "inference_ms": 56.98,
+          "domain_adapt_ms": 21.332,
+          "retrieval_ms": 8.913,
+          "xai_ms": 0.001,
+          "total_ms": 87.226
+        },
+        {
+          "inference_ms": 60.996,
+          "domain_adapt_ms": 21.207,
+          "retrieval_ms": 8.852,
+          "xai_ms": 0.002,
+          "total_ms": 91.056
+        },
+        {
+          "inference_ms": 52.063,
+          "domain_adapt_ms": 24.618,
+          "retrieval_ms": 8.794,
+          "xai_ms": 0.001,
+          "total_ms": 85.476
+        },
+        {
+          "inference_ms": 100.293,
+          "domain_adapt_ms": 20.96,
+          "retrieval_ms": 8.841,
+          "xai_ms": 0.001,
+          "total_ms": 130.096
+        },
+        {
+          "inference_ms": 44.937,
+          "domain_adapt_ms": 24.595,
+          "retrieval_ms": 8.822,
+          "xai_ms": 0.002,
+          "total_ms": 78.355
+        },
+        {
+          "inference_ms": 161.216,
+          "domain_adapt_ms": 26.025,
+          "retrieval_ms": 8.818,
+          "xai_ms": 0.001,
+          "total_ms": 196.061
+        },
+        {
+          "inference_ms": 43.615,
+          "domain_adapt_ms": 22.408,
+          "retrieval_ms": 8.989,
+          "xai_ms": 0.001,
+          "total_ms": 75.014
+        },
+        {
+          "inference_ms": 40.524,
+          "domain_adapt_ms": 22.016,
+          "retrieval_ms": 8.893,
+          "xai_ms": 0.002,
+          "total_ms": 71.435
+        },
+        {
+          "inference_ms": 43.218,
+          "domain_adapt_ms": 25.062,
+          "retrieval_ms": 8.801,
+          "xai_ms": 0.001,
+          "total_ms": 77.082
+        },
+        {
+          "inference_ms": 44.575,
+          "domain_adapt_ms": 36.725,
+          "retrieval_ms": 16.782,
+          "xai_ms": 0.001,
+          "total_ms": 98.083
+        },
+        {
+          "inference_ms": 82.842,
+          "domain_adapt_ms": 25.458,
+          "retrieval_ms": 16.763,
+          "xai_ms": 0.001,
+          "total_ms": 125.065
+        },
+        {
+          "inference_ms": 67.666,
+          "domain_adapt_ms": 31.501,
+          "retrieval_ms": 16.797,
+          "xai_ms": 0.001,
+          "total_ms": 115.965
+        },
+        {
+          "inference_ms": 48.616,
+          "domain_adapt_ms": 27.018,
+          "retrieval_ms": 16.785,
+          "xai_ms": 0.002,
+          "total_ms": 92.422
+        },
+        {
+          "inference_ms": 50.279,
+          "domain_adapt_ms": 27.209,
+          "retrieval_ms": 20.785,
+          "xai_ms": 0.001,
+          "total_ms": 98.275
+        }
+      ]
+    },
+    {
+      "repeat": 1,
+      "stages": {
+        "inference_ms": {
+          "n": 100,
+          "mean": 69.865,
+          "std": 28.5,
+          "min": 40.932,
+          "p50": 64.567,
+          "p90": 85.262,
+          "p95": 128.326,
+          "p99": 183.031,
+          "max": 195.258
+        },
+        "domain_adapt_ms": {
+          "n": 100,
+          "mean": 99.708,
+          "std": 731.269,
+          "min": 20.906,
+          "p50": 25.468,
+          "p90": 31.706,
+          "p95": 34.249,
+          "p99": 115.254,
+          "max": 7339.155
+        },
+        "retrieval_ms": {
+          "n": 100,
+          "mean": 14.873,
+          "std": 3.271,
+          "min": 8.757,
+          "p50": 16.773,
+          "p90": 16.814,
+          "p95": 16.851,
+          "p99": 20.793,
+          "max": 20.81
+        },
+        "xai_ms": {
+          "n": 100,
+          "mean": 0.001,
+          "std": 0.0,
+          "min": 0.001,
+          "p50": 0.001,
+          "p90": 0.002,
+          "p95": 0.002,
+          "p99": 0.002,
+          "max": 0.002
+        },
+        "total_ms": {
+          "n": 100,
+          "mean": 184.447,
+          "std": 730.78,
+          "min": 72.762,
+          "p50": 105.136,
+          "p90": 134.001,
+          "p95": 173.261,
+          "p99": 307.46,
+          "max": 7413.671
+        }
+      },
+      "throughput_fps": 5.42,
+      "wall_clock_s": 18.451,
+      "cpu_user_s": 70.284,
+      "cpu_sys_s": 0.128,
+      "cpu_utilisation_cores": 3.82,
+      "peak_rss_mb": 708.0,
+      "temp_c": 52.1,
+      "throttled": "0x0",
+      "mean_total_ms": 184.447,
+      "raw_runs": [
+        {
+          "inference_ms": 49.361,
+          "domain_adapt_ms": 22.118,
+          "retrieval_ms": 8.863,
+          "xai_ms": 0.002,
+          "total_ms": 80.344
+        },
+        {
+          "inference_ms": 76.134,
+          "domain_adapt_ms": 25.535,
+          "retrieval_ms": 16.828,
+          "xai_ms": 0.001,
+          "total_ms": 118.498
+        },
+        {
+          "inference_ms": 58.67,
+          "domain_adapt_ms": 23.474,
+          "retrieval_ms": 16.813,
+          "xai_ms": 0.002,
+          "total_ms": 98.959
+        },
+        {
+          "inference_ms": 68.695,
+          "domain_adapt_ms": 22.437,
+          "retrieval_ms": 16.781,
+          "xai_ms": 0.002,
+          "total_ms": 107.914
+        },
+        {
+          "inference_ms": 65.654,
+          "domain_adapt_ms": 22.778,
+          "retrieval_ms": 16.789,
+          "xai_ms": 0.002,
+          "total_ms": 105.222
+        },
+        {
+          "inference_ms": 129.594,
+          "domain_adapt_ms": 24.257,
+          "retrieval_ms": 12.744,
+          "xai_ms": 0.002,
+          "total_ms": 166.597
+        },
+        {
+          "inference_ms": 69.192,
+          "domain_adapt_ms": 23.622,
+          "retrieval_ms": 16.754,
+          "xai_ms": 0.002,
+          "total_ms": 109.569
+        },
+        {
+          "inference_ms": 195.258,
+          "domain_adapt_ms": 23.586,
+          "retrieval_ms": 16.834,
+          "xai_ms": 0.001,
+          "total_ms": 235.68
+        },
+        {
+          "inference_ms": 70.44,
+          "domain_adapt_ms": 30.158,
+          "retrieval_ms": 16.791,
+          "xai_ms": 0.001,
+          "total_ms": 117.39
+        },
+        {
+          "inference_ms": 48.913,
+          "domain_adapt_ms": 34.235,
+          "retrieval_ms": 16.811,
+          "xai_ms": 0.001,
+          "total_ms": 99.961
+        },
+        {
+          "inference_ms": 50.783,
+          "domain_adapt_ms": 28.346,
+          "retrieval_ms": 16.761,
+          "xai_ms": 0.002,
+          "total_ms": 95.891
+        },
+        {
+          "inference_ms": 60.986,
+          "domain_adapt_ms": 23.38,
+          "retrieval_ms": 16.73,
+          "xai_ms": 0.002,
+          "total_ms": 101.097
+        },
+        {
+          "inference_ms": 85.335,
+          "domain_adapt_ms": 25.853,
+          "retrieval_ms": 16.784,
+          "xai_ms": 0.002,
+          "total_ms": 127.975
+        },
+        {
+          "inference_ms": 66.257,
+          "domain_adapt_ms": 24.925,
+          "retrieval_ms": 12.779,
+          "xai_ms": 0.002,
+          "total_ms": 103.963
+        },
+        {
+          "inference_ms": 64.467,
+          "domain_adapt_ms": 22.683,
+          "retrieval_ms": 16.785,
+          "xai_ms": 0.002,
+          "total_ms": 103.936
+        },
+        {
+          "inference_ms": 48.659,
+          "domain_adapt_ms": 33.281,
+          "retrieval_ms": 16.773,
+          "xai_ms": 0.002,
+          "total_ms": 98.715
+        },
+        {
+          "inference_ms": 48.601,
+          "domain_adapt_ms": 27.776,
+          "retrieval_ms": 16.781,
+          "xai_ms": 0.002,
+          "total_ms": 93.159
+        },
+        {
+          "inference_ms": 55.378,
+          "domain_adapt_ms": 23.769,
+          "retrieval_ms": 16.781,
+          "xai_ms": 0.002,
+          "total_ms": 95.93
+        },
+        {
+          "inference_ms": 55.39,
+          "domain_adapt_ms": 23.783,
+          "retrieval_ms": 16.797,
+          "xai_ms": 0.001,
+          "total_ms": 95.971
+        },
+        {
+          "inference_ms": 55.345,
+          "domain_adapt_ms": 23.743,
+          "retrieval_ms": 16.837,
+          "xai_ms": 0.001,
+          "total_ms": 95.926
+        },
+        {
+          "inference_ms": 68.492,
+          "domain_adapt_ms": 22.626,
+          "retrieval_ms": 16.85,
+          "xai_ms": 0.001,
+          "total_ms": 107.969
+        },
+        {
+          "inference_ms": 67.381,
+          "domain_adapt_ms": 23.722,
+          "retrieval_ms": 12.871,
+          "xai_ms": 0.001,
+          "total_ms": 103.975
+        },
+        {
+          "inference_ms": 72.355,
+          "domain_adapt_ms": 22.687,
+          "retrieval_ms": 16.781,
+          "xai_ms": 0.001,
+          "total_ms": 111.824
+        },
+        {
+          "inference_ms": 67.362,
+          "domain_adapt_ms": 23.792,
+          "retrieval_ms": 12.814,
+          "xai_ms": 0.002,
+          "total_ms": 103.97
+        },
+        {
+          "inference_ms": 65.456,
+          "domain_adapt_ms": 28.451,
+          "retrieval_ms": 16.767,
+          "xai_ms": 0.002,
+          "total_ms": 110.675
+        },
+        {
+          "inference_ms": 78.109,
+          "domain_adapt_ms": 29.056,
+          "retrieval_ms": 16.791,
+          "xai_ms": 0.002,
+          "total_ms": 123.957
+        },
+        {
+          "inference_ms": 66.047,
+          "domain_adapt_ms": 23.724,
+          "retrieval_ms": 16.771,
+          "xai_ms": 0.002,
+          "total_ms": 106.543
+        },
+        {
+          "inference_ms": 56.137,
+          "domain_adapt_ms": 25.607,
+          "retrieval_ms": 16.732,
+          "xai_ms": 0.001,
+          "total_ms": 98.477
+        },
+        {
+          "inference_ms": 60.354,
+          "domain_adapt_ms": 22.859,
+          "retrieval_ms": 16.793,
+          "xai_ms": 0.001,
+          "total_ms": 100.007
+        },
+        {
+          "inference_ms": 76.758,
+          "domain_adapt_ms": 22.36,
+          "retrieval_ms": 8.804,
+          "xai_ms": 0.001,
+          "total_ms": 107.923
+        },
+        {
+          "inference_ms": 56.714,
+          "domain_adapt_ms": 22.411,
+          "retrieval_ms": 8.824,
+          "xai_ms": 0.002,
+          "total_ms": 87.951
+        },
+        {
+          "inference_ms": 63.997,
+          "domain_adapt_ms": 21.153,
+          "retrieval_ms": 8.857,
+          "xai_ms": 0.001,
+          "total_ms": 94.009
+        },
+        {
+          "inference_ms": 70.155,
+          "domain_adapt_ms": 25.691,
+          "retrieval_ms": 20.81,
+          "xai_ms": 0.001,
+          "total_ms": 116.658
+        },
+        {
+          "inference_ms": 115.423,
+          "domain_adapt_ms": 31.686,
+          "retrieval_ms": 16.785,
+          "xai_ms": 0.001,
+          "total_ms": 163.895
+        },
+        {
+          "inference_ms": 63.882,
+          "domain_adapt_ms": 31.263,
+          "retrieval_ms": 16.764,
+          "xai_ms": 0.001,
+          "total_ms": 111.911
+        },
+        {
+          "inference_ms": 180.447,
+          "domain_adapt_ms": 21.165,
+          "retrieval_ms": 8.757,
+          "xai_ms": 0.001,
+          "total_ms": 210.37
+        },
+        {
+          "inference_ms": 40.932,
+          "domain_adapt_ms": 25.101,
+          "retrieval_ms": 8.837,
+          "xai_ms": 0.002,
+          "total_ms": 74.872
+        },
+        {
+          "inference_ms": 42.076,
+          "domain_adapt_ms": 24.136,
+          "retrieval_ms": 8.927,
+          "xai_ms": 0.001,
+          "total_ms": 75.14
+        },
+        {
+          "inference_ms": 42.248,
+          "domain_adapt_ms": 25.253,
+          "retrieval_ms": 12.801,
+          "xai_ms": 0.001,
+          "total_ms": 80.302
+        },
+        {
+          "inference_ms": 63.967,
+          "domain_adapt_ms": 23.464,
+          "retrieval_ms": 16.767,
+          "xai_ms": 0.001,
+          "total_ms": 104.199
+        },
+        {
+          "inference_ms": 86.491,
+          "domain_adapt_ms": 31.462,
+          "retrieval_ms": 16.689,
+          "xai_ms": 0.001,
+          "total_ms": 134.643
+        },
+        {
+          "inference_ms": 56.909,
+          "domain_adapt_ms": 30.33,
+          "retrieval_ms": 16.772,
+          "xai_ms": 0.001,
+          "total_ms": 104.013
+        },
+        {
+          "inference_ms": 48.969,
+          "domain_adapt_ms": 34.193,
+          "retrieval_ms": 16.811,
+          "xai_ms": 0.001,
+          "total_ms": 99.974
+        },
+        {
+          "inference_ms": 48.586,
+          "domain_adapt_ms": 34.538,
+          "retrieval_ms": 16.748,
+          "xai_ms": 0.001,
+          "total_ms": 99.874
+        },
+        {
+          "inference_ms": 61.805,
+          "domain_adapt_ms": 25.4,
+          "retrieval_ms": 16.787,
+          "xai_ms": 0.002,
+          "total_ms": 103.993
+        },
+        {
+          "inference_ms": 61.702,
+          "domain_adapt_ms": 22.662,
+          "retrieval_ms": 16.788,
+          "xai_ms": 0.002,
+          "total_ms": 101.154
+        },
+        {
+          "inference_ms": 66.305,
+          "domain_adapt_ms": 24.836,
+          "retrieval_ms": 12.821,
+          "xai_ms": 0.001,
+          "total_ms": 103.963
+        },
+        {
+          "inference_ms": 55.361,
+          "domain_adapt_ms": 34.522,
+          "retrieval_ms": 16.754,
+          "xai_ms": 0.001,
+          "total_ms": 106.639
+        },
+        {
+          "inference_ms": 68.403,
+          "domain_adapt_ms": 30.774,
+          "retrieval_ms": 16.776,
+          "xai_ms": 0.002,
+          "total_ms": 115.955
+        },
+        {
+          "inference_ms": 60.873,
+          "domain_adapt_ms": 30.279,
+          "retrieval_ms": 16.74,
+          "xai_ms": 0.002,
+          "total_ms": 107.893
+        },
+        {
+          "inference_ms": 65.117,
+          "domain_adapt_ms": 30.076,
+          "retrieval_ms": 17.11,
+          "xai_ms": 0.002,
+          "total_ms": 112.305
+        },
+        {
+          "inference_ms": 65.698,
+          "domain_adapt_ms": 7339.155,
+          "retrieval_ms": 8.816,
+          "xai_ms": 0.002,
+          "total_ms": 7413.671
+        },
+        {
+          "inference_ms": 82.084,
+          "domain_adapt_ms": 30.998,
+          "retrieval_ms": 16.789,
+          "xai_ms": 0.002,
+          "total_ms": 129.873
+        },
+        {
+          "inference_ms": 73.632,
+          "domain_adapt_ms": 25.536,
+          "retrieval_ms": 16.763,
+          "xai_ms": 0.001,
+          "total_ms": 115.932
+        },
+        {
+          "inference_ms": 64.263,
+          "domain_adapt_ms": 20.906,
+          "retrieval_ms": 8.817,
+          "xai_ms": 0.002,
+          "total_ms": 93.988
+        },
+        {
+          "inference_ms": 57.514,
+          "domain_adapt_ms": 21.292,
+          "retrieval_ms": 8.769,
+          "xai_ms": 0.002,
+          "total_ms": 87.576
+        },
+        {
+          "inference_ms": 65.864,
+          "domain_adapt_ms": 21.105,
+          "retrieval_ms": 8.825,
+          "xai_ms": 0.002,
+          "total_ms": 95.795
+        },
+        {
+          "inference_ms": 73.419,
+          "domain_adapt_ms": 22.127,
+          "retrieval_ms": 8.844,
+          "xai_ms": 0.002,
+          "total_ms": 104.391
+        },
+        {
+          "inference_ms": 42.615,
+          "domain_adapt_ms": 23.426,
+          "retrieval_ms": 8.816,
+          "xai_ms": 0.002,
+          "total_ms": 74.859
+        },
+        {
+          "inference_ms": 66.613,
+          "domain_adapt_ms": 21.167,
+          "retrieval_ms": 8.79,
+          "xai_ms": 0.001,
+          "total_ms": 96.571
+        },
+        {
+          "inference_ms": 51.036,
+          "domain_adapt_ms": 23.159,
+          "retrieval_ms": 16.797,
+          "xai_ms": 0.002,
+          "total_ms": 90.994
+        },
+        {
+          "inference_ms": 124.129,
+          "domain_adapt_ms": 30.379,
+          "retrieval_ms": 16.798,
+          "xai_ms": 0.002,
+          "total_ms": 171.308
+        },
+        {
+          "inference_ms": 57.154,
+          "domain_adapt_ms": 29.981,
+          "retrieval_ms": 16.798,
+          "xai_ms": 0.001,
+          "total_ms": 103.934
+        },
+        {
+          "inference_ms": 182.907,
+          "domain_adapt_ms": 22.79,
+          "retrieval_ms": 8.865,
+          "xai_ms": 0.001,
+          "total_ms": 214.563
+        },
+        {
+          "inference_ms": 41.971,
+          "domain_adapt_ms": 21.879,
+          "retrieval_ms": 8.911,
+          "xai_ms": 0.002,
+          "total_ms": 72.762
+        },
+        {
+          "inference_ms": 53.159,
+          "domain_adapt_ms": 21.96,
+          "retrieval_ms": 8.839,
+          "xai_ms": 0.001,
+          "total_ms": 83.96
+        },
+        {
+          "inference_ms": 41.38,
+          "domain_adapt_ms": 42.285,
+          "retrieval_ms": 16.8,
+          "xai_ms": 0.001,
+          "total_ms": 100.467
+        },
+        {
+          "inference_ms": 48.637,
+          "domain_adapt_ms": 24.501,
+          "retrieval_ms": 16.791,
+          "xai_ms": 0.001,
+          "total_ms": 89.93
+        },
+        {
+          "inference_ms": 85.254,
+          "domain_adapt_ms": 31.882,
+          "retrieval_ms": 16.793,
+          "xai_ms": 0.002,
+          "total_ms": 133.93
+        },
+        {
+          "inference_ms": 64.869,
+          "domain_adapt_ms": 30.27,
+          "retrieval_ms": 16.901,
+          "xai_ms": 0.002,
+          "total_ms": 112.041
+        },
+        {
+          "inference_ms": 59.742,
+          "domain_adapt_ms": 28.494,
+          "retrieval_ms": 16.813,
+          "xai_ms": 0.001,
+          "total_ms": 105.051
+        },
+        {
+          "inference_ms": 54.962,
+          "domain_adapt_ms": 30.952,
+          "retrieval_ms": 16.792,
+          "xai_ms": 0.001,
+          "total_ms": 102.708
+        },
+        {
+          "inference_ms": 62.277,
+          "domain_adapt_ms": 28.864,
+          "retrieval_ms": 16.794,
+          "xai_ms": 0.001,
+          "total_ms": 107.937
+        },
+        {
+          "inference_ms": 63.202,
+          "domain_adapt_ms": 29.164,
+          "retrieval_ms": 16.801,
+          "xai_ms": 0.001,
+          "total_ms": 109.168
+        },
+        {
+          "inference_ms": 63.835,
+          "domain_adapt_ms": 24.88,
+          "retrieval_ms": 12.845,
+          "xai_ms": 0.001,
+          "total_ms": 101.562
+        },
+        {
+          "inference_ms": 68.938,
+          "domain_adapt_ms": 25.872,
+          "retrieval_ms": 12.801,
+          "xai_ms": 0.001,
+          "total_ms": 107.612
+        },
+        {
+          "inference_ms": 72.774,
+          "domain_adapt_ms": 25.846,
+          "retrieval_ms": 12.835,
+          "xai_ms": 0.001,
+          "total_ms": 111.456
+        },
+        {
+          "inference_ms": 54.537,
+          "domain_adapt_ms": 24.605,
+          "retrieval_ms": 16.79,
+          "xai_ms": 0.001,
+          "total_ms": 95.934
+        },
+        {
+          "inference_ms": 64.96,
+          "domain_adapt_ms": 26.129,
+          "retrieval_ms": 16.797,
+          "xai_ms": 0.001,
+          "total_ms": 107.886
+        },
+        {
+          "inference_ms": 66.455,
+          "domain_adapt_ms": 27.898,
+          "retrieval_ms": 20.793,
+          "xai_ms": 0.001,
+          "total_ms": 115.147
+        },
+        {
+          "inference_ms": 57.153,
+          "domain_adapt_ms": 28.765,
+          "retrieval_ms": 16.805,
+          "xai_ms": 0.002,
+          "total_ms": 102.725
+        },
+        {
+          "inference_ms": 75.021,
+          "domain_adapt_ms": 28.1,
+          "retrieval_ms": 16.819,
+          "xai_ms": 0.002,
+          "total_ms": 119.942
+        },
+        {
+          "inference_ms": 64.176,
+          "domain_adapt_ms": 24.98,
+          "retrieval_ms": 16.796,
+          "xai_ms": 0.001,
+          "total_ms": 105.953
+        },
+        {
+          "inference_ms": 61.772,
+          "domain_adapt_ms": 25.844,
+          "retrieval_ms": 12.847,
+          "xai_ms": 0.001,
+          "total_ms": 100.463
+        },
+        {
+          "inference_ms": 73.185,
+          "domain_adapt_ms": 28.61,
+          "retrieval_ms": 16.8,
+          "xai_ms": 0.001,
+          "total_ms": 118.597
+        },
+        {
+          "inference_ms": 80.318,
+          "domain_adapt_ms": 29.597,
+          "retrieval_ms": 16.753,
+          "xai_ms": 0.001,
+          "total_ms": 126.67
+        },
+        {
+          "inference_ms": 64.668,
+          "domain_adapt_ms": 30.507,
+          "retrieval_ms": 16.764,
+          "xai_ms": 0.001,
+          "total_ms": 111.941
+        },
+        {
+          "inference_ms": 64.904,
+          "domain_adapt_ms": 24.315,
+          "retrieval_ms": 16.708,
+          "xai_ms": 0.002,
+          "total_ms": 105.927
+        },
+        {
+          "inference_ms": 72.467,
+          "domain_adapt_ms": 24.721,
+          "retrieval_ms": 16.791,
+          "xai_ms": 0.001,
+          "total_ms": 113.981
+        },
+        {
+          "inference_ms": 128.259,
+          "domain_adapt_ms": 28.291,
+          "retrieval_ms": 8.829,
+          "xai_ms": 0.002,
+          "total_ms": 165.381
+        },
+        {
+          "inference_ms": 44.699,
+          "domain_adapt_ms": 38.212,
+          "retrieval_ms": 16.874,
+          "xai_ms": 0.001,
+          "total_ms": 99.787
+        },
+        {
+          "inference_ms": 182.434,
+          "domain_adapt_ms": 31.394,
+          "retrieval_ms": 12.817,
+          "xai_ms": 0.001,
+          "total_ms": 226.646
+        },
+        {
+          "inference_ms": 52.07,
+          "domain_adapt_ms": 24.284,
+          "retrieval_ms": 8.781,
+          "xai_ms": 0.002,
+          "total_ms": 85.136
+        },
+        {
+          "inference_ms": 68.593,
+          "domain_adapt_ms": 33.328,
+          "retrieval_ms": 16.745,
+          "xai_ms": 0.001,
+          "total_ms": 118.667
+        },
+        {
+          "inference_ms": 60.961,
+          "domain_adapt_ms": 30.228,
+          "retrieval_ms": 16.789,
+          "xai_ms": 0.001,
+          "total_ms": 107.979
+        },
+        {
+          "inference_ms": 66.249,
+          "domain_adapt_ms": 28.895,
+          "retrieval_ms": 15.965,
+          "xai_ms": 0.001,
+          "total_ms": 111.11
+        },
+        {
+          "inference_ms": 81.555,
+          "domain_adapt_ms": 24.431,
+          "retrieval_ms": 16.786,
+          "xai_ms": 0.001,
+          "total_ms": 122.773
+        },
+        {
+          "inference_ms": 70.708,
+          "domain_adapt_ms": 23.478,
+          "retrieval_ms": 16.774,
+          "xai_ms": 0.001,
+          "total_ms": 110.961
+        },
+        {
+          "inference_ms": 57.389,
+          "domain_adapt_ms": 26.745,
+          "retrieval_ms": 12.812,
+          "xai_ms": 0.002,
+          "total_ms": 96.948
+        },
+        {
+          "inference_ms": 64.079,
+          "domain_adapt_ms": 23.53,
+          "retrieval_ms": 16.795,
+          "xai_ms": 0.002,
+          "total_ms": 104.405
+        }
+      ]
+    },
+    {
+      "repeat": 2,
+      "stages": {
+        "inference_ms": {
+          "n": 100,
+          "mean": 67.784,
+          "std": 26.715,
+          "min": 41.446,
+          "p50": 62.705,
+          "p90": 85.43,
+          "p95": 128.424,
+          "p99": 180.37,
+          "max": 182.043
+        },
+        "domain_adapt_ms": {
+          "n": 100,
+          "mean": 98.896,
+          "std": 730.544,
+          "min": 21.072,
+          "p50": 24.883,
+          "p90": 30.927,
+          "p95": 32.94,
+          "p99": 110.343,
+          "max": 7331.206
+        },
+        "retrieval_ms": {
+          "n": 100,
+          "mean": 13.551,
+          "std": 4.153,
+          "min": 8.761,
+          "p50": 16.735,
+          "p90": 16.837,
+          "p95": 16.983,
+          "p99": 20.826,
+          "max": 24.699
+        },
+        "xai_ms": {
+          "n": 100,
+          "mean": 0.001,
+          "std": 0.0,
+          "min": 0.001,
+          "p50": 0.001,
+          "p90": 0.002,
+          "p95": 0.002,
+          "p99": 0.002,
+          "max": 0.002
+        },
+        "total_ms": {
+          "n": 100,
+          "mean": 180.233,
+          "std": 730.013,
+          "min": 74.327,
+          "p50": 103.906,
+          "p90": 128.208,
+          "p95": 170.448,
+          "p99": 299.777,
+          "max": 7402.284
+        }
+      },
+      "throughput_fps": 5.546,
+      "wall_clock_s": 18.03,
+      "cpu_user_s": 68.897,
+      "cpu_sys_s": 0.148,
+      "cpu_utilisation_cores": 3.83,
+      "peak_rss_mb": 708.09,
+      "temp_c": 54.0,
+      "throttled": "0x0",
+      "mean_total_ms": 180.233,
+      "raw_runs": [
+        {
+          "inference_ms": 49.109,
+          "domain_adapt_ms": 31.753,
+          "retrieval_ms": 16.759,
+          "xai_ms": 0.001,
+          "total_ms": 97.622
+        },
+        {
+          "inference_ms": 84.394,
+          "domain_adapt_ms": 25.567,
+          "retrieval_ms": 16.816,
+          "xai_ms": 0.001,
+          "total_ms": 126.779
+        },
+        {
+          "inference_ms": 61.008,
+          "domain_adapt_ms": 30.095,
+          "retrieval_ms": 13.962,
+          "xai_ms": 0.002,
+          "total_ms": 105.066
+        },
+        {
+          "inference_ms": 67.679,
+          "domain_adapt_ms": 23.525,
+          "retrieval_ms": 16.859,
+          "xai_ms": 0.001,
+          "total_ms": 108.065
+        },
+        {
+          "inference_ms": 65.368,
+          "domain_adapt_ms": 28.475,
+          "retrieval_ms": 16.737,
+          "xai_ms": 0.001,
+          "total_ms": 110.582
+        },
+        {
+          "inference_ms": 128.43,
+          "domain_adapt_ms": 23.984,
+          "retrieval_ms": 16.767,
+          "xai_ms": 0.002,
+          "total_ms": 169.183
+        },
+        {
+          "inference_ms": 60.773,
+          "domain_adapt_ms": 26.388,
+          "retrieval_ms": 16.75,
+          "xai_ms": 0.002,
+          "total_ms": 103.913
+        },
+        {
+          "inference_ms": 179.143,
+          "domain_adapt_ms": 21.072,
+          "retrieval_ms": 8.851,
+          "xai_ms": 0.001,
+          "total_ms": 209.067
+        },
+        {
+          "inference_ms": 48.461,
+          "domain_adapt_ms": 24.714,
+          "retrieval_ms": 8.803,
+          "xai_ms": 0.002,
+          "total_ms": 81.98
+        },
+        {
+          "inference_ms": 46.443,
+          "domain_adapt_ms": 24.819,
+          "retrieval_ms": 8.852,
+          "xai_ms": 0.001,
+          "total_ms": 80.115
+        },
+        {
+          "inference_ms": 42.243,
+          "domain_adapt_ms": 24.587,
+          "retrieval_ms": 8.899,
+          "xai_ms": 0.001,
+          "total_ms": 75.731
+        },
+        {
+          "inference_ms": 70.544,
+          "domain_adapt_ms": 23.151,
+          "retrieval_ms": 16.795,
+          "xai_ms": 0.001,
+          "total_ms": 110.491
+        },
+        {
+          "inference_ms": 79.603,
+          "domain_adapt_ms": 23.039,
+          "retrieval_ms": 8.833,
+          "xai_ms": 0.002,
+          "total_ms": 111.477
+        },
+        {
+          "inference_ms": 57.958,
+          "domain_adapt_ms": 21.435,
+          "retrieval_ms": 8.862,
+          "xai_ms": 0.001,
+          "total_ms": 88.256
+        },
+        {
+          "inference_ms": 56.836,
+          "domain_adapt_ms": 21.292,
+          "retrieval_ms": 8.842,
+          "xai_ms": 0.002,
+          "total_ms": 86.972
+        },
+        {
+          "inference_ms": 65.537,
+          "domain_adapt_ms": 25.05,
+          "retrieval_ms": 8.865,
+          "xai_ms": 0.002,
+          "total_ms": 99.453
+        },
+        {
+          "inference_ms": 43.291,
+          "domain_adapt_ms": 22.119,
+          "retrieval_ms": 8.915,
+          "xai_ms": 0.002,
+          "total_ms": 74.327
+        },
+        {
+          "inference_ms": 48.49,
+          "domain_adapt_ms": 33.81,
+          "retrieval_ms": 16.88,
+          "xai_ms": 0.002,
+          "total_ms": 99.182
+        },
+        {
+          "inference_ms": 59.17,
+          "domain_adapt_ms": 25.071,
+          "retrieval_ms": 8.861,
+          "xai_ms": 0.002,
+          "total_ms": 93.104
+        },
+        {
+          "inference_ms": 46.709,
+          "domain_adapt_ms": 24.76,
+          "retrieval_ms": 8.831,
+          "xai_ms": 0.002,
+          "total_ms": 80.302
+        },
+        {
+          "inference_ms": 62.286,
+          "domain_adapt_ms": 24.783,
+          "retrieval_ms": 8.871,
+          "xai_ms": 0.001,
+          "total_ms": 95.942
+        },
+        {
+          "inference_ms": 50.57,
+          "domain_adapt_ms": 24.693,
+          "retrieval_ms": 8.838,
+          "xai_ms": 0.001,
+          "total_ms": 84.102
+        },
+        {
+          "inference_ms": 54.184,
+          "domain_adapt_ms": 24.726,
+          "retrieval_ms": 8.841,
+          "xai_ms": 0.001,
+          "total_ms": 87.753
+        },
+        {
+          "inference_ms": 67.759,
+          "domain_adapt_ms": 25.799,
+          "retrieval_ms": 16.857,
+          "xai_ms": 0.001,
+          "total_ms": 110.417
+        },
+        {
+          "inference_ms": 65.881,
+          "domain_adapt_ms": 25.181,
+          "retrieval_ms": 16.781,
+          "xai_ms": 0.001,
+          "total_ms": 107.844
+        },
+        {
+          "inference_ms": 74.334,
+          "domain_adapt_ms": 24.581,
+          "retrieval_ms": 8.865,
+          "xai_ms": 0.001,
+          "total_ms": 107.782
+        },
+        {
+          "inference_ms": 52.371,
+          "domain_adapt_ms": 22.275,
+          "retrieval_ms": 8.847,
+          "xai_ms": 0.001,
+          "total_ms": 83.494
+        },
+        {
+          "inference_ms": 44.491,
+          "domain_adapt_ms": 24.901,
+          "retrieval_ms": 12.805,
+          "xai_ms": 0.001,
+          "total_ms": 82.199
+        },
+        {
+          "inference_ms": 65.586,
+          "domain_adapt_ms": 26.229,
+          "retrieval_ms": 16.705,
+          "xai_ms": 0.001,
+          "total_ms": 108.521
+        },
+        {
+          "inference_ms": 82.058,
+          "domain_adapt_ms": 24.837,
+          "retrieval_ms": 16.729,
+          "xai_ms": 0.002,
+          "total_ms": 123.626
+        },
+        {
+          "inference_ms": 61.852,
+          "domain_adapt_ms": 25.888,
+          "retrieval_ms": 16.78,
+          "xai_ms": 0.001,
+          "total_ms": 104.522
+        },
+        {
+          "inference_ms": 64.175,
+          "domain_adapt_ms": 21.228,
+          "retrieval_ms": 8.912,
+          "xai_ms": 0.002,
+          "total_ms": 94.317
+        },
+        {
+          "inference_ms": 67.797,
+          "domain_adapt_ms": 21.315,
+          "retrieval_ms": 8.836,
+          "xai_ms": 0.001,
+          "total_ms": 97.948
+        },
+        {
+          "inference_ms": 100.346,
+          "domain_adapt_ms": 22.491,
+          "retrieval_ms": 8.844,
+          "xai_ms": 0.001,
+          "total_ms": 131.683
+        },
+        {
+          "inference_ms": 53.667,
+          "domain_adapt_ms": 35.929,
+          "retrieval_ms": 24.699,
+          "xai_ms": 0.001,
+          "total_ms": 114.296
+        },
+        {
+          "inference_ms": 180.353,
+          "domain_adapt_ms": 30.888,
+          "retrieval_ms": 16.792,
+          "xai_ms": 0.002,
+          "total_ms": 228.034
+        },
+        {
+          "inference_ms": 50.09,
+          "domain_adapt_ms": 33.041,
+          "retrieval_ms": 16.753,
+          "xai_ms": 0.001,
+          "total_ms": 99.885
+        },
+        {
+          "inference_ms": 60.707,
+          "domain_adapt_ms": 30.483,
+          "retrieval_ms": 16.764,
+          "xai_ms": 0.001,
+          "total_ms": 107.955
+        },
+        {
+          "inference_ms": 50.82,
+          "domain_adapt_ms": 23.233,
+          "retrieval_ms": 16.783,
+          "xai_ms": 0.001,
+          "total_ms": 90.837
+        },
+        {
+          "inference_ms": 60.149,
+          "domain_adapt_ms": 32.118,
+          "retrieval_ms": 16.795,
+          "xai_ms": 0.002,
+          "total_ms": 109.063
+        },
+        {
+          "inference_ms": 81.687,
+          "domain_adapt_ms": 29.458,
+          "retrieval_ms": 16.788,
+          "xai_ms": 0.002,
+          "total_ms": 127.935
+        },
+        {
+          "inference_ms": 63.986,
+          "domain_adapt_ms": 21.181,
+          "retrieval_ms": 8.874,
+          "xai_ms": 0.001,
+          "total_ms": 94.042
+        },
+        {
+          "inference_ms": 45.952,
+          "domain_adapt_ms": 22.155,
+          "retrieval_ms": 8.833,
+          "xai_ms": 0.002,
+          "total_ms": 76.942
+        },
+        {
+          "inference_ms": 41.446,
+          "domain_adapt_ms": 37.405,
+          "retrieval_ms": 16.803,
+          "xai_ms": 0.002,
+          "total_ms": 95.655
+        },
+        {
+          "inference_ms": 62.766,
+          "domain_adapt_ms": 24.382,
+          "retrieval_ms": 20.757,
+          "xai_ms": 0.002,
+          "total_ms": 107.907
+        },
+        {
+          "inference_ms": 59.56,
+          "domain_adapt_ms": 25.091,
+          "retrieval_ms": 16.81,
+          "xai_ms": 0.001,
+          "total_ms": 101.462
+        },
+        {
+          "inference_ms": 65.869,
+          "domain_adapt_ms": 27.773,
+          "retrieval_ms": 16.835,
+          "xai_ms": 0.001,
+          "total_ms": 110.478
+        },
+        {
+          "inference_ms": 66.851,
+          "domain_adapt_ms": 29.368,
+          "retrieval_ms": 16.811,
+          "xai_ms": 0.002,
+          "total_ms": 113.031
+        },
+        {
+          "inference_ms": 67.844,
+          "domain_adapt_ms": 31.278,
+          "retrieval_ms": 16.786,
+          "xai_ms": 0.001,
+          "total_ms": 115.91
+        },
+        {
+          "inference_ms": 63.638,
+          "domain_adapt_ms": 28.78,
+          "retrieval_ms": 16.819,
+          "xai_ms": 0.002,
+          "total_ms": 109.238
+        },
+        {
+          "inference_ms": 67.291,
+          "domain_adapt_ms": 25.459,
+          "retrieval_ms": 8.808,
+          "xai_ms": 0.002,
+          "total_ms": 101.56
+        },
+        {
+          "inference_ms": 49.362,
+          "domain_adapt_ms": 22.013,
+          "retrieval_ms": 8.934,
+          "xai_ms": 0.001,
+          "total_ms": 80.311
+        },
+        {
+          "inference_ms": 51.502,
+          "domain_adapt_ms": 24.582,
+          "retrieval_ms": 8.799,
+          "xai_ms": 0.001,
+          "total_ms": 84.885
+        },
+        {
+          "inference_ms": 69.215,
+          "domain_adapt_ms": 29.675,
+          "retrieval_ms": 16.76,
+          "xai_ms": 0.001,
+          "total_ms": 115.651
+        },
+        {
+          "inference_ms": 78.299,
+          "domain_adapt_ms": 24.941,
+          "retrieval_ms": 16.794,
+          "xai_ms": 0.001,
+          "total_ms": 120.035
+        },
+        {
+          "inference_ms": 50.333,
+          "domain_adapt_ms": 30.709,
+          "retrieval_ms": 16.814,
+          "xai_ms": 0.002,
+          "total_ms": 97.858
+        },
+        {
+          "inference_ms": 62.283,
+          "domain_adapt_ms": 26.878,
+          "retrieval_ms": 16.78,
+          "xai_ms": 0.001,
+          "total_ms": 105.942
+        },
+        {
+          "inference_ms": 85.856,
+          "domain_adapt_ms": 23.522,
+          "retrieval_ms": 8.828,
+          "xai_ms": 0.001,
+          "total_ms": 118.207
+        },
+        {
+          "inference_ms": 44.491,
+          "domain_adapt_ms": 24.844,
+          "retrieval_ms": 8.765,
+          "xai_ms": 0.001,
+          "total_ms": 78.102
+        },
+        {
+          "inference_ms": 62.316,
+          "domain_adapt_ms": 7331.206,
+          "retrieval_ms": 8.761,
+          "xai_ms": 0.001,
+          "total_ms": 7402.284
+        },
+        {
+          "inference_ms": 64.689,
+          "domain_adapt_ms": 22.116,
+          "retrieval_ms": 8.843,
+          "xai_ms": 0.002,
+          "total_ms": 95.65
+        },
+        {
+          "inference_ms": 100.293,
+          "domain_adapt_ms": 28.581,
+          "retrieval_ms": 8.762,
+          "xai_ms": 0.001,
+          "total_ms": 137.637
+        },
+        {
+          "inference_ms": 62.273,
+          "domain_adapt_ms": 28.923,
+          "retrieval_ms": 10.17,
+          "xai_ms": 0.001,
+          "total_ms": 101.368
+        },
+        {
+          "inference_ms": 160.985,
+          "domain_adapt_ms": 24.711,
+          "retrieval_ms": 8.778,
+          "xai_ms": 0.001,
+          "total_ms": 194.475
+        },
+        {
+          "inference_ms": 49.135,
+          "domain_adapt_ms": 23.061,
+          "retrieval_ms": 8.83,
+          "xai_ms": 0.001,
+          "total_ms": 81.028
+        },
+        {
+          "inference_ms": 46.493,
+          "domain_adapt_ms": 24.866,
+          "retrieval_ms": 8.789,
+          "xai_ms": 0.001,
+          "total_ms": 80.15
+        },
+        {
+          "inference_ms": 49.951,
+          "domain_adapt_ms": 32.935,
+          "retrieval_ms": 12.842,
+          "xai_ms": 0.001,
+          "total_ms": 95.73
+        },
+        {
+          "inference_ms": 63.838,
+          "domain_adapt_ms": 23.26,
+          "retrieval_ms": 16.815,
+          "xai_ms": 0.002,
+          "total_ms": 103.915
+        },
+        {
+          "inference_ms": 85.681,
+          "domain_adapt_ms": 28.201,
+          "retrieval_ms": 16.783,
+          "xai_ms": 0.001,
+          "total_ms": 130.667
+        },
+        {
+          "inference_ms": 61.252,
+          "domain_adapt_ms": 23.096,
+          "retrieval_ms": 16.803,
+          "xai_ms": 0.001,
+          "total_ms": 101.153
+        },
+        {
+          "inference_ms": 60.107,
+          "domain_adapt_ms": 23.031,
+          "retrieval_ms": 16.797,
+          "xai_ms": 0.001,
+          "total_ms": 99.937
+        },
+        {
+          "inference_ms": 48.638,
+          "domain_adapt_ms": 28.233,
+          "retrieval_ms": 20.787,
+          "xai_ms": 0.001,
+          "total_ms": 97.66
+        },
+        {
+          "inference_ms": 53.647,
+          "domain_adapt_ms": 23.786,
+          "retrieval_ms": 14.518,
+          "xai_ms": 0.001,
+          "total_ms": 91.953
+        },
+        {
+          "inference_ms": 63.567,
+          "domain_adapt_ms": 25.818,
+          "retrieval_ms": 12.962,
+          "xai_ms": 0.001,
+          "total_ms": 102.349
+        },
+        {
+          "inference_ms": 64.942,
+          "domain_adapt_ms": 26.054,
+          "retrieval_ms": 16.752,
+          "xai_ms": 0.001,
+          "total_ms": 107.75
+        },
+        {
+          "inference_ms": 57.018,
+          "domain_adapt_ms": 23.097,
+          "retrieval_ms": 16.823,
+          "xai_ms": 0.001,
+          "total_ms": 96.939
+        },
+        {
+          "inference_ms": 71.348,
+          "domain_adapt_ms": 22.842,
+          "retrieval_ms": 16.786,
+          "xai_ms": 0.001,
+          "total_ms": 110.978
+        },
+        {
+          "inference_ms": 65.054,
+          "domain_adapt_ms": 22.047,
+          "retrieval_ms": 16.796,
+          "xai_ms": 0.001,
+          "total_ms": 103.899
+        },
+        {
+          "inference_ms": 65.29,
+          "domain_adapt_ms": 23.476,
+          "retrieval_ms": 16.831,
+          "xai_ms": 0.001,
+          "total_ms": 105.598
+        },
+        {
+          "inference_ms": 64.479,
+          "domain_adapt_ms": 25.003,
+          "retrieval_ms": 16.789,
+          "xai_ms": 0.001,
+          "total_ms": 106.273
+        },
+        {
+          "inference_ms": 57.507,
+          "domain_adapt_ms": 28.432,
+          "retrieval_ms": 16.787,
+          "xai_ms": 0.001,
+          "total_ms": 102.727
+        },
+        {
+          "inference_ms": 78.145,
+          "domain_adapt_ms": 23.646,
+          "retrieval_ms": 8.846,
+          "xai_ms": 0.001,
+          "total_ms": 110.638
+        },
+        {
+          "inference_ms": 58.55,
+          "domain_adapt_ms": 24.063,
+          "retrieval_ms": 8.839,
+          "xai_ms": 0.001,
+          "total_ms": 91.453
+        },
+        {
+          "inference_ms": 47.889,
+          "domain_adapt_ms": 25.088,
+          "retrieval_ms": 8.838,
+          "xai_ms": 0.001,
+          "total_ms": 81.816
+        },
+        {
+          "inference_ms": 47.231,
+          "domain_adapt_ms": 26.158,
+          "retrieval_ms": 8.909,
+          "xai_ms": 0.001,
+          "total_ms": 82.299
+        },
+        {
+          "inference_ms": 76.458,
+          "domain_adapt_ms": 24.77,
+          "retrieval_ms": 16.733,
+          "xai_ms": 0.001,
+          "total_ms": 117.962
+        },
+        {
+          "inference_ms": 65.755,
+          "domain_adapt_ms": 23.088,
+          "retrieval_ms": 20.742,
+          "xai_ms": 0.002,
+          "total_ms": 109.586
+        },
+        {
+          "inference_ms": 66.194,
+          "domain_adapt_ms": 24.986,
+          "retrieval_ms": 12.813,
+          "xai_ms": 0.001,
+          "total_ms": 103.994
+        },
+        {
+          "inference_ms": 66.446,
+          "domain_adapt_ms": 24.665,
+          "retrieval_ms": 16.803,
+          "xai_ms": 0.001,
+          "total_ms": 107.915
+        },
+        {
+          "inference_ms": 128.424,
+          "domain_adapt_ms": 23.465,
+          "retrieval_ms": 16.783,
+          "xai_ms": 0.001,
+          "total_ms": 168.673
+        },
+        {
+          "inference_ms": 65.743,
+          "domain_adapt_ms": 24.643,
+          "retrieval_ms": 16.782,
+          "xai_ms": 0.001,
+          "total_ms": 107.169
+        },
+        {
+          "inference_ms": 182.043,
+          "domain_adapt_ms": 25.105,
+          "retrieval_ms": 16.78,
+          "xai_ms": 0.002,
+          "total_ms": 223.929
+        },
+        {
+          "inference_ms": 56.695,
+          "domain_adapt_ms": 28.331,
+          "retrieval_ms": 16.918,
+          "xai_ms": 0.001,
+          "total_ms": 101.945
+        },
+        {
+          "inference_ms": 54.627,
+          "domain_adapt_ms": 27.453,
+          "retrieval_ms": 18.216,
+          "xai_ms": 0.001,
+          "total_ms": 100.298
+        },
+        {
+          "inference_ms": 62.644,
+          "domain_adapt_ms": 26.245,
+          "retrieval_ms": 16.865,
+          "xai_ms": 0.001,
+          "total_ms": 105.755
+        },
+        {
+          "inference_ms": 63.616,
+          "domain_adapt_ms": 27.338,
+          "retrieval_ms": 16.738,
+          "xai_ms": 0.001,
+          "total_ms": 107.693
+        },
+        {
+          "inference_ms": 85.402,
+          "domain_adapt_ms": 32.901,
+          "retrieval_ms": 8.842,
+          "xai_ms": 0.001,
+          "total_ms": 127.146
+        },
+        {
+          "inference_ms": 66.98,
+          "domain_adapt_ms": 24.048,
+          "retrieval_ms": 8.844,
+          "xai_ms": 0.001,
+          "total_ms": 99.873
+        },
+        {
+          "inference_ms": 57.217,
+          "domain_adapt_ms": 28.836,
+          "retrieval_ms": 8.862,
+          "xai_ms": 0.002,
+          "total_ms": 94.916
+        },
+        {
+          "inference_ms": 60.981,
+          "domain_adapt_ms": 23.223,
+          "retrieval_ms": 8.901,
+          "xai_ms": 0.001,
+          "total_ms": 93.106
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "label": "C6 INT8 ONNX, iCORAL cached, protocol v2",
+    "config": "c6",
+    "model": {
+      "path": "/home/fgeeha/models/c6_mobilenet_v2_int8.onnx",
+      "size_mb": 2.598,
+      "sha256": "b13147664f35813ccf0b9b6da684c8019cb265e8e7161e3f7efdda7e78719114",
+      "precision": "INT8 (QDQ)",
+      "input_resolution": [
+        224,
+        224
+      ],
+      "feature_dim": 1280
+    },
+    "gallery": {
+      "path": "/home/fgeeha/models/gallery",
+      "entries": 272
+    },
+    "source_cov": "/home/fgeeha/models/source_cov.npy",
+    "images": "/home/fgeeha/data/test_images",
+    "runs_per_repeat": 100,
+    "warmup_per_repeat": 20,
+    "repeats": 3,
+    "threads": null,
+    "xai_enabled": false,
+    "domain_adaptation_active": true,
+    "config_da_method": "icoral_hybrid",
+    "config_xai_method": "gradcam",
+    "icoral_refresh_every": 64,
+    "temp_c_start": 38.0,
+    "temp_c_end": 54.5,
+    "hardware": {
+      "hostname": "raspberrypi",
+      "device_model": "Raspberry Pi 4 Model B Rev 1.5\u0000",
+      "machine": "aarch64",
+      "platform": "Linux-6.12.93+rpt-rpi-v8-aarch64-with-glibc2.36",
+      "kernel": "6.12.93+rpt-rpi-v8",
+      "cpu_model": "Cortex-A72",
+      "cpu_cores": 4,
+      "cpu_max_mhz": "1800.0000",
+      "python": "3.11.2",
+      "numpy": "2.4.6",
+      "git_revision": "unknown"
+    },
+    "timestamp_utc": "2026-08-13T03:28:53.343115+00:00"
+  }
+}
