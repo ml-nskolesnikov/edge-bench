@@ -39,7 +39,10 @@ htmlcov/
 *.log
 logs/
 
-# Models (binary weights should not be in git)
+# Models (binary weights should not be in git, at any depth)
+data/models/**/*.tflite
+data/models/**/*.pb
+data/models/**/*.onnx
 data/models/*.tflite
 data/models/*.pb
 data/models/*.onnx

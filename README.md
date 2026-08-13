@@ -572,44 +572,42 @@ excluded from no ignore file, but a partial checkout can miss it).
 
 ## Known limitations
 
-- **`c6_mobilenet_v2_int8.tflite` is broken; use
-  `c6_mobilenet_v2_int8_full.tflite` instead.** The original file carries an
-  `int8` name but computes in float32 — its first operator is a `DEQUANTIZE`,
-  weights are int8 and activations float (139 of 234 tensors), which is
-  weight-only/dynamic-range quantization rather than the full-integer scheme
-  every other `_int8_` model here uses. Two consequences, both measured:
-  it returns a different result on every freshly built interpreter
-  (reproduced on `ai-edge-litert` 2.1.6/x86_64 and `tflite_runtime`
-  2.14/aarch64, so it is the file, not the environment), and its features
-  barely track the fp32 reference — mean cosine similarity **0.50** over 64
-  held-out images.
+- **`c6_mobilenet_v2_int8.tflite` was replaced on 2026-08-13.** The original
+  file carried an `int8` name but computed in float32 — its first operator was
+  a `DEQUANTIZE` and 139 of its 234 tensors were float, i.e. weight-only /
+  dynamic-range quantization rather than the full-integer scheme every other
+  `_int8_` model here uses. Two measured consequences: it returned a different
+  result on every freshly built interpreter (reproduced on `ai-edge-litert`
+  2.1.6/x86_64 and `tflite_runtime` 2.14/aarch64, so it was the file and not
+  the environment), and its features barely tracked the fp32 reference.
 
-  It was re-exported from the same fp32 ONNX
-  (`sha256:1e448d9e…`, the artifact named in the C6 bundle manifest) with the
-  same calibration source and count, via `scripts/export_int8_tflite.py`:
+  The canonical name now holds a model re-exported by
+  `scripts/export_int8_tflite.py` from the same fp32 ONNX named in the C6
+  bundle manifest (`sha256:1e448d9e…`), with the same calibration source and
+  count. The original is kept at
+  `data/models/archive/c6_mobilenet_v2_int8_hybrid_broken.tflite`.
 
-  | | original | re-exported |
+  | | original | replacement |
   |---|---|---|
+  | sha256 (16) | `1ffd174380c64787` | `4c69b637abe17482` |
   | cosine similarity to fp32 ONNX | 0.501 (min 0.438) | **0.991** (min 0.979) |
   | distinct outputs per 8 fresh interpreters | 8 | **1** |
   | float32 compute ops | all | **0** |
-  | latency, x86 CPU | 7.78 ms | **4.11 ms** |
-  | latency, Raspberry Pi 4 CPU | 137.90 ms | **55.97 ms** |
+  | latency, x86 CPU | 7.78 ms | **4.45 ms** |
+  | latency, Raspberry Pi 4 CPU | 137.90 ms | **56.19 ms** |
   | size | 2.29 MB | 2.72 MB |
 
-  The original is kept, unmodified, for traceability. Any number derived from
-  it — latency or otherwise — should be treated as invalid.
+  `results/2026-06-06_163338_c6_cpu/` records the original hash and is
+  therefore a measurement of the broken model. Results produced through the
+  **ONNX** path are unaffected — see below.
 
-  **The defect is confined to the TFLite file.** `c6_mobilenet_v2_int8.onnx`
-  (`sha256:b1314766…`, also named in the C6 manifest) was checked separately
-  and is sound. ONNX Runtime 1.28 folds its QDQ graph into integer kernels —
-  52 `QLinearConv`, 10 `QLinearAdd`, 1 `QLinearGlobalAveragePool`, zero float
-  `Conv` — verified by dumping the optimised graph on **both** x86_64 and
-  aarch64, with identical results. It is deterministic across fresh sessions
-  on both, the two platforms return **byte-identical** output for the same
-  input (integer arithmetic is exact), and it tracks the fp32 reference at
-  **0.980** mean cosine similarity (min 0.955) over 64 held-out images.
-  Results produced through the ONNX path are unaffected.
+- **Uniform noise saturates quantized classifiers.** The synthetic input
+  spans the full int8 range, which is far outside the natural image
+  distribution. `mobilenetv2_int8_ptq_sbert.tflite` returns byte-identical
+  logits for every seed as a result. Latency and memory stay valid — the cost
+  of a convolution does not depend on the data — but for such models the
+  output signature carries little information, so cross-device agreement on
+  it is weak evidence.
 
 - **Synthetic input is not real data.** The benchmark feeds seeded random
   tensors of the model's own dtype. That is adequate for latency and memory,
