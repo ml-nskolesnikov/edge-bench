@@ -572,26 +572,34 @@ excluded from no ignore file, but a partial checkout can miss it).
 
 ## Known limitations
 
-- **`c6_mobilenet_v2_int8.tflite` is not reproducible, and is not an INT8
-  graph.** Given a byte-identical input it returns a different result on every
-  freshly built interpreter, while repeated invocations on one interpreter
-  agree. Reproduced on two runtimes and two architectures
-  (`ai-edge-litert` 2.1.6 on x86_64, `tflite_runtime` 2.14 on aarch64), so it
-  is a property of the file, not of the environment. Of 21 loadable models in
-  `data/models/` it is the only non-deterministic one — and the only `_int8_`
-  model containing float32 tensors (139 of 234; every other `_int8_` model has
-  zero). Its first operator is a `DEQUANTIZE`: weights are stored int8 but the
-  network computes in float32, which is weight-only/dynamic-range
-  quantization, not the full-integer quantization the rest of the corpus uses.
-  Its tensor names (`wa/…`, `_input_nhwc`, `_padded`) indicate a different
-  ONNX-based toolchain. Consequences: its results cannot be reproduced or
-  compared across devices, and its latency is **not** INT8 latency, so it is
-  not comparable with the other `_int8_` models. Run
-  `make check-determinism` to re-verify after re-exporting.
-  Excluded causes: runtime and delegate (fails identically with XNNPACK
-  disabled), tensor-arena reuse (fails with `preserve_all_tensors`), weight
-  and constant tensors (all stable), input tensor (byte-identical), NaN/Inf
-  (none present), padding buffers (borders correctly zeroed).
+- **`c6_mobilenet_v2_int8.tflite` is broken; use
+  `c6_mobilenet_v2_int8_full.tflite` instead.** The original file carries an
+  `int8` name but computes in float32 — its first operator is a `DEQUANTIZE`,
+  weights are int8 and activations float (139 of 234 tensors), which is
+  weight-only/dynamic-range quantization rather than the full-integer scheme
+  every other `_int8_` model here uses. Two consequences, both measured:
+  it returns a different result on every freshly built interpreter
+  (reproduced on `ai-edge-litert` 2.1.6/x86_64 and `tflite_runtime`
+  2.14/aarch64, so it is the file, not the environment), and its features
+  barely track the fp32 reference — mean cosine similarity **0.50** over 64
+  held-out images.
+
+  It was re-exported from the same fp32 ONNX
+  (`sha256:1e448d9e…`, the artifact named in the C6 bundle manifest) with the
+  same calibration source and count, via `scripts/export_int8_tflite.py`:
+
+  | | original | re-exported |
+  |---|---|---|
+  | cosine similarity to fp32 ONNX | 0.501 (min 0.438) | **0.991** (min 0.979) |
+  | distinct outputs per 8 fresh interpreters | 8 | **1** |
+  | float32 compute ops | all | **0** |
+  | latency, x86 CPU | 7.78 ms | **4.11 ms** |
+  | latency, Raspberry Pi 4 CPU | 137.90 ms | **55.97 ms** |
+  | size | 2.29 MB | 2.72 MB |
+
+  The original is kept, unmodified, for traceability. Any number derived from
+  it — latency or otherwise — should be treated as invalid.
+
 - **Synthetic input is not real data.** The benchmark feeds seeded random
   tensors of the model's own dtype. That is adequate for latency and memory,
   but says nothing about accuracy, and the output signature only proves that

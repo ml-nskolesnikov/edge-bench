@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-08-13T15:13:32.717483+00:00",
+  "source_onnx": "/home/nkolesnikov/aspirantura/code/plantdiag-edge/artifacts/c6_mobilenet_v2_fp32.onnx",
+  "source_sha256": "7dc2651008fe8bd7f0f1ce9069ef26b76893c17421240ed02f6b3885c68f5283",
+  "output_sha256": "4c69b637abe17482aeee6d874e8da5497571695bd914c55c556d4df00c63dfd2",
+  "output_bytes": 2720208,
+  "quantization": {
+    "scheme": "full-integer PTQ (TFLITE_BUILTINS_INT8)",
+    "inference_input_type": "int8",
+    "inference_output_type": "int8",
+    "calibration_images": 512,
+    "calibration_source": "/data/plantvillage/color",
+    "calibration_seed": 42,
+    "preprocessing": {
+      "resize": [
+        224,
+        224
+      ],
+      "scale": "1/255",
+      "mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "std": [
+        0.229,
+        0.224,
+        0.225
+      ],
+      "layout": "NHWC"
+    }
+  },
+  "graph": {
+    "op_counts": {
+      "CONV_2D": 35,
+      "ADD": 25,
+      "DEPTHWISE_CONV_2D": 17,
+      "DELEGATE": 16,
+      "FILL": 10,
+      "QUANTIZE": 10,
+      "DEQUANTIZE": 5,
+      "SHAPE": 5,
+      "MUL": 5,
+      "CONCATENATION": 5,
+      "MAXIMUM": 5,
+      "SLICE": 5,
+      "PAD": 5,
+      "MEAN": 1,
+      "RESHAPE": 1
+    },
+    "float_compute_ops": 0,
+    "tensors_total": 271,
+    "tensors_float32": 20,
+    "input_dtype": "int8",
+    "input_shape": [
+      1,
+      224,
+      224,
+      3
+    ],
+    "output_dtype": "int8",
+    "output_shape": [
+      1,
+      1280
+    ],
+    "input_quantization": [
+      0.015504972077906132,
+      1
+    ],
+    "output_quantization": [
+      0.012740746140480042,
+      -128
+    ]
+  }
+}

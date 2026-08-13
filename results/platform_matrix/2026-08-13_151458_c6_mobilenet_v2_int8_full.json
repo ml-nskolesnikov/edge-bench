@@ -1,0 +1,538 @@
+{
+  "generated_at": "2026-08-13T15:14:58.493808+00:00",
+  "model": {
+    "name": "c6_mobilenet_v2_int8_full.tflite",
+    "local_path": "/home/nkolesnikov/aspirantura/code/edge-bench/data/models/c6_mobilenet_v2_int8_full.tflite",
+    "hash": "sha256:1ffd174380c64787"
+  },
+  "parameters": {
+    "runs": 50,
+    "warmup": 10,
+    "threads": 4,
+    "input_seed": 42
+  },
+  "reference_target": "x86-old",
+  "summary": [
+    {
+      "target": "x86-old",
+      "device": "nkolesnikov-ubuntu",
+      "arch": "glibc2.42",
+      "runtime": "ai_edge_litert 2.1.6",
+      "backend": "cpu",
+      "mean_ms": 7.775,
+      "p50_ms": 7.781,
+      "p95_ms": 8.568,
+      "std_ms": 0.461,
+      "fps": 128.62,
+      "rss_mb": 70.5,
+      "model_load_ms": 6.36,
+      "warnings": []
+    },
+    {
+      "target": "x86-new",
+      "device": "nkolesnikov-ubuntu",
+      "arch": "glibc2.42",
+      "runtime": "ai_edge_litert 2.1.6",
+      "backend": "cpu",
+      "mean_ms": 4.112,
+      "p50_ms": 4.07,
+      "p95_ms": 4.456,
+      "std_ms": 0.209,
+      "fps": 243.19,
+      "rss_mb": 84.6,
+      "model_load_ms": 2.48,
+      "warnings": []
+    },
+    {
+      "target": "rpi-old",
+      "device": "raspberrypi",
+      "arch": "glibc2.36",
+      "runtime": "tflite_runtime 2.14.0",
+      "backend": "cpu",
+      "mean_ms": 137.895,
+      "p50_ms": 122.611,
+      "p95_ms": 212.447,
+      "std_ms": 31.745,
+      "fps": 7.25,
+      "rss_mb": 57.4,
+      "model_load_ms": 3.56,
+      "warnings": []
+    },
+    {
+      "target": "rpi-new",
+      "device": "raspberrypi",
+      "arch": "glibc2.36",
+      "runtime": "tflite_runtime 2.14.0",
+      "backend": "cpu",
+      "mean_ms": 55.968,
+      "p50_ms": 55.665,
+      "p95_ms": 56.555,
+      "std_ms": 1.599,
+      "fps": 17.87,
+      "rss_mb": 72.1,
+      "model_load_ms": 3.37,
+      "warnings": []
+    }
+  ],
+  "output_agreement": {
+    "x86-new": {
+      "comparable": true,
+      "verdict": "DISAGREES",
+      "top1_match": false,
+      "topk_match": false,
+      "checksum_match": false,
+      "l2_norm_delta_pct": 24.878
+    },
+    "rpi-old": {
+      "comparable": true,
+      "verdict": "DISAGREES",
+      "top1_match": false,
+      "topk_match": false,
+      "checksum_match": false,
+      "l2_norm_delta_pct": 49.232
+    },
+    "rpi-new": {
+      "comparable": true,
+      "verdict": "DISAGREES",
+      "top1_match": false,
+      "topk_match": false,
+      "checksum_match": false,
+      "l2_norm_delta_pct": 23.989
+    }
+  },
+  "failures": {},
+  "raw_results": {
+    "x86-old": {
+      "experiment_id": "smoke_20260813_151438",
+      "device": "nkolesnikov-ubuntu",
+      "model": {
+        "name": "c6_mobilenet_v2_int8.tflite",
+        "hash": "sha256:1ffd174380c64787",
+        "size_bytes": 2290200,
+        "quantization": "int8",
+        "input_shape": [
+          1,
+          224,
+          224,
+          3
+        ],
+        "input_dtype": "int8"
+      },
+      "params": {
+        "backend": "cpu",
+        "num_threads": 4,
+        "warmup_runs": 10,
+        "benchmark_runs": 50,
+        "input_seed": 42,
+        "smoke": true
+      },
+      "latency": {
+        "mean_ms": 7.775,
+        "std_ms": 0.461,
+        "min_ms": 6.586,
+        "max_ms": 9.233,
+        "p50_ms": 7.781,
+        "p90_ms": 8.09,
+        "p95_ms": 8.568,
+        "p99_ms": 9.167
+      },
+      "throughput": {
+        "fps_from_mean": 128.62,
+        "fps_from_median": 128.52,
+        "fps": 128.62,
+        "images_per_second": 128.62
+      },
+      "cold_start": {
+        "model_load_ms": 6.36,
+        "first_inference_ms": 7.1
+      },
+      "system": {
+        "cpu_percent_mean": 12.2,
+        "cpu_percent_max": 33.1,
+        "process_rss_mb_mean": 70.5,
+        "process_rss_mb_max": 70.5,
+        "cpu_temp_celsius": null,
+        "cpu_temp_max": null,
+        "cpu_freq_mhz_min": 4228.0,
+        "tpu_detected": false
+      },
+      "device_info": {
+        "hostname": "nkolesnikov-ubuntu",
+        "platform": "Linux-6.17.0-41-generic-x86_64-with-glibc2.42",
+        "kernel_version": "6.17.0-41-generic",
+        "python_version": "3.13.7",
+        "cpu_count": 16,
+        "memory_total_mb": 93398.2,
+        "tpu_detected": false,
+        "tflite_version": "2.1.6",
+        "libedgetpu_version": null,
+        "cpu_governor": "performance"
+      },
+      "runtime": {
+        "tflite_source": "ai_edge_litert",
+        "tflite_version": "2.1.6",
+        "numpy_version": "2.4.6",
+        "python_version": "3.13.7",
+        "cpu_governor": "performance"
+      },
+      "output": {
+        "shape": [
+          1,
+          1280
+        ],
+        "dtype": "int8",
+        "quantization": {
+          "scale": 0.0078125,
+          "zero_point": 0
+        },
+        "top_k_indices": [
+          39,
+          37,
+          35,
+          47,
+          45
+        ],
+        "top_k_values": [
+          0.992188,
+          0.992188,
+          0.992188,
+          0.992188,
+          0.992188
+        ],
+        "sum": 583.1875,
+        "mean": 0.455615,
+        "l2_norm": 23.409282,
+        "checksum": "00c6218fe1da7621"
+      },
+      "timestamp": "2026-08-13T15:14:39.930809+00:00",
+      "duration_seconds": 1.26,
+      "status": "completed",
+      "warnings": [],
+      "logs": "Loading model: /home/nkolesnikov/aspirantura/code/edge-bench/data/models/c6_mobilenet_v2_int8.tflite\nBackend: cpu, Threads: 4, TPU index: 0\nModel loaded in 6.36ms\nInput shape: [  1 224 224   3], dtype: <class 'numpy.int8'>\nRunning 10 warmup iterations...\nRunning 50 benchmark iterations...\nBenchmark completed in 1.3s\nMean latency: 7.78ms, FPS: 128.6"
+    },
+    "x86-new": {
+      "experiment_id": "smoke_20260813_151440",
+      "device": "nkolesnikov-ubuntu",
+      "model": {
+        "name": "c6_mobilenet_v2_int8_full.tflite",
+        "hash": "sha256:4c69b637abe17482",
+        "size_bytes": 2720208,
+        "quantization": "int8",
+        "input_shape": [
+          1,
+          224,
+          224,
+          3
+        ],
+        "input_dtype": "int8"
+      },
+      "params": {
+        "backend": "cpu",
+        "num_threads": 4,
+        "warmup_runs": 10,
+        "benchmark_runs": 50,
+        "input_seed": 42,
+        "smoke": true
+      },
+      "latency": {
+        "mean_ms": 4.112,
+        "std_ms": 0.209,
+        "min_ms": 3.859,
+        "max_ms": 4.698,
+        "p50_ms": 4.07,
+        "p90_ms": 4.448,
+        "p95_ms": 4.456,
+        "p99_ms": 4.637
+      },
+      "throughput": {
+        "fps_from_mean": 243.19,
+        "fps_from_median": 245.7,
+        "fps": 243.19,
+        "images_per_second": 243.19
+      },
+      "cold_start": {
+        "model_load_ms": 2.48,
+        "first_inference_ms": 12.48
+      },
+      "system": {
+        "cpu_percent_mean": 2.1,
+        "cpu_percent_max": 4.1,
+        "process_rss_mb_mean": 84.6,
+        "process_rss_mb_max": 84.6,
+        "cpu_temp_celsius": null,
+        "cpu_temp_max": null,
+        "cpu_freq_mhz_min": 4526.0,
+        "tpu_detected": false
+      },
+      "device_info": {
+        "hostname": "nkolesnikov-ubuntu",
+        "platform": "Linux-6.17.0-41-generic-x86_64-with-glibc2.42",
+        "kernel_version": "6.17.0-41-generic",
+        "python_version": "3.13.7",
+        "cpu_count": 16,
+        "memory_total_mb": 93398.2,
+        "tpu_detected": false,
+        "tflite_version": "2.1.6",
+        "libedgetpu_version": null,
+        "cpu_governor": "performance"
+      },
+      "runtime": {
+        "tflite_source": "ai_edge_litert",
+        "tflite_version": "2.1.6",
+        "numpy_version": "2.4.6",
+        "python_version": "3.13.7",
+        "cpu_governor": "performance"
+      },
+      "output": {
+        "shape": [
+          1,
+          1280
+        ],
+        "dtype": "int8",
+        "quantization": {
+          "scale": 0.012740746140480042,
+          "zero_point": -128
+        },
+        "top_k_indices": [
+          1206,
+          1107,
+          2,
+          1084,
+          1034
+        ],
+        "top_k_values": [
+          3.057779,
+          2.56089,
+          2.229631,
+          2.178668,
+          2.165927
+        ],
+        "sum": 344.102072,
+        "mean": 0.26883,
+        "l2_norm": 17.585405,
+        "checksum": "8c1964e9af8060d6"
+      },
+      "timestamp": "2026-08-13T15:14:41.224587+00:00",
+      "duration_seconds": 1.04,
+      "status": "completed",
+      "warnings": [],
+      "logs": "Loading model: /home/nkolesnikov/aspirantura/code/edge-bench/data/models/c6_mobilenet_v2_int8_full.tflite\nBackend: cpu, Threads: 4, TPU index: 0\nModel loaded in 2.48ms\nInput shape: [  1 224 224   3], dtype: <class 'numpy.int8'>\nRunning 10 warmup iterations...\nRunning 50 benchmark iterations...\nBenchmark completed in 1.0s\nMean latency: 4.11ms, FPS: 243.2"
+    },
+    "rpi-old": {
+      "experiment_id": "smoke_20260813_151442",
+      "device": "raspberrypi",
+      "model": {
+        "name": "c6_mobilenet_v2_int8.tflite",
+        "hash": "sha256:1ffd174380c64787",
+        "size_bytes": 2290200,
+        "quantization": "int8",
+        "input_shape": [
+          1,
+          224,
+          224,
+          3
+        ],
+        "input_dtype": "int8"
+      },
+      "params": {
+        "backend": "cpu",
+        "num_threads": 4,
+        "warmup_runs": 10,
+        "benchmark_runs": 50,
+        "input_seed": 42,
+        "smoke": true
+      },
+      "latency": {
+        "mean_ms": 137.895,
+        "std_ms": 31.745,
+        "min_ms": 114.321,
+        "max_ms": 223.885,
+        "p50_ms": 122.611,
+        "p90_ms": 205.002,
+        "p95_ms": 212.447,
+        "p99_ms": 221.359
+      },
+      "throughput": {
+        "fps_from_mean": 7.25,
+        "fps_from_median": 8.16,
+        "fps": 7.25,
+        "images_per_second": 7.25
+      },
+      "cold_start": {
+        "model_load_ms": 3.56,
+        "first_inference_ms": 127.75
+      },
+      "system": {
+        "cpu_percent_mean": 0.0,
+        "cpu_percent_max": 0.0,
+        "process_rss_mb_mean": 57.4,
+        "process_rss_mb_max": 57.4,
+        "cpu_temp_celsius": 44.3,
+        "cpu_temp_max": 45.8,
+        "cpu_freq_mhz_min": 1800.0,
+        "tpu_detected": true
+      },
+      "device_info": {
+        "hostname": "raspberrypi",
+        "platform": "Linux-6.12.93+rpt-rpi-v8-aarch64-with-glibc2.36",
+        "kernel_version": "6.12.93+rpt-rpi-v8",
+        "python_version": "3.11.2",
+        "cpu_count": 4,
+        "memory_total_mb": 7819.8,
+        "tpu_detected": true,
+        "tflite_version": "2.14.0",
+        "libedgetpu_version": "16.0tf2.19.1-1.bookworm",
+        "cpu_governor": "ondemand"
+      },
+      "runtime": {
+        "tflite_source": "tflite_runtime",
+        "tflite_version": "2.14.0",
+        "numpy_version": "1.26.4",
+        "python_version": "3.11.2",
+        "cpu_governor": "ondemand"
+      },
+      "output": {
+        "shape": [
+          1,
+          1280
+        ],
+        "dtype": "int8",
+        "quantization": {
+          "scale": 0.0078125,
+          "zero_point": 0
+        },
+        "top_k_indices": [
+          217,
+          331,
+          734,
+          241,
+          1223
+        ],
+        "top_k_values": [
+          0.992188,
+          0.992188,
+          0.992188,
+          0.992188,
+          0.992188
+        ],
+        "sum": 195.398438,
+        "mean": 0.152655,
+        "l2_norm": 11.88442,
+        "checksum": "2ad49268ef2768ae"
+      },
+      "timestamp": "2026-08-13T15:14:52.123847+00:00",
+      "duration_seconds": 9.03,
+      "status": "completed",
+      "warnings": [],
+      "logs": "Loading model: /home/fgeeha/models/c6_mobilenet_v2_int8.tflite\nBackend: cpu, Threads: 4, TPU index: 0\nModel loaded in 3.56ms\nInput shape: [  1 224 224   3], dtype: <class 'numpy.int8'>\nRunning 10 warmup iterations...\nRunning 50 benchmark iterations...\nBenchmark completed in 9.0s\nMean latency: 137.90ms, FPS: 7.2"
+    },
+    "rpi-new": {
+      "experiment_id": "smoke_20260813_151453",
+      "device": "raspberrypi",
+      "model": {
+        "name": "c6_mobilenet_v2_int8_full.tflite",
+        "hash": "sha256:4c69b637abe17482",
+        "size_bytes": 2720208,
+        "quantization": "int8",
+        "input_shape": [
+          1,
+          224,
+          224,
+          3
+        ],
+        "input_dtype": "int8"
+      },
+      "params": {
+        "backend": "cpu",
+        "num_threads": 4,
+        "warmup_runs": 10,
+        "benchmark_runs": 50,
+        "input_seed": 42,
+        "smoke": true
+      },
+      "latency": {
+        "mean_ms": 55.968,
+        "std_ms": 1.599,
+        "min_ms": 55.14,
+        "max_ms": 66.832,
+        "p50_ms": 55.665,
+        "p90_ms": 56.248,
+        "p95_ms": 56.555,
+        "p99_ms": 62.134
+      },
+      "throughput": {
+        "fps_from_mean": 17.87,
+        "fps_from_median": 17.96,
+        "fps": 17.87,
+        "images_per_second": 17.87
+      },
+      "cold_start": {
+        "model_load_ms": 3.37,
+        "first_inference_ms": 82.12
+      },
+      "system": {
+        "cpu_percent_mean": 2.0,
+        "cpu_percent_max": 16.7,
+        "process_rss_mb_mean": 72.0,
+        "process_rss_mb_max": 72.1,
+        "cpu_temp_celsius": 44.8,
+        "cpu_temp_max": 44.8,
+        "cpu_freq_mhz_min": 1800.0,
+        "tpu_detected": true
+      },
+      "device_info": {
+        "hostname": "raspberrypi",
+        "platform": "Linux-6.12.93+rpt-rpi-v8-aarch64-with-glibc2.36",
+        "kernel_version": "6.12.93+rpt-rpi-v8",
+        "python_version": "3.11.2",
+        "cpu_count": 4,
+        "memory_total_mb": 7819.8,
+        "tpu_detected": true,
+        "tflite_version": "2.14.0",
+        "libedgetpu_version": "16.0tf2.19.1-1.bookworm",
+        "cpu_governor": "ondemand"
+      },
+      "runtime": {
+        "tflite_source": "tflite_runtime",
+        "tflite_version": "2.14.0",
+        "numpy_version": "1.26.4",
+        "python_version": "3.11.2",
+        "cpu_governor": "ondemand"
+      },
+      "output": {
+        "shape": [
+          1,
+          1280
+        ],
+        "dtype": "int8",
+        "quantization": {
+          "scale": 0.012740746140480042,
+          "zero_point": -128
+        },
+        "top_k_indices": [
+          1206,
+          1107,
+          1034,
+          2,
+          151
+        ],
+        "top_k_values": [
+          3.07052,
+          2.509927,
+          2.21689,
+          2.204149,
+          2.204149
+        ],
+        "sum": 345.185035,
+        "mean": 0.269676,
+        "l2_norm": 17.79366,
+        "checksum": "bef65d3c1382bb23"
+      },
+      "timestamp": "2026-08-13T15:14:58.120816+00:00",
+      "duration_seconds": 4.21,
+      "status": "completed",
+      "warnings": [],
+      "logs": "Loading model: /home/fgeeha/models/c6_mobilenet_v2_int8_full.tflite\nBackend: cpu, Threads: 4, TPU index: 0\nModel loaded in 3.37ms\nInput shape: [  1 224 224   3], dtype: <class 'numpy.int8'>\nRunning 10 warmup iterations...\nRunning 50 benchmark iterations...\nBenchmark completed in 4.2s\nMean latency: 55.97ms, FPS: 17.9"
+    }
+  }
+}
