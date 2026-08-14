@@ -1,0 +1,38 @@
+{
+  "scenario": "rpi4_c6_cpu_latency",
+  "timestamp": "2026-08-14T04:41:28.967177+00:00",
+  "machine": "rpi4_b",
+  "git_sha": "5e9b7c746f2e",
+  "metrics": {
+    "latency_p50_ms": 55.988,
+    "latency_p95_ms": 58.742,
+    "fps": 17.74,
+    "peak_ram_mb": 69.59
+  },
+  "raw_source": "results/2026-08-14_044028_c6_cpu_full/c6_cpu_latency.json",
+  "protocol": {
+    "script": "agent/benchmark_full.py",
+    "runs": 100,
+    "warmup_runs": 10,
+    "num_threads": 4,
+    "input_seed": 42,
+    "cpu_governor": "performance",
+    "cpu_freq_mhz": 1800
+  },
+  "model": {
+    "name": "c6_mobilenet_v2_int8.tflite",
+    "hash": "4c69b637abe17482",
+    "size_mb": 2.594,
+    "quantization": "full-integer PTQ (TFLITE_BUILTINS_INT8)"
+  },
+  "stability": {
+    "cv_percent": 2.75,
+    "outliers_count": 3
+  },
+  "thermal": {
+    "mean": 43.68,
+    "max": 45.76,
+    "start": 40.89,
+    "end": 44.79
+  }
+}
