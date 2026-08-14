@@ -1,0 +1,43 @@
+{
+  "scenario": "rpi4_c6_edgetpu_latency",
+  "timestamp": "2026-08-14T07:17:29.432640+00:00",
+  "machine": "rpi4_b + Coral USB Accelerator",
+  "git_sha": "c1b70b0915b9",
+  "metrics": {
+    "latency_edgetpu_p50_ms": 5.07,
+    "latency_edgetpu_p95_ms": 5.121,
+    "fps_edgetpu": 197.01,
+    "peak_ram_edgetpu_mb": 47.75,
+    "latency_cpu_p50_ms": 33.244,
+    "fps_cpu": 29.94,
+    "speedup_tpu_vs_cpu": 6.56
+  },
+  "protocol": {
+    "script": "agent/benchmark_full.py",
+    "runs": 100,
+    "warmup_runs": 10,
+    "input_seed": 42,
+    "num_threads": 4,
+    "cpu_governor": "performance",
+    "cpu_freq_mhz": 1800
+  },
+  "model": {
+    "route": "torchvision -> Keras clone -> TFLiteConverter INT8 -> edgetpu_compiler 16.0",
+    "port_fidelity_cosine": 0.99999988,
+    "edgetpu_ops_mapped": "68/68",
+    "edgetpu_subgraphs": 1,
+    "cosine_to_fp32": 0.9692
+  },
+  "stability": {
+    "edgetpu": {
+      "cv_percent": 0.48,
+      "outliers_count": 1
+    },
+    "cpu": {
+      "cv_percent": 2.94,
+      "outliers_count": 1
+    }
+  },
+  "raw_source": "results/2026-08-14_c6_edgetpu/",
+  "note": "Отдельная сборка c6_mobilenet_v2_int8_accurate.tflite из того же Keras-клона даёт косинус 0.9912, но компилируется лишь частично (4 из 68 операций). Выбор между точностью и полным отображением на TPU измерен, см. README."
+}

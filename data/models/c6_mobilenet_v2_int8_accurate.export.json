@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-08-14T07:17:07.035624+00:00",
+  "build": "accurate",
+  "source": "torchvision mobilenet_v2 IMAGENET1K_V1, features + avgpool",
+  "route": "torchvision weights -> Keras clone -> TFLite",
+  "port_fidelity_cosine": 0.99999988,
+  "quantizer": "ai-edge-quantizer static_wi8_ai8",
+  "calibration": {
+    "images": 512,
+    "source": "/data/plantvillage/color",
+    "seed": 42,
+    "preprocessing": {
+      "resize": [
+        224,
+        224
+      ],
+      "scale": "1/255",
+      "mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "std": [
+        0.229,
+        0.224,
+        0.225
+      ],
+      "layout": "NHWC"
+    }
+  },
+  "output_sha256": "09c4bd01e48f9abfb9176b6cdd8359c52c3abf951138279ebafacce05e034212",
+  "output_bytes": 2704448,
+  "graph": {
+    "tensors_total": 175,
+    "tensors_float32": 0,
+    "tensors_dynamic": 0,
+    "op_counts": {
+      "CONV_2D": 35,
+      "DEPTHWISE_CONV_2D": 17,
+      "ADD": 10,
+      "PAD": 5,
+      "MEAN": 1,
+      "DELEGATE": 1
+    }
+  },
+  "edgetpu_compiled": null
+}
