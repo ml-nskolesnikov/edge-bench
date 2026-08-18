@@ -452,7 +452,17 @@ async def update_agent(request: dict):
 
     for filename, content in files.items():
         # Security: only allow specific files
-        allowed_files = {'main.py', 'executor.py', 'metrics.py', 'config.py'}
+        allowed_files = {
+            'main.py',
+            'executor.py',
+            'metrics.py',
+            'config.py',
+            'benchmark_full.py',
+            'benchmark_batch.py',
+            'benchmark_tflite.py',
+            'tflite_backend.py',
+            'result_cache.py',
+        }
         if filename not in allowed_files:
             errors.append(f'{filename}: not allowed')
             continue

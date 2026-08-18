@@ -247,7 +247,17 @@ async def update_device_agent(device_id: str):
 
     # Read agent source files
     files_to_update = {}
-    for filename in ['main.py', 'executor.py', 'metrics.py', 'config.py']:
+    for filename in [
+        'main.py',
+        'executor.py',
+        'metrics.py',
+        'config.py',
+        'benchmark_full.py',
+        'benchmark_batch.py',
+        'benchmark_tflite.py',
+        'tflite_backend.py',
+        'result_cache.py',
+    ]:
         file_path = agent_dir / filename
         if file_path.exists():
             files_to_update[filename] = file_path.read_text()
