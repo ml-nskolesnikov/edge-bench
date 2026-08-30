@@ -66,11 +66,8 @@ output/
 results/smoke/
 
 # Local tooling artifacts (not project source)
-.claude
-CLAUDE.md
 AGENTS.md
 .gitnexus
 
 # Session logs of development tooling: not project artefacts.
-.claude/logs/
 .idea/
