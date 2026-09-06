@@ -1,0 +1,60 @@
+# make check-determinism — 2026-09-06T04:57:33Z, host nkolesnikov-ubuntu, ai_edge_litert 2.1.6
+poetry run python scripts/check_determinism.py data/models/*.tflite --runs "6"
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
+runtime: ai_edge_litert   runs per model: 6   seed: 42
+
+model                                          fresh  repeat  float/total  verdict
+----------------------------------------------------------------------------------
+c6_mobilenet_v2_int8_1.tflite                  1/6     1/6          0/177  deterministic
+c6_mobilenet_v2_int8_accurate.tflite           1/6     1/6          0/175  deterministic
+c6_mobilenet_v2_int8_edgetpu.tflite                —       —            —  SKIPPED (needs Edge TPU)
+c6_mobilenet_v2_int8.tflite                    1/6     1/6         20/271  deterministic
+c6_mobilenet_v2_int8_tpu_edgetpu.tflite            —       —            —  SKIPPED (needs Edge TPU)
+c6_mobilenet_v2_int8_tpu.tflite                1/6     1/6          0/175  deterministic
+efficientnet_int8_ptq_Fuzzy.tflite             1/6     1/6          0/649  deterministic
+efficientnet_int8_ptq_hybrid.tflite            1/6     1/6          0/649  deterministic
+efficientnet_int8_ptq_sbert.tflite             1/6     1/6          0/649  deterministic
+efficientnet_lite0_int8_ptq_Fuzzy_edgetpu_1.       —       —            —  SKIPPED (needs Edge TPU)
+efficientnet_lite0_int8_ptq_Fuzzy_edgetpu.tf       —       —            —  SKIPPED (needs Edge TPU)
+efficientnet_lite0_int8_ptq_Fuzzy.tflite       1/6     1/6          0/162  deterministic
+efficientnet_lite0_int8_ptq_hybrid_edgetpu_1       —       —            —  SKIPPED (needs Edge TPU)
+efficientnet_lite0_int8_ptq_hybrid_edgetpu.t       —       —            —  SKIPPED (needs Edge TPU)
+efficientnet_lite0_int8_ptq_hybrid.tflite      1/6     1/6          0/162  deterministic
+efficientnet_lite0_int8_ptq_sbert_edgetpu_1.       —       —            —  SKIPPED (needs Edge TPU)
+efficientnet_lite0_int8_ptq_sbert_edgetpu.tf       —       —            —  SKIPPED (needs Edge TPU)
+efficientnet_lite0_int8_ptq_sbert.tflite       1/6     1/6          0/162  deterministic
+mobilenetv1_int8_ptq_Fuzzy_edgetpu_1.tflite        —       —            —  SKIPPED (needs Edge TPU)
+mobilenetv1_int8_ptq_Fuzzy_edgetpu.tflite          —       —            —  SKIPPED (needs Edge TPU)
+mobilenetv1_int8_ptq_Fuzzy.tflite              1/6     1/6           0/87  deterministic
+mobilenetv1_int8_ptq_hybrid_edgetpu_1.tflite       —       —            —  SKIPPED (needs Edge TPU)
+mobilenetv1_int8_ptq_hybrid_edgetpu.tflite         —       —            —  SKIPPED (needs Edge TPU)
+mobilenetv1_int8_ptq_hybrid.tflite             1/6     1/6           0/87  deterministic
+mobilenetv1_int8_ptq_sbert_edgetpu_1.tflite        —       —            —  SKIPPED (needs Edge TPU)
+mobilenetv1_int8_ptq_sbert_edgetpu.tflite          —       —            —  SKIPPED (needs Edge TPU)
+mobilenetv1_int8_ptq_sbert.tflite              1/6     1/6           0/87  deterministic
+mobilenetv2_int8_ptq_Fuzzy_edgetpu.tflite          —       —            —  SKIPPED (needs Edge TPU)
+mobilenetv2_int8_ptq_Fuzzy.tflite              1/6     1/6          0/181  deterministic
+mobilenetv2_int8_ptq_hybrid_edgetpu.tflite         —       —            —  SKIPPED (needs Edge TPU)
+mobilenetv2_int8_ptq_hybrid.tflite             1/6     1/6          0/181  deterministic
+mobilenetv2_int8_ptq_sbert_edgetpu.tflite          —       —            —  SKIPPED (needs Edge TPU)
+mobilenetv2_int8_ptq_sbert.tflite              1/6     1/6          0/181  deterministic
+model_fp32_Fuzzy.tflite                        1/6     1/6        138/143  deterministic
+model_fp32_hybrid.tflite                       1/6     1/6        138/143  deterministic
+model_fp32_sbert.tflite                        1/6     1/6        138/143  deterministic
+model_int8_ptq_Fuzzy.tflite                    1/6     1/6          0/190  deterministic
+model_int8_ptq_hybrid.tflite                   1/6     1/6          0/190  deterministic
+model_int8_ptq_sbert.tflite                    1/6     1/6          0/190  deterministic
+resnet50_int8_ptq_Fuzzy_edgetpu_1.tflite           —       —            —  SKIPPED (needs Edge TPU)
+resnet50_int8_ptq_Fuzzy_edgetpu.tflite             —       —            —  SKIPPED (needs Edge TPU)
+resnet50_int8_ptq_Fuzzy.tflite                 1/6     1/6          0/186  deterministic
+resnet50_int8_ptq_hybrid_edgetpu_1.tflite          —       —            —  SKIPPED (needs Edge TPU)
+resnet50_int8_ptq_hybrid_edgetpu.tflite            —       —            —  SKIPPED (needs Edge TPU)
+resnet50_int8_ptq_hybrid.tflite                1/6     1/6          0/186  deterministic
+resnet50_int8_ptq_sbert_edgetpu_1.tflite           —       —            —  SKIPPED (needs Edge TPU)
+resnet50_int8_ptq_sbert_edgetpu.tflite             —       —            —  SKIPPED (needs Edge TPU)
+resnet50_int8_ptq_sbert.tflite                 1/6     1/6          0/186  deterministic
+
+fresh  = distinct outputs across freshly built interpreters (1 is good)
+repeat = distinct outputs across repeated invokes on one interpreter
+float/total = float32 tensors vs all; a full-integer model has 0 float
+exit code: 0

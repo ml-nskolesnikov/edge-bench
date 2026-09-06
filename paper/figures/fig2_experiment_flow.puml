@@ -1,0 +1,45 @@
+@startuml fig2_experiment_flow
+' Рис. 2. Последовательность выполнения эксперимента.
+skinparam backgroundColor #FFFFFF
+skinparam dpi 200
+skinparam sequenceMessageAlign center
+skinparam participant {
+    BackgroundColor #EAF2FB
+    BorderColor #2980B9
+    FontColor #1A252F
+}
+skinparam arrow {
+    Color #2C3E50
+    FontColor #2C3E50
+    FontSize 10
+}
+skinparam note {
+    BackgroundColor #F8F9FA
+    BorderColor #7F8C8D
+}
+
+actor "Исследователь" as U
+participant "Сервер\n(REST API)" as S
+participant "Очередь" as Q
+database "SQLite" as DB
+participant "Агент\n(устройство)" as A
+participant "Исполнитель" as E
+participant "Браузер\n(WebSocket)" as W
+
+U -> S : POST /api/experiments\n(устройство, модель, бэкенд, итерации)
+S -> DB : experiments: status = queued
+S -> Q : добавить задание
+Q -> A : POST /execute
+alt агент недоступен или занят
+    Q -> Q : повтор (до 5 раз,\nэкспоненциальная задержка)
+end
+A -> E : выполнить измерение
+E -> E : загрузка модели, прогрев (10)
+E -> E : 100 измеряемых вызовов\n(GC отключён, семя 42)
+E -> E : сигнатура выхода,\nсистемные метрики
+A --> W : промежуточные метрики
+E --> A : результат JSON
+A --> S : результат
+S -> DB : results, status = completed
+S --> U : страницы результатов, экспорт CSV/JSON
+@enduml

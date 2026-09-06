@@ -1,0 +1,53 @@
+@startuml fig1_architecture
+' Рис. 1. Компонентная архитектура edge-bench.
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam dpi 200
+skinparam nodesep 12
+skinparam ranksep 18
+skinparam component {
+    BackgroundColor #EAF2FB
+    BorderColor #2980B9
+    FontColor #1A252F
+}
+skinparam database {
+    BackgroundColor #F8F9FA
+    BorderColor #7F8C8D
+}
+skinparam package {
+    BackgroundColor #F8F9FA
+    BorderColor #7F8C8D
+}
+skinparam arrow {
+    Color #2C3E50
+    FontColor #2C3E50
+    FontSize 10
+}
+
+actor "Исследователь" as user
+
+package "Рабочая станция" {
+    [Веб-интерфейс и REST API\n<size:9>FastAPI, Jinja2, WebSocket</size>] as API
+    [Очередь и планировщик\n<size:9>повторы, восстановление, cron</size>] as Q
+    database "SQLite\n<size:9>устройства, эксперименты,</size>\n<size:9>результаты, модели, расписания</size>" as DB
+    [Хост-утилиты\n<size:9>check_determinism, platform_matrix,</size>\n<size:9>экспорт и конвертация моделей</size>] as UT
+}
+
+package "Raspberry Pi 4B (одно из устройств)" {
+    [Агент\n<size:9>FastAPI, systemd, самообновление</size>] as AG
+    [Исполнитель измерения\n<size:9>прогрев, GC, семя, перцентили,</size>\n<size:9>сигнатура выхода, метрики системы</size>] as EX
+    [Рантайм TFLite\n<size:9>tflite_runtime / ai_edge_litert</size>] as RT
+    [Coral Edge TPU\n<size:9>делегат libedgetpu (опц.)</size>] as TPU
+}
+
+user --> API
+API --> DB
+API --> Q
+Q --> AG : HTTP /execute
+AG --> API : результат JSON,\nметрики (WebSocket)
+AG --> EX
+EX --> RT
+RT ..> TPU
+UT ..> AG : SSH
+UT ..> API : модели
+@enduml
