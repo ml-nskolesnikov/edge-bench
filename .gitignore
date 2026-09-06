@@ -71,3 +71,5 @@ AGENTS.md
 
 # Session logs of development tooling: not project artefacts.
 .idea/
+paper/out/
+paper/__pycache__/

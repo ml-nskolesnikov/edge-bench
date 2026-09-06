@@ -11,17 +11,31 @@ web dashboard on top.
 
 ## Measured, on real hardware
 
-One model, three platforms, identical seeded input. `agent/benchmark_full.py`,
-100 runs after 10 warmup, `governor=performance`.
+MobileNetV2 INT8 (the C6 model, Keras-route build), one Raspberry Pi 4B, identical
+seeded input. `agent/benchmark_full.py`, 100 runs after 10 warmup,
+`governor=performance`.
 
-| Platform | Runtime | Backend | p50 | p95 | Throughput | Peak RAM |
+| Platform | Runtime | Backend | p50 | p95 | Throughput | Process RSS |
 |---|---|---|---:|---:|---:|---:|
 | Raspberry Pi 4 + Coral USB | tflite_runtime 2.14 | **Edge TPU** | **5.07 ms** | 5.12 ms | 197.0 /s | 47.8 MB |
-| Raspberry Pi 4 | tflite_runtime 2.14 | CPU | 33.24 ms | 34.41 ms | 29.9 /s | 47.6 MB |
-| Workstation x86_64 | ai-edge-litert 2.1.6 | CPU | 0.99 ms | 1.22 ms | 1011 /s | 61.8 MB |
+| Raspberry Pi 4 | tflite_runtime 2.14 | CPU, 4 threads | 33.24 ms | 34.41 ms | 29.9 /s | 47.6 MB |
 
-Coefficient of variation on the Edge TPU run: **0.48 %**, 3 outliers in 100.
+Coefficient of variation on the Edge TPU run: **0.48 %**, 1 outlier in 100; on the
+CPU run 2.94 %. Cold start is the other side of the coin: model load takes 2.65 s
+on the Edge TPU against 2.9 ms on the CPU.
 Source: [`results/2026-08-14_c6_edgetpu/`](results/2026-08-14_c6_edgetpu/).
+
+Three platforms compared by `scripts/platform_matrix.py` on MobileNetV1 INT8
+(50 runs after 10 warmup, same seed everywhere), with the output signature
+checked against the workstation as reference:
+
+| Target | Runtime | Backend | p50 | p95 | Throughput | Process RSS | Verdict |
+|---|---|---|---:|---:|---:|---:|---|
+| Workstation x86_64 | ai-edge-litert 2.1.6 | CPU | 0.91 ms | 1.22 ms | 1011 /s | 61.8 MB | reference |
+| Raspberry Pi 4 | tflite_runtime 2.14 | CPU | 33.02 ms | 35.98 ms | 29.8 /s | 51.2 MB | same top-5, different arithmetic |
+| Raspberry Pi 4 + Coral USB | tflite_runtime 2.14 | Edge TPU | 4.70 ms | 4.78 ms | 211.9 /s | 51.5 MB | same top-5, different arithmetic |
+
+Source: [`results/platform_matrix/`](results/platform_matrix/).
 
 ## Speed is not the whole measurement
 
@@ -40,13 +54,21 @@ make check-determinism          # every model in data/models
 ```
 
 ```text
-model                                    fresh  repeat  float/total  verdict
-c6_mobilenet_v2_int8.tflite               1/8     1/8         0/175  deterministic
-mobilenetv1_int8_ptq_Fuzzy.tflite         1/8     1/8          0/87  deterministic
+model                                          fresh  repeat  float/total  verdict
+c6_mobilenet_v2_int8.tflite                    1/6     1/6         20/271  deterministic
+c6_mobilenet_v2_int8_accurate.tflite           1/6     1/6          0/175  deterministic
+c6_mobilenet_v2_int8_tpu.tflite                1/6     1/6          0/175  deterministic
+mobilenetv1_int8_ptq_Fuzzy.tflite              1/6     1/6           0/87  deterministic
 ```
 
 `fresh` counts distinct outputs across freshly built interpreters — 1 is good.
-`float/total` exposes a model labelled `int8` that is not doing integer inference.
+`float/total` exposes a model labelled `int8` that is not doing integer inference:
+the broken model above had 139 of 234 tensors in float. The ONNX-route build
+`c6_mobilenet_v2_int8.tflite` keeps 20 float tensors — dequantise → zero-pad →
+requantise paths that onnx2tf emits around five padded convolutions — so it is
+deterministic but not strictly full-integer; the Keras-route builds have none.
+Full output of the last run: [`docs/check_determinism_2026-09-06.txt`](docs/check_determinism_2026-09-06.txt)
+(defaults: 6 fresh interpreters, 6 repeats; `--runs` changes both).
 
 ---
 
@@ -361,7 +383,7 @@ seed 42), produced by
 
 | Build | Route | Cosine to fp32 | RPi 4 CPU | Edge TPU |
 |---|---|---:|---:|---|
-| `c6_mobilenet_v2_int8.tflite` | ONNX → onnx2tf → ai-edge-quantizer | 0.9913 | 55.99 ms | not compilable |
+| `c6_mobilenet_v2_int8.tflite` | ONNX → onnx2tf → ai-edge-quantizer | 0.9913 | 55.99 ms | not compilable (20 float padding tensors of 271) |
 | `c6_mobilenet_v2_int8_accurate.tflite` | torchvision → Keras clone → ai-edge-quantizer | **0.9912** | **33.24 ms** | 4 of 68 ops |
 | `c6_mobilenet_v2_int8_tpu.tflite` | torchvision → Keras clone → TFLiteConverter | 0.9692 | 33.24 ms | **68 of 68 ops** |
 
