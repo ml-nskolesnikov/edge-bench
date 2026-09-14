@@ -1,0 +1,16 @@
+# scripts/check_determinism.py — 2026-09-14T08:49:26Z, host nkolesnikov-ubuntu, архивная дефектная сборка
+poetry run python scripts/check_determinism.py data/models/archive/c6_mobilenet_v2_int8_hybrid_broken.tflite --runs 6
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
+
+Non-deterministic or missing: c6_mobilenet_v2_int8_hybrid_broken.tflite
+runtime: ai_edge_litert   runs per model: 6   seed: 42
+
+model                                          fresh  repeat  float/total  verdict
+----------------------------------------------------------------------------------
+c6_mobilenet_v2_int8_hybrid_broken.tflite      6/6     1/6        139/234  NON-DETERMINISTIC
+      identical input, identical results within one interpreter, different across fresh ones
+
+fresh  = distinct outputs across freshly built interpreters (1 is good)
+repeat = distinct outputs across repeated invokes on one interpreter
+float/total = float32 tensors vs all; a full-integer model has 0 float
+exit code: 1
