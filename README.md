@@ -185,6 +185,26 @@ temporary directory and removed afterwards.
 Besides latency per platform, the run compares output signatures and **exits
 non-zero when a backend disagrees on top-1**, so it can gate a release.
 
+### ONNX models and the full PlantDiagEdge pipeline
+
+`agent/benchmark_pipeline.py` adds two modes next to the TFLite path, with the same
+methodology (warmup excluded, GC off around the timed call, fixed input seed, RSS):
+
+```bash
+cd agent
+python3 benchmark_pipeline.py model --model c6_mobilenet_v2_int8.onnx --runs 100
+python3 benchmark_pipeline.py pipeline --bundle ~/plantdiag-bundle --config c6 --runs 100 \
+    --plantdiag-src ~/plantdiag-edge          # or: make benchmark-pipeline PIPE_BUNDLE=… PIPE_CONFIG=c6
+```
+
+`model` times one ONNX model through ONNX Runtime and records the same output signature
+as the TFLite path; `pipeline` times a PlantDiagEdge configuration (C1–C6) from its
+artefact bundle stage by stage — backbone inference, domain adaptation, gallery
+retrieval, heatmap, end to end — on the bundle's sample photographs. Both reuse the
+helpers of `benchmark_full.py` and run in the same agent environment; ONNX Runtime and,
+for `pipeline`, the `plantdiag_edge` package (installed or via `--plantdiag-src`) are
+needed on the device. For publishable numbers the `performance` governor applies here too.
+
 ### Methodology
 
 - Warmup iterations are excluded from statistics.
@@ -211,6 +231,7 @@ English.
 | `/devices` `/models` | Register devices, upload models, convert for Edge TPU |
 | `/experiments` `/experiments/{id}` | Queue, live status, percentiles, logs, warnings |
 | `/results` `/compare` | Measured runs with comparative bars; side-by-side charts |
+| `/pipelines` | PlantDiagEdge configurations: quality reports (plantdiag-edge `bench.py`) next to device cost (`benchmark_pipeline.py`), Pareto chart |
 | `/benchmark` `/scripts` `/schedules` | Batch tools, remote execution, cron-style runs |
 | `/settings` · `/docs` `/redoc` | Paths, timeouts, integrations · OpenAPI |
 
