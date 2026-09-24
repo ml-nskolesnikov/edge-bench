@@ -29,6 +29,10 @@ from server.core.queue import task_queue
 from server.core.scheduler import restore_schedules, scheduler
 from server.core.ws_manager import ws_manager
 from server.db.database import get_db, init_db
+from server.routes.pipelines import (
+    api_router as pipelines_api,
+    page_router as pipelines_page,
+)
 from server.routes.ui import router as ui_router
 
 BASE_DIR = Path(__file__).parent
@@ -99,8 +103,14 @@ app.include_router(
     scripts.router, prefix='/api/scripts', tags=['scripts'], dependencies=_auth
 )
 
+# PlantDiagEdge pipeline reports: quality + device cost per configuration.
+app.include_router(
+    pipelines_api, prefix='/api/pipelines', tags=['pipelines'], dependencies=_auth
+)
+
 # Web UI routes (HTML pages — no auth; served via APIRouter in server/routes/ui.py)
 app.include_router(ui_router)
+app.include_router(pipelines_page)
 
 
 @app.get('/api/health', tags=['health'])

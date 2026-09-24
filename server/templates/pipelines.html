@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Конвейеры - Edge-Bench{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1 data-i18n="Pipelines">Конвейеры</h1>
+        <p class="page-subtitle" data-i18n="PlantDiagEdge configurations: quality (plantdiag-edge scripts/bench.py) next to cost on the device (agent/benchmark_pipeline.py).">Качество конфигураций PlantDiagEdge (plantdiag-edge scripts/bench.py) рядом с их стоимостью на устройстве (agent/benchmark_pipeline.py).</p>
+    </div>
+    <div class="action-buttons">
+        <label class="btn btn-primary">
+            <span data-i18n="Upload report">Загрузить отчёт</span>
+            <input type="file" id="reportFile" accept="application/json,.json" multiple hidden>
+        </label>
+    </div>
+</div>
+<div id="uploadStatus"></div>
+
+<section class="section">
+    <div class="section-header">
+        <h2 data-i18n="Quality vs latency">Качество и задержка</h2>
+    </div>
+    {% if chart %}
+    <div class="cmp-chart-card">
+        <div class="cmp-chart-area" style="height:360px">
+            <canvas id="paretoChart"></canvas>
+        </div>
+    </div>
+    <p class="text-faint" data-i18n="Each point is a configuration: end-to-end p50 latency on the device across, macro-recall (mean over seeds) up. Highlighted: Pareto-optimal — no other configuration is at least as good on both axes and better on one.">Точка — конфигурация: по горизонтали сквозная задержка p50 на устройстве, по вертикали macro-recall (среднее по сидам). Выделены Парето-оптимальные: нет другой, одновременно не хуже по обеим осям и лучше хотя бы по одной.</p>
+    {% else %}
+    <p class="text-faint" data-i18n="The chart appears once one configuration has both reports: quality and device.">График появится, когда для одной конфигурации будут загружены оба отчёта: качества и устройства.</p>
+    {% endif %}
+</section>
+
+<section class="section">
+    <div class="section-header">
+        <h2 data-i18n="Configurations">Конфигурации</h2>
+    </div>
+    {% if rows %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th data-i18n="Config">Конфигурация</th>
+                    <th class="num">macro-recall</th>
+                    <th class="num" data-i18n="Accuracy">Точность</th>
+                    <th class="num" data-i18n="AUROC of confidence">AUROC уверенности</th>
+                    <th class="num" data-i18n="Seeds">Сиды</th>
+                    <th class="num" data-i18n="Latency p50">Задержка p50</th>
+                    <th class="num" data-i18n="Latency p95">Задержка p95</th>
+                    <th class="num">RSS</th>
+                    <th class="num" data-i18n="Model">Модель</th>
+                    <th data-i18n="Device">Устройство</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                {% set q = r.quality %}{% set d = r.device %}
+                <tr>
+                    <td><strong>{{ r.config }}</strong>{% if r.pareto %} <span class="status status-completed" title="Pareto-optimal" data-i18n="★ Pareto">★ Парето</span>{% endif %}</td>
+                    {% for key in ('macro_recall', 'accuracy', 'auroc_confidence') %}
+                    <td class="num">{% if q and q[key] %}{{ '%.4f'|format(q[key].mean) }} <span class="text-faint">± {{ '%.4f'|format(q[key].std) }}</span>{% else %}—{% endif %}</td>
+                    {% endfor %}
+                    <td class="num">{{ q.n_seeds if q else '—' }}</td>
+                    <td class="num">{% if d and d.e2e_p50_ms is not none %}{{ '%.1f'|format(d.e2e_p50_ms) }} ms{% else %}—{% endif %}</td>
+                    <td class="num">{% if d and d.e2e_p95_ms is not none %}{{ '%.1f'|format(d.e2e_p95_ms) }} ms{% else %}—{% endif %}</td>
+                    <td class="num">{% if d and d.rss_mb %}{{ '%.0f'|format(d.rss_mb) }} MB{% else %}—{% endif %}</td>
+                    <td class="num">{% if d and d.model_size_mb %}{{ '%.1f'|format(d.model_size_mb) }} MB{% else %}—{% endif %}</td>
+                    <td>{{ d.label if d else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <caption data-i18n="Quality: mean ± std over seeds of the latest bench.py report; cost: the latest benchmark_pipeline.py report. Latency is end to end, image decoding excluded.">
+                Качество — mean ± std по сидам последнего отчёта bench.py; стоимость — последний отчёт benchmark_pipeline.py. Задержка — сквозная, без декодирования снимка.
+            </caption>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state-card">
+        <div class="empty-state-title" data-i18n="No reports yet">Отчётов пока нет</div>
+        <p data-i18n="Upload report.json from plantdiag-edge (make bench) and/or the JSON of agent/benchmark_pipeline.py pipeline.">Загрузите report.json из plantdiag-edge (make bench) и/или JSON из agent/benchmark_pipeline.py pipeline.</p>
+    </div>
+    {% endif %}
+</section>
+
+{% if reports %}
+<section class="section">
+    <div class="section-header">
+        <h2 data-i18n="Uploaded reports">Загруженные отчёты</h2>
+    </div>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th data-i18n="Kind">Тип</th>
+                    <th data-i18n="Config">Конфигурация</th>
+                    <th data-i18n="Name">Имя</th>
+                    <th class="num" data-i18n="Uploaded">Загружен</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reports %}
+                <tr>
+                    <td data-i18n="{{ r.kind }}">{{ 'качество' if r.kind == 'quality' else 'устройство' }}</td>
+                    <td>{{ r.config }}</td>
+                    <td><code>{{ r.label }}</code></td>
+                    <td class="num">{{ r.uploaded[:16].replace('T', ' ') }}</td>
+                    <td><button class="btn btn-sm" data-delete="{{ r.id }}" data-i18n="Delete">Удалить</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<script src="/static/js/vendor/chart.umd.min.js"></script>
+<script src="/static/js/charts.js"></script>
+<script>
+const CHART = {{ chart | tojson }};
+
+document.getElementById('reportFile').addEventListener('change', async (e) => {
+    const status = document.getElementById('uploadStatus');
+    try {
+        for (const f of e.target.files) {
+            const form = new FormData();
+            form.append('file', f);
+            await api('/api/pipelines/upload', { method: 'POST', body: form });
+        }
+        location.reload();
+    } catch (err) {
+        showError(status, err.message);
+    }
+});
+
+document.querySelectorAll('[data-delete]').forEach((btn) => btn.addEventListener('click', async () => {
+    try {
+        await api('/api/pipelines/' + btn.dataset.delete, { method: 'DELETE' });
+        location.reload();
+    } catch (err) {
+        showError(document.getElementById('uploadStatus'), err.message);
+    }
+}));
+
+if (CHART.length) {
+    const colors = EdgeBenchCharts.seriesColors();
+    const front = CHART.filter((p) => p.pareto).sort((a, b) => a.x - b.x);
+    const options = EdgeBenchCharts.baseOptions('macro-recall');
+    options.scales.x.type = 'linear';
+    options.scales.x.title = { display: true, text: 'ms, p50', color: EdgeBenchCharts.cssVar('--text-muted', '#8b98ac') };
+    options.plugins.tooltip.callbacks = {
+        label: (ctx) => {
+            const p = ctx.raw;
+            return `${p.config}: ${p.x.toFixed(1)} ms, macro-recall ${p.y.toFixed(4)}` +
+                (p.size_mb ? `, ${p.size_mb.toFixed(1)} MB` : '');
+        },
+    };
+    new Chart(document.getElementById('paretoChart').getContext('2d'), {
+        type: 'scatter',
+        data: {
+            datasets: [
+                {
+                    label: 'Pareto',
+                    type: 'line',
+                    data: front,
+                    borderColor: colors[1],
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    fill: false,
+                },
+                {
+                    label: 'configs',
+                    data: CHART,
+                    backgroundColor: CHART.map((p) => (p.pareto ? colors[1] : colors[0])),
+                    pointRadius: CHART.map((p) => (p.pareto ? 8 : 6)),
+                },
+            ],
+        },
+        options,
+        plugins: [{
+            id: 'pointLabels',
+            afterDatasetsDraw(chart) {
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.fillStyle = EdgeBenchCharts.cssVar('--text', '#e3e9f2');
+                ctx.font = '12px ui-monospace, monospace';
+                chart.getDatasetMeta(1).data.forEach((pt, i) => ctx.fillText(CHART[i].config, pt.x + 9, pt.y - 7));
+                ctx.restore();
+            },
+        }],
+    });
+}
+</script>
+{% endblock %}

@@ -231,6 +231,7 @@ English.
 | `/devices` `/models` | Register devices, upload models, convert for Edge TPU |
 | `/experiments` `/experiments/{id}` | Queue, live status, percentiles, logs, warnings |
 | `/results` `/compare` | Measured runs with comparative bars; side-by-side charts |
+| `/pipelines` | PlantDiagEdge configurations: quality reports (plantdiag-edge `bench.py`) next to device cost (`benchmark_pipeline.py`), Pareto chart |
 | `/benchmark` `/scripts` `/schedules` | Batch tools, remote execution, cron-style runs |
 | `/settings` · `/docs` `/redoc` | Paths, timeouts, integrations · OpenAPI |
 

@@ -202,6 +202,7 @@ def run_pipeline(args) -> dict:
             'version': primary.version,
             'model': model.name,
             'model_sha256_16': file_hash(str(model)),
+            'model_size_mb': round(model.stat().st_size / 1e6, 3),
         },
         'plantdiag_edge_version': getattr(plantdiag_edge, '__version__', None),
         'params': {
