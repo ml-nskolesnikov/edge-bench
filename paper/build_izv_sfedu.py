@@ -74,6 +74,11 @@ REFS: dict[str, tuple[int, str, str | None]] = {
         'Hadidi R., Cao J., Xie Y., Asgari B., Krishna T., Kim H. Characterizing the deployment of deep neural networks on commercial edge devices // Proc. IEEE International Symposium on Workload Characterization (IISWC). — 2019. — P. 35–48. — DOI: 10.1109/IISWC47752.2019.9041955.',
         None,
     ),
+    'hughes2015': (
+        2015,
+        'Hughes D. P., Salathé M. An open access repository of images on plant health to enable the development of mobile disease diagnostics // arXiv preprint arXiv:1511.08060. — 2015.',
+        None,
+    ),
     'baller2021': (
         2021,
         'Baller S. P., Jindal A., Chadha M., Gerndt M. DeepEdgeBench: Benchmarking deep neural networks on edge devices // Proc. IEEE International Conference on Cloud Engineering (IC2E). — 2021. — P. 20–30. — DOI: 10.1109/IC2E52221.2021.00016.',
@@ -146,6 +151,8 @@ R_TPU = 'results/2026-08-14_c6_edgetpu/c6_edgetpu_latency.json'
 R_CPU = 'results/2026-08-14_c6_edgetpu/c6_cpu_latency.json'
 R_NORM = 'results/2026-08-14_c6_edgetpu/normalized.json'
 R_CPU_FULL = 'results/2026-08-14_044028_c6_cpu_full/c6_cpu_latency.json'
+R_ACC = 'results/2026-10-23_c6_accurate_cpu/c6_accurate_cpu_latency.json'
+R_ACC_CTRL = 'results/2026-10-23_c6_accurate_cpu/c6_tpu_build_cpu_latency.json'
 R_M1 = 'results/platform_matrix/2026-08-13_085036_mobilenetv1_int8_ptq_Fuzzy.json'
 R_OLDNEW = 'results/platform_matrix/2026-08-13_151458_c6_mobilenet_v2_int8_full.json'
 PROVENANCE: list[tuple[str, str, str]] = [
@@ -177,6 +184,8 @@ PROVENANCE: list[tuple[str, str, str]] = [
     ('0,9692', R_NORM, '"cosine_to_fp32": 0.9692'),
     ('0,99999988', R_NORM, '"port_fidelity_cosine": 0.99999988'),
     ('55,99', R_CPU_FULL, '"p50_ms": 55.988'),
+    ('33,07', R_ACC, '"p50_ms": 33.065'),
+    ('33,03', R_ACC_CTRL, '"p50_ms": 33.028'),
     ('0,91', R_M1, '"p50_ms": 0.909'),
     ('1,22', R_M1, '"p95_ms": 1.215'),
     ('1011', R_M1, '"fps": 1011.12'),

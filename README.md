@@ -405,7 +405,7 @@ seed 42), produced by
 | Build | Route | Cosine to fp32 | RPi 4 CPU | Edge TPU |
 |---|---|---:|---:|---|
 | `c6_mobilenet_v2_int8.tflite` | ONNX → onnx2tf → ai-edge-quantizer | 0.9913 | 55.99 ms | not compilable (20 float padding tensors of 271) |
-| `c6_mobilenet_v2_int8_accurate.tflite` | torchvision → Keras clone → ai-edge-quantizer | **0.9912** | **33.24 ms** | 4 of 68 ops |
+| `c6_mobilenet_v2_int8_accurate.tflite` | torchvision → Keras clone → ai-edge-quantizer | **0.9912** | **33.07 ms** (measured 2026-10-23, [`results/2026-10-23_c6_accurate_cpu/`](results/2026-10-23_c6_accurate_cpu/)) | 4 of 68 ops |
 | `c6_mobilenet_v2_int8_tpu.tflite` | torchvision → Keras clone → TFLiteConverter | 0.9692 | 33.24 ms | **68 of 68 ops** |
 
 The Keras clone reproduces torchvision exactly — cosine **0.99999988**, maximum
