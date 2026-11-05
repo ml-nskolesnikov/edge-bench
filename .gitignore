@@ -73,3 +73,6 @@ AGENTS.md
 .idea/
 paper/out/
 paper/__pycache__/
+
+# Служебные каталоги инструментов
+.serena/
