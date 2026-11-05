@@ -109,7 +109,9 @@ def test_scripts_endpoints_are_routed(path: str, method: str):
 def test_every_ui_template_has_a_route():
     """Each template extending base.html must be rendered by some UI route."""
     rendered = set()
-    ui_source = (ROOT / 'server' / 'routes' / 'ui.py').read_text()
+    ui_source = ''.join(
+        p.read_text() for p in (ROOT / 'server' / 'routes').glob('*.py')
+    )
     for match in re.finditer(r"'([a-z_]+\.html)'", ui_source):
         rendered.add(match.group(1))
 

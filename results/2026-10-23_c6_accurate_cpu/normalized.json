@@ -1,0 +1,68 @@
+{
+  "scenario": "rpi4_c6_accurate_cpu_latency",
+  "timestamp": "2026-10-23T19:43:53.999406+00:00",
+  "machine": "rpi4_b",
+  "git_sha": "5216226c1e4a",
+  "purpose": "Контрольный замер сборки c6_mobilenet_v2_int8_accurate на CPU (в рукописи edge-bench число ранее было взято из README без собственного файла результата); в той же сессии повторно измерена сборка c6_mobilenet_v2_int8_tpu (файл c6_keras_int8.tflite, хэш 611b3dc9dade7087) как контроль дрейфа стенда относительно прогона 2026-08-14.",
+  "metrics": {
+    "accurate_latency_p50_ms": 33.065,
+    "accurate_latency_p95_ms": 34.867,
+    "accurate_fps": 29.96,
+    "accurate_rss_mb": 47.87,
+    "tpu_build_cpu_latency_p50_ms": 33.028,
+    "tpu_build_cpu_latency_p95_ms": 34.539,
+    "tpu_build_cpu_fps": 30.11,
+    "tpu_build_cpu_latency_p50_ms_20260814": 33.244
+  },
+  "protocol": {
+    "script": "agent/benchmark_full.py",
+    "runs": 100,
+    "warmup_runs": 10,
+    "num_threads": 4,
+    "input_seed": 42,
+    "cpu_governor": "performance",
+    "cpu_freq_mhz": 1800,
+    "tflite_source": "tflite_runtime 2.14.0"
+  },
+  "models": [
+    {
+      "name": "c6_mobilenet_v2_int8_accurate.tflite",
+      "hash": "09c4bd01e48f9abf",
+      "size_mb": 2.579,
+      "route": "torchvision -> Keras clone -> ai-edge-quantizer",
+      "cosine_to_fp32": 0.9912
+    },
+    {
+      "name": "c6_keras_int8.tflite (= c6_mobilenet_v2_int8_tpu.tflite)",
+      "hash": "611b3dc9dade7087",
+      "size_mb": 2.579,
+      "route": "torchvision -> Keras clone -> TFLiteConverter",
+      "cosine_to_fp32": 0.9692
+    }
+  ],
+  "stability": {
+    "accurate": {
+      "cv_percent": 2.32,
+      "outliers_count": 3
+    },
+    "tpu_build": {
+      "cv_percent": 1.98,
+      "outliers_count": 2
+    }
+  },
+  "thermal": {
+    "accurate": {
+      "mean": 43.24,
+      "max": 45.28,
+      "start": 39.43,
+      "end": 44.3
+    },
+    "tpu_build": {
+      "mean": 44.83,
+      "max": 46.74,
+      "start": 41.87,
+      "end": 46.74
+    }
+  },
+  "raw_source": "results/2026-10-23_c6_accurate_cpu/"
+}

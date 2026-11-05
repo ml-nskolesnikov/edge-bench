@@ -22,6 +22,9 @@ SMOKE_CONTAINER ?= edge-bench-smoke
 BENCH_MODEL ?=
 BENCH_RUNS ?= 30
 BENCH_WARMUP ?= 5
+PIPE_BUNDLE ?=
+PIPE_CONFIG ?= c6
+PLANTDIAG_SRC ?=
 BENCH_BACKEND ?= cpu
 BENCH_OUT ?= results/smoke
 MATRIX_MODEL ?= data/models/mobilenetv1_int8_ptq_Fuzzy.tflite
@@ -31,7 +34,7 @@ DETERMINISM_RUNS ?= 6
 
 .PHONY: help setup setup-venv install install-hardware dev run server \
 	lint format format-check typecheck test test-cov build ci check \
-	benchmark-smoke test-hardware platform-matrix check-determinism \
+	benchmark-smoke test-hardware platform-matrix check-determinism benchmark-pipeline \
 	agent-deploy clean clean-pyc \
 	eccv-models eccv-benchmark eccv-rpi-benchmark check-rpi-host \
 	docker-login docker-build docker-build-no-cache docker-run docker-up docker-down docker-logs \
@@ -150,6 +153,11 @@ platform-matrix: ## Сравнить одну модель по устройст
 		--model "$(MATRIX_MODEL)" \
 		$(foreach t,$(MATRIX_TARGETS),--target "$(t)") \
 		--runs "$(BENCH_RUNS)" --warmup "$(BENCH_WARMUP)"
+
+benchmark-pipeline: ## Полный конвейер PlantDiagEdge по стадиям (ONNX): PIPE_BUNDLE=… PIPE_CONFIG=c6 [PLANTDIAG_SRC=…]
+	cd agent && $(PYTHON) benchmark_pipeline.py pipeline --bundle "$(abspath $(PIPE_BUNDLE))" \
+		--config "$(PIPE_CONFIG)" --runs "$(BENCH_RUNS)" --warmup "$(BENCH_WARMUP)" \
+		$(if $(PLANTDIAG_SRC),--plantdiag-src "$(abspath $(PLANTDIAG_SRC))",)
 
 # -------------------------------------------------------------------
 # Docker
